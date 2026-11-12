@@ -13,15 +13,25 @@ unity:
   screen: {width: 1280, height: 720}
 
 runner:
+  # MONEY IS OPTIONAL. 0 = run only on your Claude plan's included quota (ANTHROPIC_API_KEY is stripped
+  # from agent calls so Claude Code uses your subscription login). >0 = also allow real API spend for
+  # `paid: true` cards, models not in plan_models, and one escalation attempt after a plan-quota failure.
+  money_budget_usd: 0
+  api_key_env: ANTHROPIC_API_KEY
+  plan_models: [haiku, sonnet, opus]   # what your plan includes (trim if your plan lacks a model)
+  force_model: ""                      # e.g. haiku — overrides every model choice (selftest uses this)
+  escalation: {enabled: true, model: opus, budget_usd: 3.0}   # only ever used when money_budget_usd > 0
+  on_quota_exhausted: wait             # wait | stop — wait sleeps and retries until run_until
+  quota_wait_min: 30
+  run_until: "07:30"                   # don't start new cards after this local time ("" = no limit)
   main_branch: main
   worktrees_dir: .worktrees            # gitignored; one worktree per card
-  nightly_budget_usd: 25.0             # hard stop for a whole runner session
   max_cards_per_run: 12
   stop_after_consecutive_failures: 3
   seed_library_cache: true             # copy main's Unity Library/ into the worktree (saves a full reimport)
   defaults:
     model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
-    budget_usd: 3.0
+    budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating the night
     timeout_min: 45
     max_turns: 80
     gates: [build, editmode, playmode, autotest, review]
@@ -35,6 +45,15 @@ runner:
     max_turns: 12
 
 art:
+  # $0 by default. Switch a stage to a paid provider per project or per asset (manifest `providers:`).
+  providers:
+    concept: manual      # manual ($0: any free tool / sketch) | comfyui ($0, local GPU) | magnific (paid)
+    model: manual        # manual ($0: drop a GLB) | comfyui ($0, local Hunyuan3D/TripoSR workflow) | tripo (paid)
+    texture: manual      # manual ($0: CC0 libraries) | magnific (paid)
+  comfyui:
+    url: http://127.0.0.1:8188
+    concept_workflow: art/workflows/concept.api.json   # export from ComfyUI with "Save (API format)"
+    model_workflow: art/workflows/image_to_3d.api.json
   magnific:
     base_url: https://api.magnific.com
     generate_endpoint: /v1/ai/mystic                    # text-to-image; check docs.magnific.com for your plan

@@ -24,11 +24,12 @@ def load_config(root: Path = ROOT) -> dict:
 
 
 def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
-       log: Path | None = None, env: dict | None = None) -> subprocess.CompletedProcess:
+       log: Path | None = None, env: dict | None = None, unset: list | None = None) -> subprocess.CompletedProcess:
     """Run a command; tee combined output to `log` if given. Never raises on non-zero exit."""
+    full_env = {k: v for k, v in os.environ.items() if k not in (unset or [])}
+    full_env.update(env or {})
     try:
-        p = subprocess.run(cmd, cwd=cwd, timeout=timeout, capture_output=True, text=True,
-                           env={**os.environ, **(env or {})})
+        p = subprocess.run(cmd, cwd=cwd, timeout=timeout, capture_output=True, text=True, env=full_env)
         out = (p.stdout or "") + (p.stderr or "")
         rc = p.returncode
     except subprocess.TimeoutExpired as e:
@@ -90,23 +91,24 @@ def list_cards(state: str) -> list[Card]:
     return [parse_card(p) for p in sorted(d.glob("*.md"))] if d.exists() else []
 
 
-def next_card() -> Card | None:
+def next_card(exclude: set | None = None) -> Card | None:
     done = {c.id for c in list_cards("done")}
-    ready = [c for c in list_cards("ready")
-             if all(str(dep) in done for dep in c.meta.get("depends_on", []) or [])]
+    ready = [c for c in list_cards("ready") if c.id not in (exclude or set())
+             and all(str(dep) in done for dep in c.meta.get("depends_on", []) or [])]
     ready.sort(key=lambda c: (int(c.meta.get("priority", 3)), c.id))
     return ready[0] if ready else None
 
 
 # ---------- ledger ----------
-def ledger_add(kind: str, usd: float, **extra) -> None:
+def ledger_add(kind: str, usd: float, billed: str = "plan", **extra) -> None:
+    """billed: 'plan' (subscription quota; usd is Claude Code's estimate, not charged) | 'api' (real money)."""
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
-    row = {"ts": dt.datetime.now().isoformat(timespec="seconds"), "kind": kind, "usd": round(usd, 4), **extra}
+    row = {"ts": dt.datetime.now().isoformat(timespec="seconds"), "kind": kind, "billed": billed, "usd": round(usd, 4), **extra}
     with LEDGER.open("a") as f:
         f.write(json.dumps(row) + "\n")
 
 
-def ledger_total(since: dt.datetime | None = None, kind: str | None = None) -> float:
+def ledger_total(since: dt.datetime | None = None, kind: str | None = None, billed: str | None = None) -> float:
     if not LEDGER.exists():
         return 0.0
     total = 0.0
@@ -115,6 +117,8 @@ def ledger_total(since: dt.datetime | None = None, kind: str | None = None) -> f
         if since and dt.datetime.fromisoformat(r["ts"]) < since:
             continue
         if kind and r["kind"] != kind:
+            continue
+        if billed and r.get("billed", "api") != billed:
             continue
         total += r["usd"]
     return total

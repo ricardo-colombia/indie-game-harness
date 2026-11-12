@@ -13,6 +13,7 @@ import argparse
 import base64
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -72,15 +73,56 @@ class Magnific:
             for j, url in enumerate(self._task(self.c["generate_endpoint"], {"prompt": prompt, "aspect_ratio": aspect})):
                 files.append(download(url, out / f"v{i + 1:02d}_{j}.png"))
             if not self.dry:
-                ledger_add("art", self.c.get("est_usd_per_image", 0), api="magnific", op="generate")
+                ledger_add("art", self.c.get("est_usd_per_image", 0), billed="api", api="magnific", op="generate")
         return files
 
     def upscale(self, src: Path, dest: Path, scale=2):
         body = {"image": base64.b64encode(src.read_bytes()).decode(), "scale_factor": scale}
         urls = self._task(self.c["upscale_endpoint"], body)
         if not self.dry:
-            ledger_add("art", self.c.get("est_usd_per_upscale", 0), api="magnific", op="upscale")
+            ledger_add("art", self.c.get("est_usd_per_upscale", 0), billed="api", api="magnific", op="upscale")
         return download(urls[0], dest) if urls else None
+
+
+class ComfyUI:
+    """Free, local generation (your GPU). Workflow = ComfyUI 'API format' JSON exported from the UI, with
+    placeholders {{PROMPT}} / {{IMAGE}} / {{SEED}}. Works for text-to-image (e.g. SDXL/Flux) and
+    image-to-3D (e.g. a Hunyuan3D or TripoSR workflow) alike: outputs are whatever the workflow saves."""
+
+    def __init__(self, c, dry):
+        self.url, self.dry = c.get("url", "http://127.0.0.1:8188"), dry
+
+    def run(self, workflow: Path, out: Path, prompt="", image: Path | None = None, n=1):
+        files = []
+        for i in range(n):
+            text = workflow.read_text().replace("{{PROMPT}}", json.dumps(prompt)[1:-1]).replace("{{SEED}}", str(1000 + i))
+            if image is not None:
+                if self.dry:
+                    name = image.name
+                else:
+                    up = requests.post(f"{self.url}/upload/image", files={"image": image.open("rb")}, timeout=60)
+                    up.raise_for_status()
+                    name = up.json()["name"]
+                text = text.replace("{{IMAGE}}", name)
+            if self.dry:
+                print("DRY comfyui", workflow.name, prompt[:80]); continue
+            pid = requests.post(f"{self.url}/prompt", json={"prompt": json.loads(text)}, timeout=30).json()["prompt_id"]
+            t0 = time.time()
+            while time.time() - t0 < 1800:
+                h = requests.get(f"{self.url}/history/{pid}", timeout=30).json()
+                if pid in h:
+                    break
+                time.sleep(3)
+            for node in h[pid]["outputs"].values():
+                for kind in ("images", "gifs", "meshes", "3d", "files"):
+                    for f in node.get(kind, []):
+                        q = {"filename": f["filename"], "subfolder": f.get("subfolder", ""), "type": f.get("type", "output")}
+                        r = requests.get(f"{self.url}/view", params=q, timeout=120)
+                        dest = out / f"v{i + 1:02d}_{f['filename']}"
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        dest.write_bytes(r.content)
+                        files.append(dest)
+        return files
 
 
 class Tripo:
@@ -103,7 +145,7 @@ class Tripo:
                  {"success"}, {"failed", "cancelled"}, every=8)
         out = d.get("output", {})
         url = out.get("pbr_model_url") or out.get("model_url") or out.get("pbr_model") or out.get("model")
-        ledger_add("art", self.c.get("est_usd_per_model", 0), api="tripo", op="image_to_model", task=tid)
+        ledger_add("art", self.c.get("est_usd_per_model", 0), billed="api", api="tripo", op="image_to_model", task=tid)
         return download(url, dest)  # URLs expire within minutes: download now
 
 
@@ -124,23 +166,45 @@ def main():
     base = ROOT / "art"
     style = STYLE.read_text().split("## Prompt prefix", 1)[-1].split("##", 1)[0].strip() if STYLE.exists() else ""
 
+    prov = {**cfg.get("providers", {}), **A.get("providers", {})}
     if a.stage == "concept":
         out = base / "concepts" / a.asset
-        Magnific(cfg["magnific"], a.dry_run).generate(f"{style} {A['prompt']}".strip(), out, int(A.get("variants", 4)))
+        prompt, n = f"{style} {A['prompt']}".strip(), int(A.get("variants", 4))
+        p = prov.get("concept", "manual")
+        if p == "magnific":
+            Magnific(cfg["magnific"], a.dry_run).generate(prompt, out, n)
+        elif p == "comfyui":
+            ComfyUI(cfg["comfyui"], a.dry_run).run(ROOT / cfg["comfyui"]["concept_workflow"], out, prompt, n=n)
+        else:  # manual: $0 — any free tool, a sketch, or a photo
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "PROMPT.txt").write_text(prompt + "\n")
+            print(f"manual: put concept images in {out} (prompt saved to PROMPT.txt), then set `picked:`.")
         A["stage"] = "pick"
         print(f"Concepts in {out}. Director: set `picked:` in art/manifest.yaml.")
     elif a.stage == "model":
         if not A.get("picked"):
             raise SystemExit("No `picked` concept yet — this is the director's call.")
         dest = base / "models_raw" / f"{a.asset}.glb"
-        Tripo(cfg["tripo"], a.dry_run).image_to_model(base / "concepts" / a.asset / A["picked"], dest,
-                                                     int(A.get("face_limit", cfg["tripo"]["face_limit"])), A.get("tripo", {}))
+        src = base / "concepts" / a.asset / A["picked"]
+        p = prov.get("model", "manual")
+        if p == "tripo":
+            Tripo(cfg["tripo"], a.dry_run).image_to_model(src, dest, int(A.get("face_limit", cfg["tripo"]["face_limit"])),
+                                                         A.get("tripo", {}))
+        elif p == "comfyui":
+            got = ComfyUI(cfg["comfyui"], a.dry_run).run(ROOT / cfg["comfyui"]["model_workflow"], dest.parent / a.asset, image=src)
+            meshes = [g for g in got if g.suffix.lower() in (".glb", ".gltf", ".obj", ".fbx")]
+            if meshes:
+                shutil.copy(meshes[0], dest.with_suffix(meshes[0].suffix))
+        elif not any(dest.with_suffix(x).exists() for x in (".glb", ".fbx", ".obj")):
+            raise SystemExit(f"manual: drop the model as {dest} (e.g. from a free web tier, Blender, or an asset pack), then rerun.")
         A["stage"] = "cleanup"
     elif a.stage == "cleanup":
         game = ROOT / load_config()["game"]["unity_project"]
         out = game / cfg["import_dir"] / a.asset / f"{a.asset}.fbx"
+        raw = next((base / "models_raw" / f"{a.asset}{x}" for x in (".glb", ".fbx", ".obj")
+                    if (base / "models_raw" / f"{a.asset}{x}").exists()), base / "models_raw" / f"{a.asset}.glb")
         cmd = [cfg["blender"]["path"], "-b", "--factory-startup", "-P", str(Path(__file__).parent / "blender_cleanup.py"), "--",
-               "--in", str(base / "models_raw" / f"{a.asset}.glb"), "--out", str(out), "--name", a.asset,
+               "--in", str(raw), "--out", str(out), "--name", a.asset,
                "--height", str(A.get("height_m", 1.0)), "--faces", str(A.get("face_limit", 8000)),
                "--split", A.get("split", "none")]
         print(" ".join(cmd))
@@ -148,6 +212,9 @@ def main():
             subprocess.run(cmd, check=True)
             A["stage"] = "import"
     elif a.stage == "texture":
+        if prov.get("texture", "manual") != "magnific":
+            raise SystemExit("texture: free path = ComfyUI concept workflow with a 'seamless texture' prompt, "
+                             "or CC0 libraries (ambientCG, Poly Haven). Set providers.texture: magnific to pay.")
         m = Magnific(cfg["magnific"], a.dry_run)
         out = base / "textures" / a.asset
         files = m.generate(f"{style} seamless tileable texture, flat top-down, even lighting, {A['prompt']}".strip(), out,

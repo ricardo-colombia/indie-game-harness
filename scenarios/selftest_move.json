@@ -1,0 +1,14 @@
+{
+  "_comment": "Used by `hx selftest --unity` with the generated sample scene. Proves input -> movement -> metrics -> thresholds.",
+  "scene": "HarnessSelfTest",
+  "timeout": 60,
+  "steps": [
+    {"action": "wait", "duration": 0.5},
+    {"action": "input", "name": "throttle", "value": 1, "duration": 2},
+    {"action": "screenshot", "name": "moved"}
+  ],
+  "expect": {
+    "selftest.speed.max": {"min": 4.9, "max": 5.1},
+    "selftest.z.last": {"min": 8, "max": 12}
+  }
+}

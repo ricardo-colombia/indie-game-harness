@@ -1,0 +1,436 @@
+"""Validate the harness. Every level is $0 money.
+
+  hx selftest            offline: runner logic (fake Claude), billing/quota rules, gates, hook, queue,
+                         shorts cutting (ffmpeg), art pipeline modes, config/agent/skill/plugin files
+  hx selftest --mcp      free probes: Funplay HTTP MCP (tools/list), Blender MCP addon socket, `claude mcp list`
+  hx selftest --unity    free, needs UNITY_PATH: temp sample project -> build, EditMode, PlayMode,
+                         autotest (input->metrics->thresholds), camera capture -> short
+  hx selftest --live     real Claude on PLAN QUOTA ONLY, Haiku forced, tiny caps: headless call, project
+                         skills load, one real card through the runner, an agent calling Funplay
+  hx selftest --all
+Everything runs in temp copies of the repo; your checkout is never modified.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import textwrap
+import unittest
+import urllib.request
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parent
+sys.path.insert(0, str(HERE))
+PY = sys.executable
+LIVE_MODEL = "haiku"  # cheapest model; forced for every live test
+NO_KEY = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
+
+FAKE_CLAUDE = r'''#!/usr/bin/env python3
+import json, os, pathlib, sys
+a = sys.argv[1:]
+prompt = a[a.index("-p") + 1]
+rec = {"model": a[a.index("--model") + 1], "key": bool(os.environ.get("ANTHROPIC_API_KEY")),
+       "review": "VERDICT" in prompt, "resume": "--resume" in a, "cap": a[a.index("--max-budget-usd") + 1]}
+open(os.environ["FAKE_LOG"], "a").write(json.dumps(rec) + "\n")
+mode = os.environ.get("FAKE_MODE", "ok")
+if rec["review"]:
+    print(json.dumps({"result": "fine\nVERDICT: PASS", "total_cost_usd": 0.01})); sys.exit(0)
+if mode == "quota":
+    print(json.dumps({"is_error": True, "result": "Claude AI usage limit reached. Your limit will reset at 5am"})); sys.exit(1)
+if mode == "protected":
+    pathlib.Path("harness/evil.py").write_text("x = 1\n")
+elif mode != "nochange":
+    pathlib.Path("game").mkdir(exist_ok=True)
+    open("game/Feature.cs", "a").write("// change\n")
+print(json.dumps({"result": "done", "total_cost_usd": 0.3, "num_turns": 3, "session_id": "s1"}))
+'''
+
+CARD = """---
+id: {id}
+title: {title}
+priority: 1
+budget_usd: 1.0
+max_turns: 5
+timeout_min: 5
+attempts: 2
+gates: [review]
+{extra}
+---
+## Goal
+Selftest card.
+"""
+
+
+def run(cmd, cwd=None, env=None, unset=(), timeout=600):
+    e = {k: v for k, v in os.environ.items() if k not in unset}
+    e.update(env or {})
+    return subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout)
+
+
+def clone_repo(tmp: Path) -> Path:
+    dst = tmp / "repo"
+    shutil.copytree(REPO, dst, ignore=shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
+                                                             "__pycache__", "reports", "ledger.jsonl"))
+    for c in (["git", "init", "-q", "-b", "main"], ["git", "config", "user.name", "selftest"],
+              ["git", "config", "user.email", "selftest@local"], ["git", "add", "-A"], ["git", "commit", "-qm", "init"]):
+        run(c, cwd=dst)
+    return dst
+
+
+def commit(repo: Path, msg="setup"):
+    run(["git", "add", "-A"], cwd=repo)
+    run(["git", "commit", "-qm", msg], cwd=repo)
+
+
+def add_card(repo: Path, cid: str, extra: str = "", title="Selftest"):
+    (repo / "backlog/ready" / f"{cid}-t.md").write_text(CARD.format(id=cid, title=title, extra=extra))
+
+
+def set_cfg(repo: Path, **runner):
+    import yaml
+    p = repo / "harness/config.yaml"
+    c = yaml.safe_load(p.read_text())
+    c["runner"].update(runner)
+    p.write_text(yaml.safe_dump(c, sort_keys=False))
+
+
+def where(repo: Path, cid: str) -> str:
+    for s in ("ready", "review", "done", "failed", "inbox"):
+        if list((repo / "backlog" / s).glob(f"{cid}-*.md")):
+            return s
+    return "missing"
+
+
+# ------------------------------------------------------------------ offline
+class Offline(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="hx-selftest-"))
+        self.repo = clone_repo(self.tmp)
+        bin_ = self.tmp / "bin"
+        bin_.mkdir()
+        (bin_ / "claude").write_text(FAKE_CLAUDE)
+        (bin_ / "claude").chmod(0o755)
+        self.log = self.tmp / "calls.jsonl"
+        self.env = {"PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}", "FAKE_LOG": str(self.log),
+                    "ANTHROPIC_API_KEY": "sk-test-not-real", "HX_FORCE_MODEL": ""}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def runner(self, *args, **env):
+        return run([PY, "harness/runner.py", *args], cwd=self.repo, env={**self.env, **env})
+
+    def calls(self):
+        return [json.loads(l) for l in self.log.read_text().splitlines()] if self.log.exists() else []
+
+    # --- runner & billing
+    def test_merge_on_plan_quota_strips_api_key(self):
+        add_card(self.repo, "C-0001"); commit(self.repo)
+        r = self.runner()
+        self.assertEqual(where(self.repo, "C-0001"), "done", r.stdout + r.stderr)
+        self.assertTrue(all(not c["key"] for c in self.calls()), "API key leaked into a plan-quota call")
+        self.assertIn("Merge card/C-0001", run(["git", "log", "--oneline"], cwd=self.repo).stdout)
+
+    def test_force_model(self):
+        add_card(self.repo, "C-0001", "difficulty: hard"); commit(self.repo)
+        self.runner(HX_FORCE_MODEL="haiku")
+        self.assertEqual({c["model"] for c in self.calls()}, {"haiku"})
+
+    def test_protected_paths_fail_and_retry_resumes(self):
+        add_card(self.repo, "C-0001"); commit(self.repo)
+        self.runner(FAKE_MODE="protected")
+        self.assertEqual(where(self.repo, "C-0001"), "failed")
+        work = [c for c in self.calls() if not c["review"]]
+        self.assertEqual(len(work), 2)
+        self.assertTrue(work[1]["resume"], "fix attempt should resume the session (cache-cheap)")
+
+    def test_no_money_means_no_escalation_and_paid_cards_wait(self):
+        add_card(self.repo, "C-0001"); add_card(self.repo, "C-0002", "paid: true"); commit(self.repo)
+        out = self.runner(FAKE_MODE="nochange").stdout
+        self.assertEqual(where(self.repo, "C-0001"), "failed")
+        self.assertEqual(where(self.repo, "C-0002"), "ready", out)
+        self.assertTrue(all(not c["key"] for c in self.calls()))
+        self.assertTrue(all(c["model"] != "opus" for c in self.calls()))
+
+    def test_money_enables_escalation_billed_as_api(self):
+        add_card(self.repo, "C-0001"); commit(self.repo)
+        self.runner("--budget", "5", FAKE_MODE="nochange")
+        work = [c for c in self.calls() if not c["review"]]
+        self.assertEqual(len(work), 3, work)
+        self.assertEqual((work[-1]["model"], work[-1]["key"]), ("opus", True))
+        self.assertFalse(work[0]["key"])
+        rows = [json.loads(l) for l in (self.repo / "harness/ledger.jsonl").read_text().splitlines()]
+        self.assertEqual([r["billed"] for r in rows if r["kind"] == "card"], ["plan", "plan", "api"])
+
+    def test_quota_exhausted_returns_card_to_ready(self):
+        set_cfg(self.repo, on_quota_exhausted="stop")
+        add_card(self.repo, "C-0001"); commit(self.repo)
+        out = self.runner(FAKE_MODE="quota").stdout
+        self.assertIn("quota exhausted", out)
+        self.assertEqual(where(self.repo, "C-0001"), "ready")
+
+    def test_taste_review_parks_branch(self):
+        add_card(self.repo, "C-0001", "taste_review: true"); commit(self.repo)
+        self.runner()
+        self.assertEqual(where(self.repo, "C-0001"), "review")
+        self.assertNotIn("Merge card/C-0001", run(["git", "log", "--oneline"], cwd=self.repo).stdout)
+
+    def test_dependencies_and_priority(self):
+        add_card(self.repo, "C-0002", "depends_on: [C-0001]"); add_card(self.repo, "C-0001"); commit(self.repo)
+        out = self.runner("--dry-run").stdout
+        self.assertIn("would run C-0001", out)
+
+    # --- pieces
+    def test_threshold_checker(self):
+        import unity
+        m = {"speed": {"max": 9.0, "p95": 8.0}, "frame.ms": {"p95": 40}}
+        self.assertEqual(unity._check(m, {"speed.max": {"min": 6, "max": 12}}), [])
+        self.assertEqual(len(unity._check(m, {"frame.ms.p95": {"max": 33.4}, "nope.max": {"max": 1}})), 2)
+
+    def test_card_roundtrip_keeps_comments(self):
+        r = run([PY, "harness/hx.py", "card", "new", "Roundtrip"], cwd=self.repo)
+        cid = Path(r.stdout.strip()).name[:6]
+        run([PY, "harness/hx.py", "card", "ready", cid], cwd=self.repo)
+        text = next((self.repo / "backlog/ready").glob(f"{cid}*.md")).read_text()
+        self.assertIn("# trivial (haiku)", text)
+
+    def test_cs_guard_hook(self):
+        bad = self.tmp / "Bad.cs"
+        bad.write_text('class A { void Update() { var x = Input.GetAxis("h"); } }')
+        good = self.tmp / "Good.cs"
+        good.write_text('class B { void Update() { var x = Harness.HarnessInput.Axis("h"); } }')
+        hook = self.repo / "harness/hooks/guard_cs.py"
+        self.assertEqual(subprocess.run([PY, str(hook)], input=json.dumps({"tool_input": {"file_path": str(bad)}}),
+                                        text=True, capture_output=True).returncode, 2)
+        self.assertEqual(subprocess.run([PY, str(hook)], input=json.dumps({"tool_input": {"file_path": str(good)}}),
+                                        text=True, capture_output=True).returncode, 0)
+
+    def test_posting_queue_requires_approval(self):
+        import yaml
+        sched = self.repo / "marketing/schedule.yaml"
+        d = yaml.safe_load(sched.read_text())
+        d["items"] = [{"id": "a", "file": "x.mp4", "title": "A", "platforms": ["youtube"], "approved": True,
+                       "status": "pending_approval", "slot": None},
+                      {"id": "b", "file": "y.mp4", "title": "B", "platforms": ["youtube"], "approved": False,
+                       "status": "pending_approval", "slot": None}]
+        sched.write_text(yaml.safe_dump(d))
+        run([PY, "harness/marketing/queue.py", "schedule"], cwd=self.repo)
+        items = {i["id"]: i for i in yaml.safe_load(sched.read_text())["items"]}
+        self.assertEqual(items["a"]["status"], "scheduled")
+        self.assertIsNone(items["b"]["slot"])
+        out = run([PY, "harness/marketing/queue.py", "post"], cwd=self.repo).stdout  # dry-run, no --live
+        self.assertIn("dry-run", out)
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "ffmpeg not installed")
+    def test_cut_shorts_from_png_sequence(self):
+        for take in ("gameplay_follow", "hero_orbit"):
+            d = self.repo / "marketing/out/raw/launch" / take
+            d.mkdir(parents=True)
+            run(["ffmpeg", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=size=640x360:rate=30", "-frames:v", "200",
+                 str(d / "f_%05d.png")])
+        r = run([PY, "harness/marketing/cut_shorts.py", "marketing/shorts.yaml"], cwd=self.repo)
+        self.assertEqual(r.returncode, 0, r.stderr[-1500:])
+        mp4 = self.repo / "marketing/out/first-look-a.mp4"
+        dims = run(["ffprobe", "-v", "error", "-select_streams", "v", "-show_entries", "stream=width,height",
+                    "-of", "csv=p=0", str(mp4)]).stdout.strip()
+        self.assertEqual(dims, "1080,1920")
+        self.assertIn("approved: false", (self.repo / "marketing/schedule.yaml").read_text())
+
+    def test_art_pipeline_free_modes(self):
+        r = run([PY, "harness/art/pipeline.py", "concept", "example_vehicle"], cwd=self.repo)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((self.repo / "art/concepts/example_vehicle/PROMPT.txt").exists())
+        r = run([PY, "harness/art/pipeline.py", "model", "example_vehicle"], cwd=self.repo)
+        self.assertIn("director's call", r.stderr + r.stdout)  # no pick yet -> refuses
+        r = run([PY, "harness/art/pipeline.py", "texture", "example_vehicle"], cwd=self.repo)
+        self.assertIn("CC0", r.stderr + r.stdout)  # $0 default refuses paid texture gen
+
+    @unittest.skipUnless(shutil.which("blender"), "blender not installed")
+    def test_blender_cleanup(self):
+        src, out = self.tmp / "in.glb", self.tmp / "out.fbx"
+        run(["blender", "-b", "--factory-startup", "--python-expr",
+             "import bpy;bpy.ops.wm.read_factory_settings(use_empty=True);bpy.ops.mesh.primitive_uv_sphere_add(segments=64,ring_count=32);"
+             "bpy.ops.mesh.primitive_cube_add(location=(3,0,0));"
+             f"bpy.ops.export_scene.gltf(filepath=r'{src}')"])
+        r = run(["blender", "-b", "--factory-startup", "-P", str(self.repo / "harness/art/blender_cleanup.py"), "--",
+                 "--in", str(src), "--out", str(out), "--height", "2", "--faces", "500", "--split", "loose"])
+        stats = json.loads(next(l for l in r.stdout.splitlines() if l.startswith("HARNESS_STATS")).split(" ", 1)[1])
+        self.assertTrue(out.exists())
+        self.assertLessEqual(stats["faces_after"], 600)
+        self.assertAlmostEqual(stats["size_m_xyz_blender"][2], 2.0, places=2)
+        self.assertEqual(stats["parts"], 2)
+
+    def test_static_files(self):
+        import yaml
+        for p in [*REPO.glob("*.json"), *REPO.glob(".claude/*.json"), *REPO.glob(".claude-plugin/*.json"),
+                  *REPO.glob("harness/runner/*.json"), *REPO.glob("scenarios/*.json"), *REPO.glob("marketing/takes/*.json"),
+                  REPO / ".mcp.json", REPO / "packages/com.studio.harness/package.json"]:
+            json.loads(p.read_text())
+        for p in [*REPO.glob("harness/*.yaml"), *REPO.glob("marketing/*.yaml"), *REPO.glob("art/*.yaml")]:
+            yaml.safe_load(p.read_text())
+        for p in [*REPO.glob(".claude/agents/*.md"), *REPO.glob(".claude/skills/*/SKILL.md")]:
+            fm = yaml.safe_load(p.read_text().split("---")[1])
+            self.assertTrue(fm.get("name") and fm.get("description"), p)
+        plug = json.loads((REPO / ".claude-plugin/plugin.json").read_text())
+        for k in ("agents", "skills"):
+            self.assertTrue((REPO / plug[k]).is_dir())
+        for s in REPO.glob("scenarios/*.json"):
+            for st in json.loads(s.read_text()).get("steps", []):
+                self.assertIn(st["action"], {"input", "wait", "screenshot", "hook", "mark"}, s)
+
+
+# ------------------------------------------------------------------ mcp (free)
+def mcp_checks() -> list[tuple[str, bool, str]]:
+    res = []
+    try:
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "hx-selftest", "version": "1"}}}).encode()
+        req = urllib.request.Request("http://127.0.0.1:8765/", body, {"Content-Type": "application/json",
+                                                                       "Accept": "application/json, text/event-stream"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            sid = r.headers.get("Mcp-Session-Id")
+            r.read()
+        h = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **({"Mcp-Session-Id": sid} if sid else {})}
+        for msg in ({"jsonrpc": "2.0", "method": "notifications/initialized"},
+                    {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}):
+            with urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8765/", json.dumps(msg).encode(), h), timeout=10) as r:
+                last = r.read().decode(errors="replace")
+        n = last.count('"name"')
+        res.append(("funplay MCP (Unity editor :8765)", n > 0, f"~{n} tools listed"))
+    except Exception as e:
+        res.append(("funplay MCP (Unity editor :8765)", False, f"{e} — open Unity, Funplay → MCP Server → Start"))
+    try:
+        with socket.create_connection(("127.0.0.1", 9876), timeout=5) as s:
+            s.sendall(json.dumps({"type": "get_scene_info", "params": {}}).encode())
+            data = s.recv(65536).decode(errors="replace")
+        res.append(("blender MCP addon (:9876)", '"status"' in data, data[:120]))
+    except Exception as e:
+        res.append(("blender MCP addon (:9876)", False, f"{e} — Blender: BlenderMCP panel → Connect"))
+    if shutil.which("uvx"):
+        res.append(("uvx (runs blender-mcp server)", True, shutil.which("uvx")))
+    else:
+        res.append(("uvx (runs blender-mcp server)", False, "install uv"))
+    if shutil.which("claude"):
+        r = run(["claude", "mcp", "list"], cwd=REPO, unset=NO_KEY, timeout=120)
+        res.append(("claude mcp list (no model call)", r.returncode == 0, r.stdout.strip()[-400:] or r.stderr[-300:]))
+    return res
+
+
+# ------------------------------------------------------------------ unity (free)
+def unity_checks() -> list[tuple[str, bool, str]]:
+    from core import load_config
+    cfg = load_config()
+    exe = cfg["unity"]["editor_path"]
+    if not exe or "${" in exe:
+        return [("unity", False, "set UNITY_PATH")]
+    tmp = Path(tempfile.mkdtemp(prefix="hx-unity-"))
+    repo = clone_repo(tmp)
+    proj = repo / cfg["game"]["unity_project"]
+    res = []
+    if not (proj / "ProjectSettings").exists():
+        shutil.rmtree(proj, ignore_errors=True)
+        r = run([exe, "-batchmode", "-nographics", "-quit", "-createProject", str(proj), "-logFile", "-"], timeout=1800)
+        res.append(("create temp Unity project", r.returncode == 0, f"rc={r.returncode}"))
+        man = proj / "Packages/manifest.json"
+        m = json.loads(man.read_text())
+        m["dependencies"]["com.studio.harness"] = f"file:{(repo / 'packages/com.studio.harness').as_posix()}"
+        m["dependencies"].setdefault("com.unity.test-framework", "1.4.5")
+        m["testables"] = ["com.studio.harness"]
+        man.write_text(json.dumps(m, indent=2))
+    r = run([exe, "-batchmode", "-nographics", "-quit", "-projectPath", str(proj),
+             "-executeMethod", "Harness.Editor.SelfTest.CreateSampleScene", "-logFile", "-"], timeout=1800)
+    res.append(("package compiles + sample scene", r.returncode == 0, "error CS" in r.stdout and "compile errors" or f"rc={r.returncode}"))
+    sys.path.insert(0, str(repo / "harness"))
+    import unity
+    out = tmp / "out"
+    for name, fn in [("headless build", lambda: unity.build(cfg, proj, out)),
+                     ("EditMode tests", lambda: unity.tests(cfg, proj, out, "EditMode")),
+                     ("PlayMode tests", lambda: unity.tests(cfg, proj, out, "PlayMode")),
+                     ("autotest smoke + selftest_move", lambda: unity.autotest(cfg, proj, out, ["smoke", "selftest_move"])),
+                     ("camera capture", lambda: unity.capture(cfg, proj, repo / "marketing/takes/selftest.json", out / "cap"))]:
+        ok, summ = fn()
+        res.append((name, ok, json.dumps(summ, default=str)[:300]))
+        if not ok and name == "headless build":
+            break
+    frames = sorted((out / "cap" / "orbit").glob("f_*.png")) if (out / "cap").exists() else []
+    res.append(("capture produced frames", len(frames) >= 25, f"{len(frames)} frames, kept in {out}"))
+    return res
+
+
+# ------------------------------------------------------------------ live (plan quota, haiku)
+def live_checks() -> list[tuple[str, bool, str]]:
+    if not shutil.which("claude"):
+        return [("claude CLI", False, "not installed")]
+    res = []
+    base = ["claude", "-p", "--model", LIVE_MODEL, "--output-format", "json", "--max-budget-usd", "0.05"]
+
+    def call(prompt, turns=1, extra=(), cwd=REPO):
+        r = run([*base, prompt, "--max-turns", str(turns), *extra], cwd=cwd, unset=NO_KEY, timeout=300)
+        try:
+            return json.loads(r.stdout.strip().splitlines()[-1])
+        except Exception:
+            return {"is_error": True, "result": (r.stdout + r.stderr)[-400:]}
+
+    d = call("Reply with exactly the word PONG and nothing else.")
+    res.append(("headless claude on plan login (haiku)", "PONG" in str(d.get("result", "")),
+                f"{str(d.get('result'))[:120]} | est ${d.get('total_cost_usd', 0)} (plan quota, not billed)"))
+    if d.get("is_error"):
+        res.append(("hint", False, "run `claude` once and /login with your Pro/Max account; API keys are stripped on purpose"))
+        return res
+    d = call("Without using tools, list the names of the project skills available to you, comma-separated.")
+    found = [s for s in ("run-card", "write-card", "playtest") if s in str(d.get("result", ""))]
+    res.append(("project skills load", len(found) >= 2, f"saw {found}"))
+
+    tmp = Path(tempfile.mkdtemp(prefix="hx-live-"))
+    repo = clone_repo(tmp)
+    add_card(repo, "C-9001", "allow_paths: [docs/]\ndifficulty: trivial",
+             title="Create docs/selftest.md containing the single line OK")
+    commit(repo)
+    r = run([PY, "harness/runner.py", "--max-cards", "1", "--budget", "0"], cwd=repo,
+            env={"HX_FORCE_MODEL": LIVE_MODEL}, unset=NO_KEY, timeout=1200)
+    merged = (repo / "docs/selftest.md").exists() and where(repo, "C-9001") == "done"
+    res.append(("real card through runner (haiku, $0 money)", merged, r.stdout.strip()[-300:]))
+
+    if any(ok for name, ok, _ in mcp_checks() if name.startswith("funplay")):
+        d = call("Use the funplay MCP tools to read the running Unity editor's version (Application.unityVersion). "
+                 "Reply with just the version string.", turns=4,
+                 extra=["--mcp-config", str(REPO / ".mcp.json"), "--strict-mcp-config", "--allowedTools", "mcp__funplay"])
+        res.append(("agent drives Unity via Funplay (haiku)", "6000" in str(d.get("result", "")), str(d.get("result"))[:120]))
+    else:
+        res.append(("agent drives Unity via Funplay", False, "skipped — Funplay not reachable"))
+    return res
+
+
+def report(title, rows) -> bool:
+    print(f"\n== {title}")
+    for name, ok, note in rows:
+        print(f"  {'PASS' if ok else 'FAIL'}  {name}  — {note}")
+    return all(ok for _, ok, _ in rows)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    for f in ("mcp", "unity", "live", "all"):
+        ap.add_argument(f"--{f}", action="store_true")
+    a = ap.parse_args()
+    print("selftest: money $0 on every level" + (f"; live tests force model '{LIVE_MODEL}' on plan quota" if a.live or a.all else ""))
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(Offline)
+    ok = unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful()
+    if a.mcp or a.all:
+        ok &= report("MCP", mcp_checks())
+    if a.unity or a.all:
+        ok &= report("Unity", unity_checks())
+    if a.live or a.all:
+        ok &= report("Live (plan quota, haiku)", live_checks())
+    sys.exit(0 if ok else 1)
+
+
+if __name__ == "__main__":
+    main()

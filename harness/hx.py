@@ -5,7 +5,8 @@
   hx build | hx test EditMode|PlayMode | hx autotest smoke drive_straight
   hx capture marketing/takes/launch.json
   hx card new "Title" [--type feature] | hx card ready C-0007 | hx cards
-  hx run [--budget 10] [--dry-run]   overnight runner
+  hx run [--budget 0] [--dry-run]    overnight runner ($0 = plan quota only)
+  hx selftest [--mcp --unity --live --all]   validate the harness at $0
   hx report                          latest report per card + spend
   hx cost [--days 7]
 """
@@ -49,8 +50,9 @@ def main(argv=None) -> int:
     sub.add_parser("report")
     co = sub.add_parser("cost"); co.add_argument("--days", type=int, default=7)
     argv = sys.argv[1:] if argv is None else argv
-    if argv[:1] == ["run"]:  # forward everything to the runner untouched
-        return subprocess.call([sys.executable, str(Path(__file__).parent / "runner.py"), *argv[1:]])
+    fwd = {"run": "runner.py", "selftest": "selftest.py"}
+    if argv[:1] and argv[0] in fwd:  # forward everything untouched
+        return subprocess.call([sys.executable, str(Path(__file__).parent / fwd[argv[0]]), *argv[1:]])
     a = ap.parse_args(argv)
 
     cfg = load_config()
@@ -112,10 +114,16 @@ def main(argv=None) -> int:
         since = dt.datetime.now() - dt.timedelta(days=a.days)
         rows = [json.loads(l) for l in LEDGER.read_text().splitlines()] if LEDGER.exists() else []
         rows = [r for r in rows if dt.datetime.fromisoformat(r["ts"]) >= since]
-        by: dict = {}
+        money: dict = {}
+        plan = 0.0
         for r in rows:
-            by[r["kind"]] = by.get(r["kind"], 0) + r["usd"]
-        print(f"last {a.days}d: ${sum(by.values()):.2f}  " + "  ".join(f"{k}=${v:.2f}" for k, v in sorted(by.items())))
+            if r.get("billed", "api") == "api":
+                money[r["kind"]] = money.get(r["kind"], 0) + r["usd"]
+            else:
+                plan += r["usd"]
+        print(f"last {a.days}d: money ${sum(money.values()):.2f} "
+              + " ".join(f"{k}=${v:.2f}" for k, v in sorted(money.items()))
+              + f" | plan quota used ≈${plan:.2f} API-equivalent (not billed)")
         return 0
     return 1
 

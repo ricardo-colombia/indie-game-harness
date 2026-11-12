@@ -25,7 +25,7 @@ This repo is one indie game built with an AI team. The human is the **creative d
 ## Cost discipline
 - Default model is Sonnet; Opus only for cards marked `difficulty: hard`. Use the `Explore` subagent (cheap, read-only) for codebase searches instead of reading many files.
 - Read files in parts; grep before reading. Keep cards small (≤ 1 system, ≤ ~300 lines changed).
-- Generation APIs (Magnific, Tripo) cost real money: only call them through `harness/art/*.py`, which log to `harness/ledger.jsonl`.
+- $0 is the normal mode: agents run on the plan quota, and art providers default to manual/ComfyUI. Paid APIs (Anthropic API key, Magnific, Tripo) are used only when config or the card says so; they are logged as `billed: api` in `harness/ledger.jsonl`.
 
 ## Never
 push, publish to Steam, post to social, spend on generation APIs, or change prices/store text without the human's explicit go-ahead in chat. The runner never pushes.
