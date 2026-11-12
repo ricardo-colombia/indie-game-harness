@@ -1,0 +1,11 @@
+# Posting slots (local time). Items are added by cut_shorts.py with approved: false.
+# The director flips approved: true; `queue.py schedule` assigns slots; cron runs `queue.py post --due --live`.
+default_platforms: [youtube]
+slots:
+  - {days: [tue, thu, sat], time: "17:30", platforms: [youtube, tiktok]}
+platforms:
+  youtube:
+    client_secret: marketing/secrets/client_secret.json   # OAuth desktop client from Google Cloud console
+    token: marketing/secrets/youtube_token.json
+    privacy: public        # start with private while testing
+items: []

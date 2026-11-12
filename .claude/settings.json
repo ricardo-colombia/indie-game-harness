@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python harness/hx.py:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(git worktree list:*)", "Bash(ffmpeg:*)", "Bash(ffprobe:*)",
+      "mcp__funplay", "mcp__blender"
+    ],
+    "ask": [
+      "Bash(python harness/art/:*)",
+      "Bash(python harness/marketing/queue.py post:*)",
+      "Bash(bash steam/upload.sh:*)",
+      "Bash(git push:*)"
+    ],
+    "deny": [
+      "Read(./game/Library/**)", "Read(./game/Temp/**)", "Read(./game/Logs/**)", "Read(./game/Builds/**)",
+      "Edit(./design/PILLARS.md)",
+      "Read(./.env)", "Read(./**/*.secret*)"
+    ]
+  },
+  "enableAllProjectMcpServers": false,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python harness/hooks/guard_cs.py" }
+        ]
+      }
+    ]
+  }
+}

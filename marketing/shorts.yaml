@@ -1,0 +1,14 @@
+profile: vertical          # vertical | wide | square
+fps: 30
+out_dir: marketing/out
+schedule: marketing/schedule.yaml
+fontfile: null             # e.g. marketing/fonts/YourFont.ttf (else system Sans)
+shorts:
+  - id: first-look-a
+    title: "Clearing a field in one pass"
+    caption: "One pass. Whole field."
+    tags: [indiegame, cozygames, gamedev]
+    clips:
+      - {set: launch, take: gameplay_follow, in: 0.0, out: 6.0}
+      - {set: launch, take: hero_orbit, in: 0.0, out: 4.0}
+    music: null            # e.g. marketing/music/loop.mp3 (licensed!)

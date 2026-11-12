@@ -1,0 +1,23 @@
+{
+  "_comment": "EXAMPLE for a vehicle game. Copy, rename, and set thresholds from YOUR feel decisions (design/TASTE_LOG.md). The game must Report() these metrics.",
+  "scene": "Field01",
+  "timeout": 90,
+  "steps": [
+    {"action": "hook", "name": "spawn_vehicle", "arg": "start"},
+    {"action": "wait", "duration": 1},
+    {"action": "mark", "name": "phase", "value": 1},
+    {"action": "input", "name": "throttle", "value": 1, "duration": 4},
+    {"action": "screenshot", "name": "full_throttle"},
+    {"action": "input", "name": "steer", "value": 1, "duration": 2},
+    {"action": "input", "name": "throttle", "value": 0},
+    {"action": "wait", "duration": 3},
+    {"action": "screenshot", "name": "after_turn"}
+  ],
+  "expect": {
+    "vehicle.speed.max": {"min": 6, "max": 12},
+    "vehicle.time_to_top_speed.last": {"max": 2.5},
+    "vehicle.tilt_deg.max": {"max": 15},
+    "crop.cut.count": {"min": 20},
+    "frame.ms.p95": {"max": 25}
+  }
+}

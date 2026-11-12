@@ -1,0 +1,37 @@
+{
+  "fps": 30,
+  "takes": [
+    {
+      "name": "hero_orbit",
+      "scene": "",
+      "type": "orbit",
+      "target": "Player",
+      "duration": 6,
+      "radius": 9,
+      "height": 3.5,
+      "speed": 25,
+      "fov": 45
+    },
+    {
+      "name": "gameplay_follow",
+      "type": "follow",
+      "target": "Player",
+      "duration": 10,
+      "offset": {"x": 0, "y": 4, "z": -8},
+      "fov": 55,
+      "steps": [
+        {"action": "input", "name": "throttle", "value": 1, "duration": 8},
+        {"action": "input", "name": "steer", "value": 0.4, "duration": 3}
+      ]
+    },
+    {
+      "name": "establishing_dolly",
+      "type": "dolly",
+      "target": "Player",
+      "duration": 5,
+      "from": {"x": -30, "y": 18, "z": -30},
+      "to": {"x": -12, "y": 8, "z": -12},
+      "fov": 40
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Unity
+game/[Ll]ibrary/
+game/[Tt]emp/
+game/[Oo]bj/
+game/[Bb]uild/
+game/[Bb]uilds/
+game/[Ll]ogs/
+game/[Uu]ser[Ss]ettings/
+game/*.csproj
+game/*.sln
+game/.vs/
+# Harness
+.worktrees/
+harness/reports/
+harness/ledger.jsonl
+harness/__pycache__/
+**/__pycache__/
+marketing/out/raw/
+marketing/secrets/
+steam/content/
+steam/build_out/
+art/models_raw/
+.env
+*.secret*

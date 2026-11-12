@@ -1,0 +1,64 @@
+# Studio harness config. One file per game repo. Env vars like ${UNITY_PATH} are expanded.
+game:
+  name: MyGame
+  unity_project: game                 # Unity project folder, relative to repo root
+  build_target: StandaloneWindows64   # StandaloneWindows64 | StandaloneLinux64 | StandaloneOSX
+  player_binary: Builds/Player/MyGame.exe   # relative to unity_project, produced by the build gate
+
+unity:
+  editor_path: ${UNITY_PATH}          # e.g. /opt/unity/6000.2.6f1/Editor/Unity or C:/Program Files/Unity/Hub/Editor/6000.x/Editor/Unity.exe
+  build_timeout_min: 40
+  test_timeout_min: 20
+  autotest_timeout_min: 10
+  screen: {width: 1280, height: 720}
+
+runner:
+  main_branch: main
+  worktrees_dir: .worktrees            # gitignored; one worktree per card
+  nightly_budget_usd: 25.0             # hard stop for a whole runner session
+  max_cards_per_run: 12
+  stop_after_consecutive_failures: 3
+  seed_library_cache: true             # copy main's Unity Library/ into the worktree (saves a full reimport)
+  defaults:
+    model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
+    budget_usd: 3.0
+    timeout_min: 45
+    max_turns: 80
+    gates: [build, editmode, playmode, autotest, review]
+  models:                              # card `difficulty` -> model alias
+    trivial: haiku
+    normal: sonnet
+    hard: opus
+  review:                              # cheap independent diff review gate
+    model: haiku
+    budget_usd: 0.40
+    max_turns: 12
+
+art:
+  magnific:
+    base_url: https://api.magnific.com
+    generate_endpoint: /v1/ai/mystic                    # text-to-image; check docs.magnific.com for your plan
+    upscale_endpoint: /v1/ai/image-upscaler-precision-v2
+    api_key_env: MAGNIFIC_API_KEY
+    est_usd_per_image: 0.05            # your plan's real price; used for the ledger only
+    est_usd_per_upscale: 0.10
+  tripo:
+    base_url: https://openapi.tripo3d.ai/v3
+    api_key_env: TRIPO_API_KEY
+    face_limit: 8000
+    est_usd_per_model: 0.40
+    texture: true
+    pbr: true
+  blender:
+    path: blender
+  import_dir: Assets/Art/Models       # inside the Unity project
+
+marketing:
+  capture: {width: 1080, height: 1920, fps: 30}      # vertical for shorts
+  out_dir: marketing/out
+  schedule: marketing/schedule.yaml
+
+steam:
+  app_id: ""
+  depot_id: ""
+  branch: beta                         # never auto-set live; promote by hand in Steamworks

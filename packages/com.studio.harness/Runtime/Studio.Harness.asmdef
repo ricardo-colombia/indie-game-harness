@@ -1,0 +1,6 @@
+{
+  "name": "Studio.Harness",
+  "rootNamespace": "Harness",
+  "references": [],
+  "autoReferenced": true
+}

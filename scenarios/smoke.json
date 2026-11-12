@@ -1,0 +1,14 @@
+{
+  "scene": "",
+  "timeout": 60,
+  "failOnError": true,
+  "steps": [
+    {"action": "wait", "duration": 3},
+    {"action": "screenshot", "name": "boot"},
+    {"action": "wait", "duration": 2}
+  ],
+  "expect": {
+    "frame.ms.p95": {"max": 33.4},
+    "startup.seconds.last": {"max": 25}
+  }
+}

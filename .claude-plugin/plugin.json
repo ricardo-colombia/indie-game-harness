@@ -1,0 +1,7 @@
+{
+  "name": "indie-studio",
+  "version": "0.1.0",
+  "description": "AI indie studio harness: agent team, backlog-card workflow, Unity playtest, art pipeline, shorts and Steam skills.",
+  "agents": "./.claude/agents/",
+  "skills": "./.claude/skills/"
+}

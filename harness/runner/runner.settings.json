@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read", "Edit", "Write", "Glob", "Grep", "TodoWrite", "Task",
+      "Bash(python harness/hx.py build)",
+      "Bash(python harness/hx.py test:*)",
+      "Bash(python harness/hx.py autotest:*)",
+      "Bash(python harness/hx.py verify:*)",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(ls:*)", "Bash(mkdir:*)", "Bash(dotnet:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)", "Bash(git merge:*)", "Bash(git rebase:*)", "Bash(git reset:*)", "Bash(git checkout main:*)",
+      "Bash(curl:*)", "Bash(wget:*)", "Bash(rm -rf:*)",
+      "Read(./game/Library/**)", "Read(./game/Temp/**)", "Read(./game/Logs/**)",
+      "Edit(./harness/**)", "Edit(./.claude/**)", "Edit(./design/PILLARS.md)", "Edit(./backlog/**)",
+      "WebFetch", "WebSearch"
+    ]
+  },
+  "env": { "DISABLE_AUTOUPDATER": "1" }
+}

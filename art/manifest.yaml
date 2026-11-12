@@ -1,0 +1,13 @@
+# One entry per asset. stage: concept -> pick -> model -> cleanup -> import -> done
+# `picked` is ALWAYS set by the director. Paid stages log estimated cost to harness/ledger.jsonl.
+assets:
+  example_vehicle:
+    stage: concept
+    prompt: "chunky toy-like work vehicle, three-quarter front view, isolated on plain light grey background, full object visible"
+    variants: 4
+    picked: null
+    height_m: 2.4
+    face_limit: 8000
+    split: material      # none | loose | material — split parts you need to animate (wheels, drum)
+    tripo: {}            # extra Tripo request fields if needed
+    notes: ""

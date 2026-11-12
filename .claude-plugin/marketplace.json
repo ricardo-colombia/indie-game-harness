@@ -1,0 +1,7 @@
+{
+  "name": "indie-studio-marketplace",
+  "owner": { "name": "Studio" },
+  "plugins": [
+    { "name": "indie-studio", "source": "./", "description": "Studio agents + skills, shareable across game repos." }
+  ]
+}

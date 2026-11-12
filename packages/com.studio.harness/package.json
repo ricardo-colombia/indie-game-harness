@@ -1,0 +1,10 @@
+{
+  "name": "com.studio.harness",
+  "version": "0.1.0",
+  "displayName": "Studio Harness",
+  "description": "Headless build entry point, input/metrics contract, autopilot scenarios and scripted camera takes for AI-driven verification and marketing capture.",
+  "unity": "6000.0",
+  "dependencies": {
+    "com.unity.test-framework": "1.4.5"
+  }
+}
