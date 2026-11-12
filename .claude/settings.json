@@ -1,30 +1,68 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python harness/hx.py:*)",
-      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
-      "Bash(git worktree list:*)", "Bash(ffmpeg:*)", "Bash(ffprobe:*)",
-      "mcp__funplay", "mcp__blender"
+      "Bash(python harness/hx.py verify:*)",
+      "Bash(python harness/hx.py build)",
+      "Bash(python harness/hx.py test:*)",
+      "Bash(python harness/hx.py autotest:*)",
+      "Bash(python harness/hx.py capture:*)",
+      "Bash(python harness/hx.py cards)",
+      "Bash(python harness/hx.py card new:*)",
+      "Bash(python harness/hx.py report)",
+      "Bash(python harness/hx.py cost:*)",
+      "Bash(python harness/hx.py release)",
+      "Bash(python harness/hx.py selftest)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git worktree list:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(ffprobe:*)",
+      "mcp__funplay",
+      "mcp__blender"
     ],
     "ask": [
+      "mcp__funplay__execute_code",
+      "mcp__funplay__evaluate_expression",
+      "mcp__funplay__execute_menu_item",
+      "mcp__blender__execute_blender_code",
+      "Bash(python harness/hx.py run:*)",
+      "Bash(python harness/hx.py merge:*)",
+      "Bash(python harness/hx.py card ready:*)",
+      "Bash(python harness/hx.py release --to-steam)",
+      "Bash(python harness/hx.py selftest --live:*)",
+      "Bash(python harness/hx.py selftest --all:*)",
       "Bash(python harness/art/:*)",
       "Bash(python harness/marketing/queue.py post:*)",
       "Bash(bash steam/upload.sh:*)",
       "Bash(git push:*)"
     ],
     "deny": [
-      "Read(./game/Library/**)", "Read(./game/Temp/**)", "Read(./game/Logs/**)", "Read(./game/Builds/**)",
+      "Read(./game/Library/**)",
+      "Read(./game/Temp/**)",
+      "Read(./game/Logs/**)",
+      "Read(./game/Builds/**)",
       "Edit(./design/PILLARS.md)",
-      "Read(./.env)", "Read(./**/*.secret*)"
+      "Read(./.env)",
+      "Read(./**/*.secret*)",
+      "Edit(./harness/**)",
+      "Edit(./scenarios/**)",
+      "Edit(./.claude/settings.json)",
+      "Edit(./harness/runner/**)"
     ]
   },
   "enableAllProjectMcpServers": false,
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "Edit|Write",
+        "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "python harness/hooks/guard_cs.py" }
+          {
+            "type": "command",
+            "command": "python harness/hooks/guard_cs.py"
+          }
         ]
       }
     ]

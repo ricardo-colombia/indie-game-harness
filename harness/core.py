@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,25 +28,40 @@ def load_config(root: Path = ROOT) -> dict:
 def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
        log: Path | None = None, env: dict | None = None, unset: list | None = None,
        stdin: str | None = None) -> subprocess.CompletedProcess:
-    """Run a command; tee combined output to `log` if given. Never raises on non-zero exit."""
+    """Run a command; tee combined output to `log` if given. Never raises on non-zero exit.
+    On timeout the whole process tree is killed (Unity, players and xvfb-run spawn children)."""
     full_env = {k: v for k, v in os.environ.items() if k not in (unset or [])}
     full_env.update(env or {})
     # Windows: npm CLIs (claude) are .cmd shims that CreateProcess won't find by bare name
     exe = shutil.which(cmd[0], path=full_env.get("PATH")) if cmd else None
     if exe:
         cmd = [exe, *cmd[1:]]
+    kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    p = subprocess.Popen(cmd, cwd=cwd, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=full_env,
+                         encoding="utf-8", errors="replace", **kw)
     try:
-        p = subprocess.run(cmd, cwd=cwd, timeout=timeout, capture_output=True, text=True, env=full_env,
-                           input=stdin, encoding="utf-8", errors="replace")
-        out = (p.stdout or "") + (p.stderr or "")
+        out, _ = p.communicate(input=stdin, timeout=timeout)
         rc = p.returncode
-    except subprocess.TimeoutExpired as e:
-        out = f"TIMEOUT after {timeout}s\n{e.stdout or ''}{e.stderr or ''}"
-        rc = 124
+    except subprocess.TimeoutExpired:
+        kill_tree(p)
+        out, _ = p.communicate()
+        out, rc = f"TIMEOUT after {timeout}s\n{out or ''}", 124
+    out = out or ""
     if log:
         log.parent.mkdir(parents=True, exist_ok=True)
-        log.write_text(out if isinstance(out, str) else out.decode(errors="replace"))
+        log.write_text(out)
     return subprocess.CompletedProcess(cmd, rc, out, "")
+
+
+def kill_tree(p: subprocess.Popen) -> None:
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(p.pid)], capture_output=True)
+        else:
+            os.killpg(p.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        p.kill()
 
 
 # ---------- cards ----------

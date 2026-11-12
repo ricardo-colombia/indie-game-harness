@@ -18,7 +18,7 @@ problems = []
 if re.search(r"\b(UnityEngine\.)?Input\.(GetAxis|GetAxisRaw|GetKey|GetKeyDown|GetKeyUp|GetButton|GetButtonDown|GetMouseButton)\b", src):
     problems.append("Uses the legacy Input Manager. Use Input System actions (InputAction / PlayerInput / generated "
                     "input class) — scenarios drive the game through Input System virtual devices and recorded traces.")
-if re.search(r"^\s*using\s+Harness\b|\bHarness\.(InputDriver|HarnessMetrics|Probe|StepRunner|AutoPilot)\b", src, re.M):
+if re.search(r"^\s*using\s+(static\s+)?(\w+\s*=\s*)?(global::)?Harness\b|(global::|\b)Harness\.\w+|[\"']Harness[.,\"']", src, re.M):
     problems.append("Game code references the harness. The harness observes the game from outside (probes in the "
                     "scenario JSON); it's stripped from release builds, so this would break the shipped game.")
 if problems:
