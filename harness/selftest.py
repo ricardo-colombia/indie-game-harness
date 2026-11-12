@@ -35,7 +35,7 @@ NO_KEY = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
 FAKE_CLAUDE = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
 a = sys.argv[1:]
-prompt = a[a.index("-p") + 1]
+prompt = sys.stdin.read()
 rec = {"model": a[a.index("--model") + 1], "key": bool(os.environ.get("ANTHROPIC_API_KEY")),
        "review": "VERDICT" in prompt, "resume": "--resume" in a, "cap": a[a.index("--max-budget-usd") + 1]}
 open(os.environ["FAKE_LOG"], "a").write(json.dumps(rec) + "\n")
@@ -68,16 +68,21 @@ Selftest card.
 """
 
 
-def run(cmd, cwd=None, env=None, unset=(), timeout=600):
+def run(cmd, cwd=None, env=None, unset=(), timeout=600, stdin=None):
     e = {k: v for k, v in os.environ.items() if k not in unset}
     e.update(env or {})
-    return subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout)
+    exe = shutil.which(cmd[0], path=e.get("PATH"))
+    if exe:
+        cmd = [exe, *cmd[1:]]
+    return subprocess.run(cmd, cwd=cwd, env=e, capture_output=True, text=True, timeout=timeout, input=stdin,
+                          encoding="utf-8", errors="replace")
 
 
 def clone_repo(tmp: Path) -> Path:
     dst = tmp / "repo"
     shutil.copytree(REPO, dst, ignore=shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
-                                                             "__pycache__", "reports", "ledger.jsonl"))
+                                                             "__pycache__", "reports", "ledger.jsonl", ".venv",
+                                                             "selftest-results.txt"))
     for c in (["git", "init", "-q", "-b", "main"], ["git", "config", "user.name", "selftest"],
               ["git", "config", "user.email", "selftest@local"], ["git", "add", "-A"], ["git", "commit", "-qm", "init"]):
         run(c, cwd=dst)
@@ -115,8 +120,12 @@ class Offline(unittest.TestCase):
         self.repo = clone_repo(self.tmp)
         bin_ = self.tmp / "bin"
         bin_.mkdir()
-        (bin_ / "claude").write_text(FAKE_CLAUDE)
-        (bin_ / "claude").chmod(0o755)
+        (bin_ / "fake_claude.py").write_text(FAKE_CLAUDE)
+        if os.name == "nt":
+            (bin_ / "claude.cmd").write_text(f'@"{PY}" "%~dp0fake_claude.py" %*\r\n')
+        else:
+            (bin_ / "claude").write_text(f'#!/bin/sh\nexec "{PY}" "$(dirname "$0")/fake_claude.py" "$@"\n')
+            (bin_ / "claude").chmod(0o755)
         self.log = self.tmp / "calls.jsonl"
         self.env = {"PATH": f"{bin_}{os.pathsep}{os.environ['PATH']}", "FAKE_LOG": str(self.log),
                     "ANTHROPIC_API_KEY": "sk-test-not-real", "HX_FORCE_MODEL": ""}
@@ -372,7 +381,7 @@ def live_checks() -> list[tuple[str, bool, str]]:
     base = ["claude", "-p", "--model", LIVE_MODEL, "--output-format", "json", "--max-budget-usd", "0.05"]
 
     def call(prompt, turns=1, extra=(), cwd=REPO):
-        r = run([*base, prompt, "--max-turns", str(turns), *extra], cwd=cwd, unset=NO_KEY, timeout=300)
+        r = run([*base, "--max-turns", str(turns), *extra], cwd=cwd, unset=NO_KEY, timeout=300, stdin=prompt)
         try:
             return json.loads(r.stdout.strip().splitlines()[-1])
         except Exception:

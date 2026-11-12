@@ -22,3 +22,5 @@ steam/build_out/
 art/models_raw/
 .env
 *.secret*
+.venv/
+selftest-results.txt

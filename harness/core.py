@@ -5,6 +5,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -24,12 +25,18 @@ def load_config(root: Path = ROOT) -> dict:
 
 
 def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
-       log: Path | None = None, env: dict | None = None, unset: list | None = None) -> subprocess.CompletedProcess:
+       log: Path | None = None, env: dict | None = None, unset: list | None = None,
+       stdin: str | None = None) -> subprocess.CompletedProcess:
     """Run a command; tee combined output to `log` if given. Never raises on non-zero exit."""
     full_env = {k: v for k, v in os.environ.items() if k not in (unset or [])}
     full_env.update(env or {})
+    # Windows: npm CLIs (claude) are .cmd shims that CreateProcess won't find by bare name
+    exe = shutil.which(cmd[0], path=full_env.get("PATH")) if cmd else None
+    if exe:
+        cmd = [exe, *cmd[1:]]
     try:
-        p = subprocess.run(cmd, cwd=cwd, timeout=timeout, capture_output=True, text=True, env=full_env)
+        p = subprocess.run(cmd, cwd=cwd, timeout=timeout, capture_output=True, text=True, env=full_env,
+                           input=stdin, encoding="utf-8", errors="replace")
         out = (p.stdout or "") + (p.stderr or "")
         rc = p.returncode
     except subprocess.TimeoutExpired as e:

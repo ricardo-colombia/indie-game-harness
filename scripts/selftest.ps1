@@ -1,0 +1,32 @@
+# Run the harness selftests on Windows (PowerShell). Money: $0 at every level.
+#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1            # offline only
+#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 mcp        # + MCP probes
+#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 unity      # + Unity pipeline ($env:UNITY_PATH)
+#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 live       # + real Claude on PLAN quota, Haiku forced
+#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 all
+# Output is also saved to selftest-results.txt — paste it back to Claude if anything is red.
+param([string]$Level = "")
+$ErrorActionPreference = "Continue"
+Set-Location (Join-Path $PSScriptRoot "..")
+
+$py = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
+if (-not (Test-Path .venv)) { & $py -m venv .venv }
+$vpy = ".\.venv\Scripts\python.exe"
+& $vpy -m pip install -q --upgrade pip | Out-Null
+& $vpy -m pip install -q -r harness\requirements.txt
+
+$map = @{ "" = @(); "mcp" = @("--mcp"); "unity" = @("--unity"); "live" = @("--live"); "all" = @("--all") }
+if (-not $map.ContainsKey($Level)) { Write-Host "unknown level: $Level"; exit 2 }
+
+$env:PYTHONIOENCODING = "utf-8"
+& {
+  "# selftest $(Get-Date -Format 'yyyy-MM-dd HH:mm') level=$(if ($Level) { $Level } else { 'offline' })"
+  "os=$([Environment]::OSVersion.VersionString) python=$(& $vpy --version)"
+  foreach ($t in "git", "ffmpeg", "blender", "claude", "uvx") {
+    $c = Get-Command $t -ErrorAction SilentlyContinue
+    "$t=$(if ($c) { $c.Source } else { 'MISSING' })"
+  }
+  "UNITY_PATH=$(if ($env:UNITY_PATH) { $env:UNITY_PATH } else { 'unset' })"
+  & $vpy harness\selftest.py @($map[$Level]) 2>&1
+  "exit=$LASTEXITCODE"
+} | Tee-Object -FilePath selftest-results.txt

@@ -1,0 +1,21 @@
+# Offline selftest on every push/PR — free on GitHub-hosted runners, no AI, no secrets.
+name: selftest
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  offline:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+      - run: pip install -r harness/requirements.txt
+      - run: git config --global user.name ci && git config --global user.email ci@local
+      - run: python harness/selftest.py

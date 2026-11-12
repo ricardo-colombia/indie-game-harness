@@ -81,7 +81,8 @@ class Billing:
 
 def claude(prompt: str, cwd: Path, model: str, cap: float, turns: int, timeout_min: float, billing: Billing,
            paid: bool, resume: str | None = None, tools: str | None = None) -> dict:
-    cmd = ["claude", "-p", prompt, "--model", model, "--output-format", "json",
+    # prompt goes over stdin: no OS command-line length limits, no quoting issues on Windows
+    cmd = ["claude", "-p", "--model", model, "--output-format", "json",
            "--max-budget-usd", f"{cap:.2f}", "--max-turns", str(turns),
            "--permission-mode", "acceptEdits",
            "--settings", str(RUNNER_DIR / "runner.settings.json"),
@@ -91,7 +92,7 @@ def claude(prompt: str, cwd: Path, model: str, cap: float, turns: int, timeout_m
     if tools:
         cmd += ["--allowedTools", tools]
     env, unset = billing.env(paid)
-    r = sh(cmd, cwd=cwd, timeout=timeout_min * 60, env=env, unset=unset)
+    r = sh(cmd, cwd=cwd, timeout=timeout_min * 60, env=env, unset=unset, stdin=prompt)
     try:
         data = json.loads(r.stdout.strip().splitlines()[-1])
     except (json.JSONDecodeError, IndexError):
