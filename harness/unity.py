@@ -5,11 +5,22 @@ from __future__ import annotations
 import json
 import os
 import platform
+import secrets
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from core import sh
+
+HARNESS_MARKER = b"Studio.Harness"   # assembly name; present in any build that compiled the harness in
+
+
+def _run(cfg, cmd, **kw):
+    """Every Unity/player process runs code the agent wrote: run it through the sandbox prefix with secrets
+    scrubbed from its environment."""
+    sb = (cfg.get("runner") or {}).get("sandbox") or {}
+    unset = list(sb.get("scrub_env") or []) + list(kw.pop("unset", []) or [])
+    return sh(list(sb.get("prefix") or []) + cmd, unset=unset, **kw)
 
 
 def _unity(cfg) -> str:
@@ -26,26 +37,64 @@ def _display_wrap(cmd: list[str]) -> list[str]:
     return cmd
 
 
-def build(cfg, project: Path, out: Path):
-    binary = project / cfg["game"]["player_binary"]
-    log = out / "build.log"
-    r = sh([_unity(cfg), "-batchmode", "-nographics", "-quit", "-projectPath", str(project),
-            "-buildTarget", cfg["game"]["build_target"],
-            "-executeMethod", "Harness.Editor.HarnessBuild.BuildPlayer",
-            "-harnessBuildPath", str(binary), "-logFile", "-"],
-           timeout=cfg["unity"]["build_timeout_min"] * 60, log=log)
+def build(cfg, project: Path, out: Path, release: bool = False, binary: Path | None = None):
+    binary = binary or (project / (_release_binary(cfg) if release else cfg["game"]["player_binary"]))
+    log = out / ("build-release.log" if release else "build.log")
+    r = _run(cfg, [_unity(cfg), "-batchmode", "-nographics", "-quit", "-projectPath", str(project),
+                   "-buildTarget", cfg["game"]["build_target"],
+                   "-executeMethod", "Harness.Editor.HarnessBuild.BuildPlayer",
+                   "-harnessBuildPath", str(binary), *(["-release"] if release else []), "-logFile", "-"],
+             timeout=cfg["unity"]["build_timeout_min"] * 60, log=log)
     errors = [l for l in r.stdout.splitlines() if "error CS" in l][:20]
     ok = r.returncode == 0 and binary.exists()
-    return ok, {"rc": r.returncode, "binary": str(binary), "compile_errors": errors, "log": str(log)}
+    summary = {"rc": r.returncode, "binary": str(binary), "compile_errors": errors, "log": str(log)}
+    if ok and release:
+        leaks = scan_for_harness(binary)
+        summary["harness_leaks"] = leaks
+        ok = not leaks
+    return ok, summary
+
+
+def _release_binary(cfg) -> str:
+    """Release goes to its own folder so it never overwrites (or gets confused with) the harness build."""
+    b = Path(cfg["game"]["player_binary"])
+    return str(Path("Builds/Release") / b.name)
+
+
+def scan_for_harness(binary: Path) -> list[str]:
+    """A release build must contain zero harness code. Mono: Studio.Harness.dll in *_Data/Managed.
+    IL2CPP: the assembly name survives in global-metadata.dat / GameAssembly. Scan the whole build folder."""
+    root = binary.parent if binary.is_file() else binary
+    if binary.suffix == ".app" or (binary.is_dir() and binary.name.endswith(".app")):
+        root = binary
+    leaks = []
+    for f in root.rglob("*"):
+        if not f.is_file() or f.stat().st_size > 2_000_000_000:
+            continue
+        if f.name.startswith("Studio.Harness"):
+            leaks.append(str(f.relative_to(root)))
+            continue
+        if f.suffix.lower() in (".dll", ".dat", ".so", ".dylib", ".json", "") or f.name.startswith("GameAssembly"):
+            with f.open("rb") as fh:
+                prev = b""
+                while chunk := fh.read(1 << 20):
+                    if HARNESS_MARKER in prev[-32:] + chunk:
+                        leaks.append(str(f.relative_to(root)))
+                        break
+                    prev = chunk
+    return leaks[:20]
 
 
 def tests(cfg, project: Path, out: Path, platform_: str):
     results = out / f"tests-{platform_}.xml"
     log = out / f"tests-{platform_}.log"
-    r = sh([_unity(cfg), "-batchmode", "-projectPath", str(project), "-runTests",
+    cmd = ([_unity(cfg), "-batchmode", "-projectPath", str(project), "-runTests",
             "-testPlatform", platform_, "-testResults", str(results), "-logFile", "-"]
-           + (["-nographics"] if platform_ == "EditMode" else []),
-           timeout=cfg["unity"]["test_timeout_min"] * 60, log=log)
+           + (["-nographics"] if platform_ == "EditMode" else []))
+    if results.exists():
+        results.unlink()
+    r = _run(cfg, cmd if platform_ == "EditMode" else _display_wrap(cmd),   # PlayMode needs a display on Linux
+             timeout=cfg["unity"]["test_timeout_min"] * 60, log=log)
     summary = {"rc": r.returncode, "log": str(log), "failed": []}
     if results.exists():
         root = ET.parse(results).getroot()
@@ -70,32 +119,60 @@ def _check(metrics: dict, expect: dict) -> list[str]:
     return fails
 
 
-def autotest(cfg, project: Path, out: Path, scenarios: list[str]):
+def _min_seconds(spec: dict) -> float:
+    """Lower bound on real time a scenario takes: sum of waits/holds divided by timeScale."""
+    total = sum(float(st.get("duration", 0) or 0) for st in spec.get("steps", []) if st.get("action") in ("wait", "press", "set"))
+    return total / max(float(spec.get("timeScale", 1) or 1), 0.01)
+
+
+def autotest(cfg, project: Path, out: Path, scenarios: list[str], scenario_dir: Path | None = None):
+    """scenario_dir: where the scenario JSONs are read from. The runner passes the MAIN checkout's
+    scenarios/, so nothing in the card's worktree (or written during its build) can change the contract."""
     binary = project / cfg["game"]["player_binary"]
-    sdir = project.parent / "scenarios"
+    sdir = scenario_dir or (project.parent / "scenarios")
     results, ok = {}, True
     for name in scenarios:
         spec_path = sdir / f"{name}.json"
         spec = json.loads(spec_path.read_text())
         odir = out / "autotest" / name
+        if odir.exists():
+            shutil.rmtree(odir)          # never judge a stale or pre-planted metrics.json
         odir.mkdir(parents=True, exist_ok=True)
-        r = sh(_display_wrap([str(binary), "-autotest", str(spec_path), "-harnessOut", str(odir),
-                              "-screen-width", str(cfg["unity"]["screen"]["width"]),
-                              "-screen-height", str(cfg["unity"]["screen"]["height"]),
-                              "-screen-fullscreen", "0", "-logFile", str(odir / "player.log")]),
-               timeout=cfg["unity"]["autotest_timeout_min"] * 60)
+        nonce = secrets.token_hex(8)
+        r = _run(cfg, _display_wrap([str(binary), "-autotest", str(spec_path), "-harnessOut", str(odir),
+                                     "-harnessNonce", nonce,
+                                     "-screen-width", str(cfg["unity"]["screen"]["width"]),
+                                     "-screen-height", str(cfg["unity"]["screen"]["height"]),
+                                     "-screen-fullscreen", "0", "-logFile", str(odir / "player.log")]),
+                 timeout=cfg["unity"]["autotest_timeout_min"] * 60)
         mfile = odir / "metrics.json"
         if not mfile.exists():
             results[name] = {"ok": False, "rc": r.returncode, "fails": ["no metrics.json written"]}
             ok = False
             continue
-        m = json.loads(mfile.read_text())
-        fails = _check(m.get("metrics", {}), spec.get("expect", {}))
+        try:
+            m = json.loads(mfile.read_text())
+        except json.JSONDecodeError as e:
+            m, fails = {}, [f"metrics.json unreadable: {e}"]
+        else:
+            fails = []
+        fails += _check(m.get("metrics", {}), spec.get("expect", {}))
+        if m.get("nonce") != nonce:
+            fails.append("metrics.json nonce mismatch — not written by this harness run")
+        if float(m.get("realSeconds", 0) or 0) < _min_seconds(spec) * 0.8:
+            fails.append(f"scenario finished in {m.get('realSeconds')}s, faster than its steps allow "
+                         f"({_min_seconds(spec):.1f}s) — metrics are not trustworthy")
+        shots_expected = [st["name"] for st in spec.get("steps", []) if st.get("action") == "screenshot"]
+        missing = [s_ for s_ in shots_expected if not (odir / f"{s_}.png").exists()]
+        if missing:
+            fails.append(f"screenshots missing: {missing}")
         if m.get("errors", 0) and spec.get("failOnError", True):
             fails.append(f"{m['errors']} errors/exceptions logged (see player.log)")
         if not m.get("completed", False):
             fails.append("scenario did not complete (timeout or crash)")
+        probe_errors = m.get("probeErrors") or []
         results[name] = {"ok": not fails and r.returncode == 0, "rc": r.returncode, "fails": fails,
+                         "probe_errors": probe_errors,
                          "screenshots": sorted(p.name for p in odir.glob("*.png")), "metrics": m.get("metrics")}
         ok &= results[name]["ok"]
     return ok, results
@@ -105,8 +182,8 @@ def capture(cfg, project: Path, takes_file: Path, out: Path):
     binary = project / cfg["game"]["player_binary"]
     c = cfg["marketing"]["capture"]
     out.mkdir(parents=True, exist_ok=True)
-    r = sh(_display_wrap([str(binary), "-capture", str(takes_file), "-harnessOut", str(out),
-                          "-screen-width", str(c["width"]), "-screen-height", str(c["height"]),
-                          "-screen-fullscreen", "0", "-logFile", str(out / "player.log")]),
-           timeout=60 * 30)
+    r = _run(cfg, _display_wrap([str(binary), "-capture", str(takes_file), "-harnessOut", str(out),
+                                 "-screen-width", str(c["width"]), "-screen-height", str(c["height"]),
+                                 "-screen-fullscreen", "0", "-logFile", str(out / "player.log")]),
+             timeout=60 * 30)
     return r.returncode == 0, {"rc": r.returncode, "takes": sorted(p.name for p in out.iterdir() if p.is_dir())}

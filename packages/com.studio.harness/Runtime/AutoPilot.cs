@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -12,7 +13,7 @@ namespace Harness
     /// </summary>
     public class AutoPilot : MonoBehaviour
     {
-        string scenarioPath, outDir;
+        string scenarioPath, outDir, nonce;
         Scenario sc;
         int errors;
         bool completed, running;
@@ -28,6 +29,7 @@ namespace Harness
             var ap = go.AddComponent<AutoPilot>();
             ap.scenarioPath = path;
             ap.outDir = StepRunner.Arg("-harnessOut") ?? "harness_out";
+            ap.nonce = StepRunner.Arg("-harnessNonce") ?? "";
         }
 
         void OnEnable() => Application.logMessageReceived += OnLog;
@@ -51,6 +53,7 @@ namespace Harness
             }
             HarnessMetrics.Report("startup.seconds", Time.realtimeSinceStartup);
             Time.timeScale = sc.timeScale > 0 ? sc.timeScale : 1f;
+            if (sc.captureFramerate > 0) Time.captureFramerate = sc.captureFramerate;   // fixed dt: repeatable runs
             running = true;
             yield return StepRunner.Run(sc.steps, outDir, Path.GetDirectoryName(Path.GetFullPath(scenarioPath)));
             completed = true;
@@ -74,12 +77,19 @@ namespace Harness
             }
         }
 
+        bool finished;
+
         void Finish()
         {
+            if (finished) return;
+            finished = true;
             running = false;
+            var probeErrors = string.Join(",", Probe.Errors.Select(e => "\"" + e.Replace("\\", "/").Replace("\"", "'") + "\""));
             var json = "{\"scenario\":\"" + Path.GetFileNameWithoutExtension(scenarioPath) + "\"," +
                        "\"completed\":" + (completed ? "true" : "false") + "," +
+                       "\"nonce\":\"" + nonce + "\"," +
                        "\"errors\":" + errors + "," +
+                       "\"probeErrors\":[" + probeErrors + "]," +
                        "\"realSeconds\":" + (Time.realtimeSinceStartup - startReal).ToString(System.Globalization.CultureInfo.InvariantCulture) + "," +
                        "\"metrics\":" + HarnessMetrics.ToJson() + "}";
             File.WriteAllText(Path.Combine(outDir, "metrics.json"), json);

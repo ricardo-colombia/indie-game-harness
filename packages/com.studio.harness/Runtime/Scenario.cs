@@ -25,6 +25,7 @@ namespace Harness
         public string scene;
         public float timeScale = 1f;
         public float timeout = 120f;
+        public int captureFramerate;   // > 0: fixed timestep per frame (Time.captureFramerate) and frame-by-frame replay
         public bool failOnError = true;
         public Step[] steps = Array.Empty<Step>();
         public Probe[] probes = Array.Empty<Probe>();
@@ -45,15 +46,16 @@ namespace Harness
                         bool stick = s.action == "set" && (s.x != 0 || s.y != 0);
                         if (stick) InputDriver.Set(s.control, new Vector2(s.x, s.y));
                         else InputDriver.Set(s.control, s.value);
-                        if (s.duration > 0)
+                        if (s.duration > 0 || s.action == "press")
                         {
-                            yield return new WaitForSeconds(s.duration);
+                            if (s.duration <= 0) yield return null;   // a press with no duration = one frame tap
+                            if (s.duration > 0) yield return new WaitForSeconds(s.duration);
                             if (stick) InputDriver.Set(s.control, Vector2.zero);
                             else InputDriver.Set(s.control, 0f);
                         }
                         break;
                     case "replay":
-                        yield return InputDriver.Replay(Path.Combine(baseDir, s.file));
+                        yield return InputDriver.Replay(Path.Combine(baseDir, s.file), Time.captureFramerate > 0);
                         break;
                     case "wait":
                         yield return new WaitForSeconds(s.duration);

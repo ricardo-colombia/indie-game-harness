@@ -21,6 +21,10 @@ namespace Harness
         [NonSerialized] MemberInfo[] chain;
         [NonSerialized] bool warned;
 
+        /// <summary>Probe resolution failures, reported in metrics.json so the runner can tell "the game broke"
+        /// from "a probe points at a renamed field" (the latter goes to the director, not to failed/).</summary>
+        public static readonly List<string> Errors = new();
+
         const BindingFlags Flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
         public void Sample()
@@ -35,7 +39,7 @@ namespace Harness
             if (v is bool b) HarnessMetrics.Report(name, b ? 1 : 0);
             else if (v is Enum e) HarnessMetrics.Report(name, Convert.ToInt32(e));
             else if (v is IConvertible) HarnessMetrics.Report(name, Convert.ToDouble(v));
-            else if (!warned) { warned = true; Debug.LogError($"[Harness] probe '{name}': {member} is {v?.GetType().Name}, not a number"); }
+            else Fail($"{member} is {v?.GetType().Name}, not a number");
         }
 
         bool Resolve()
@@ -61,6 +65,7 @@ namespace Harness
         {
             if (warned) return;
             warned = true;
+            Errors.Add($"{name}: {msg}");
             Debug.LogError($"[Harness] probe '{name}': {msg}");
         }
     }

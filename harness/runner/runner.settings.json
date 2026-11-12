@@ -1,21 +1,75 @@
 {
   "permissions": {
     "allow": [
-      "Read", "Edit", "Write", "Glob", "Grep", "TodoWrite", "Task",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "TodoWrite",
+      "Task",
       "Bash(python harness/hx.py build)",
       "Bash(python harness/hx.py test:*)",
       "Bash(python harness/hx.py autotest:*)",
       "Bash(python harness/hx.py verify:*)",
-      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git add:*)", "Bash(git commit:*)",
-      "Bash(ls:*)", "Bash(mkdir:*)", "Bash(dotnet:*)"
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)"
     ],
     "deny": [
-      "Bash(git push:*)", "Bash(git merge:*)", "Bash(git rebase:*)", "Bash(git reset:*)", "Bash(git checkout main:*)",
-      "Bash(curl:*)", "Bash(wget:*)", "Bash(rm -rf:*)",
-      "Read(./game/Library/**)", "Read(./game/Temp/**)", "Read(./game/Logs/**)",
-      "Edit(./harness/**)", "Edit(./.claude/**)", "Edit(./design/PILLARS.md)", "Edit(./backlog/**)",
-      "WebFetch", "WebSearch"
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git reset:*)",
+      "Bash(git checkout main:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "Read(./game/Library/**)",
+      "Read(./game/Temp/**)",
+      "Read(./game/Logs/**)",
+      "Edit(./harness/**)",
+      "Edit(./.claude/**)",
+      "Edit(./design/PILLARS.md)",
+      "Edit(./backlog/**)",
+      "WebFetch",
+      "WebSearch",
+      "Bash(dotnet run:*)",
+      "Bash(dotnet script:*)",
+      "Bash(dotnet exec:*)",
+      "Edit(./packages/**)",
+      "Edit(./scenarios/**)",
+      "Edit(./.github/**)",
+      "Edit(./scripts/**)",
+      "Edit(./steam/**)",
+      "Edit(./game/Packages/manifest.json)",
+      "Bash(git commit --no-verify:*)",
+      "Bash(git -c:*)",
+      "Bash(python harness/hx.py run:*)",
+      "Bash(python harness/hx.py merge:*)",
+      "Bash(python harness/hx.py card:*)"
     ]
   },
-  "env": { "DISABLE_AUTOUPDATER": "1" }
+  "env": {
+    "DISABLE_AUTOUPDATER": "1"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python harness/hooks/guard_cs.py"
+          }
+        ]
+      }
+    ]
+  }
 }

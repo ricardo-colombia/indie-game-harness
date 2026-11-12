@@ -67,10 +67,24 @@ namespace Harness
         }
 
         /// <summary>Replay a trace saved with "Harness → Record Input" (editor) or -recordInput (player).</summary>
-        public static IEnumerator Replay(string path)
+        /// Recorded devices whose layout is exactly the same as one of the harness's virtual devices (Keyboard, Mouse,
+        /// Gamepad) are mapped onto it, so a PlayerInput already paired to them keeps receiving input. Other layouts
+        /// (e.g. XInputController, whose state format differs) get new instances of their own layout.
+        /// frameByFrame: replay one recorded frame per player frame (pair with captureFramerate for repeatable runs).
+        public static IEnumerator Replay(string path, bool frameByFrame = false)
         {
+            Init();
             var trace = InputEventTrace.LoadFrom(path);
-            var ctrl = trace.Replay().WithAllDevicesMappedToNewInstances().PlayAllEventsAccordingToTimestamps();
+            var ctrl = trace.Replay();
+            foreach (var info in trace.deviceInfos)
+            {
+                InputDevice target = null;
+                foreach (var d in devices)
+                    if (info.layout == d.layout) { target = d; break; }
+                if (target != null) ctrl = ctrl.WithDeviceMappedFromTo(info.deviceId, target);
+            }
+            ctrl = ctrl.WithAllDevicesMappedToNewInstances();   // only affects devices not mapped above
+            ctrl = frameByFrame ? ctrl.PlayAllFramesOneByOne() : ctrl.PlayAllEventsAccordingToTimestamps();
             while (!ctrl.finished) yield return null;
             ctrl.Dispose();
             trace.Dispose();

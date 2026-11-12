@@ -5,7 +5,9 @@
   hx build | hx test EditMode|PlayMode | hx autotest smoke drive_straight
   hx capture marketing/takes/launch.json
   hx card new "Title" [--type feature] | hx card ready C-0007 | hx cards
-  hx run [--budget 0] [--dry-run]    overnight runner ($0 = plan quota only)
+  hx release [--to-steam]            release build (no HARNESS) + scan for harness code; --to-steam stages it
+  hx run [--budget 0] [--dry-run]    overnight runner ($0 = plan quota only)       (director only)
+  hx merge C-0007 [--trusted]        re-gate a review/ card on current main, then merge   (director only)
   hx selftest [--mcp --unity --live --all]   validate the harness at $0
   hx report                          latest report per card + spend
   hx cost [--days 7]
@@ -15,6 +17,8 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -39,6 +43,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="hx")
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("verify"); v.add_argument("--scenarios", nargs="*", default=[])
+    rl = sub.add_parser("release"); rl.add_argument("--to-steam", action="store_true")
     sub.add_parser("build")
     t = sub.add_parser("test"); t.add_argument("platform", choices=["EditMode", "PlayMode"])
     at = sub.add_parser("autotest"); at.add_argument("scenarios", nargs="+")
@@ -53,6 +58,8 @@ def main(argv=None) -> int:
     fwd = {"run": "runner.py", "selftest": "selftest.py"}
     if argv[:1] and argv[0] in fwd:  # forward everything untouched
         return subprocess.call([sys.executable, str(Path(__file__).parent / fwd[argv[0]]), *argv[1:]])
+    if argv[:1] == ["merge"]:
+        return subprocess.call([sys.executable, str(Path(__file__).parent / "runner.py"), "--merge", *argv[1:]])
     a = ap.parse_args(argv)
 
     cfg = load_config()
@@ -69,6 +76,7 @@ def main(argv=None) -> int:
     if a.cmd == "verify":
         out, res = _out("verify"), {}
         for name, fn in [("build", lambda: unity.build(cfg, project, out)),
+                         ("release", lambda: unity.build(cfg, project, out, release=True)),
                          ("editmode", lambda: unity.tests(cfg, project, out, "EditMode")),
                          ("playmode", lambda: unity.tests(cfg, project, out, "PlayMode")),
                          ("autotest", lambda: unity.autotest(cfg, project, out, ["smoke", *a.scenarios]))]:
@@ -77,7 +85,26 @@ def main(argv=None) -> int:
                 return _print(False, {"failed_gate": name, **res, "out": str(out)})
         return _print(True, {**res, "out": str(out)})
 
+    if a.cmd == "release":
+        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+        ok, summ = unity.build(cfg, project, _out("release"), release=True)
+        if not ok or not a.to_steam:
+            return _print(ok, summ)
+        if dirty:
+            return _print(False, {**summ, "error": "working tree is dirty; a Steam build must come from a commit"})
+        src = Path(summ["binary"]).parent
+        dst = ROOT / "steam" / "content"
+        shutil.rmtree(dst, ignore_errors=True)
+        shutil.copytree(src, dst)
+        marker = ROOT / "steam" / "build_out" / "release_ok.json"
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(json.dumps({"commit": commit, "harness_leaks": [], "at": dt.datetime.now().isoformat()}))
+        return _print(True, {**summ, "staged": str(dst), "commit": commit})
     if a.cmd == "card":
+        if a.action == "ready" and os.environ.get("CLAUDECODE"):
+            print("Only the director promotes cards to ready (run this in your own terminal).")
+            return 1
         if a.action == "new":
             ids = [int(p.stem.split("-")[1]) for s in STATES for p in (BACKLOG / s).glob("C-*.md")]
             cid = f"C-{(max(ids) + 1 if ids else 1):04d}"

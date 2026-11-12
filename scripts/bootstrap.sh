@@ -29,7 +29,7 @@ git add -A && git commit -qm "Bootstrap $NAME from studio template" || true
 cat <<EOF
 Done. Next:
  1. Unity Hub → open ./game with Unity 6 (creates the project if new; pick URP 3D).
- 2. Package Manager → + → Add from git URL: https://github.com/FunplayAI/funplay-unity-mcp.git
+ 2. Package Manager → + → Add from git URL: https://github.com/FunplayAI/funplay-unity-mcp.git#v0.7.6   (pinned; bump on purpose)
     then Funplay → MCP Server → Start (port 8765). In Claude Code run /mcp to check 'funplay'.
  3. export UNITY_PATH=<path to Unity editor binary>; python harness/hx.py verify
  4. In Claude Code: "use the new-game skill" to write pillars and the first cards.

@@ -19,6 +19,11 @@ runner:
   money_budget_usd: 0
   api_key_env: ANTHROPIC_API_KEY
   plan_models: [haiku, sonnet, opus]   # what your plan includes (trim if your plan lacks a model)
+  # $0 SAFETY: stripping ANTHROPIC_API_KEY is not enough if your account has extra usage / overage turned on —
+  # then hitting the plan limit silently bills money instead of stopping. Check your Claude account's usage
+  # settings, turn extra usage off, then set this to true. The runner refuses to start a $0 run until you do.
+  plan_overage_disabled: false
+  max_quota_pauses_per_card: 2         # a card that hits "quota" this many times in one night stops the runner
   force_model: ""                      # e.g. haiku — overrides every model choice (selftest uses this)
   escalation: {enabled: true, model: opus, budget_usd: 3.0}   # only ever used when money_budget_usd > 0
   on_quota_exhausted: wait             # wait | stop — wait sleeps and retries until run_until
@@ -28,20 +33,42 @@ runner:
   worktrees_dir: .worktrees            # gitignored; one worktree per card
   max_cards_per_run: 12
   stop_after_consecutive_failures: 3
-  seed_library_cache: true             # copy main's Unity Library/ into the worktree (saves a full reimport)
+  seed_library_cache: true             # copy main's Unity Library/ into the worktree (skipped while the editor has it open)
+  # The ONLY paths an unattended agent may change. Everything else (harness package, Packages/manifest.json,
+  # scenarios, workflows, scripts, steam/...) needs the card's `allow_paths`.
+  agent_writable: [game/Assets/, game/ProjectSettings/TagManager.asset, game/ProjectSettings/InputManager.asset]
+  # Inside agent_writable, these still need `allow_paths` (Editor code runs with your rights during the build gate).
+  agent_writable_except: ["/Editor/", ".asmdef", ".asmref", ".rsp", ".dll", ".so", ".dylib", ".bundle/", ".jslib"]
+  # C# patterns that can tamper with the gates or reach outside the game. A diff containing any of them is NOT
+  # executed (no build, no tests): the card goes to backlog/review for you to read first.
+  suspicious_cs: ['InitializeOnLoad', 'DidReloadScripts', 'System\.Diagnostics\.Process', 'Process\.Start',
+                  'GetCommandLineArgs', 'harnessOut', '-autotest', 'metrics\.json', '\bHarness\.', '"Harness',
+                  'System\.Net\b', 'UnityWebRequest', 'Environment\.GetEnvironmentVariable', 'DllImport',
+                  'Assembly\.Load', 'File\.(Delete|Move)', 'Directory\.(Delete|Move)', 'ScriptingDefineSymbols',
+                  'VERDICT']
+  sandbox:
+    # Gates run code the agent wrote (Editor scripts, tests, the player). Real isolation = run them as another
+    # OS user or in a container with no access to your home, credentials or the main checkout, e.g.
+    #   prefix: [sudo, -u, hxsandbox, --]          (Linux/macOS; give that user read/write on .worktrees only)
+    #   prefix: [firejail, --private-tmp, --blacklist=~/.ssh, --blacklist=~/.claude, --]
+    # Empty = no OS isolation (env scrub + suspicious-code review + integrity checks still apply).
+    prefix: []
+    scrub_env: [ANTHROPIC_API_KEY, ANTHROPIC_AUTH_TOKEN, ANTHROPIC_BASE_URL, MAGNIFIC_API_KEY, TRIPO_API_KEY,
+                GITHUB_TOKEN, GH_TOKEN, STEAM_BUILD_USER, SSH_AUTH_SOCK, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+                AWS_SESSION_TOKEN, AWS_BEARER_TOKEN_BEDROCK, GOOGLE_APPLICATION_CREDENTIALS]
   defaults:
     model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
     budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating the night
     timeout_min: 45
     max_turns: 80
-    gates: [build, editmode, playmode, autotest, review]
+    gates: [build, release, editmode, playmode, autotest, review]   # release = build without HARNESS + scan
   models:                              # card `difficulty` -> model alias
     trivial: haiku
     normal: sonnet
     hard: opus
-  review:                              # cheap independent diff review gate
-    model: haiku
-    budget_usd: 0.40
+  review:                              # independent diff review gate (the diff is untrusted input)
+    model: sonnet                      # haiku is too easy to fool for code that merges unattended
+    budget_usd: 0.80
     max_turns: 12
 
 art:

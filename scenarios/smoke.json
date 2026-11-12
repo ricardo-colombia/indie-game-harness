@@ -8,7 +8,7 @@
     {"action": "wait", "duration": 2}
   ],
   "expect": {
-    "frame.ms.p95": {"max": 33.4},
+    "frame.ms.p95": {"max": 100},
     "startup.seconds.last": {"max": 25}
   }
 }

@@ -5,6 +5,8 @@
 from __future__ import annotations
 
 import argparse
+import functools
+import platform
 import shutil
 import subprocess
 import sys
@@ -20,7 +22,30 @@ PROFILES = {"vertical": (1080, 1920), "wide": (1920, 1080), "square": (1080, 108
 
 
 def ff(*args):
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], check=True)
+    r = subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *args], capture_output=True, text=True)
+    if r.returncode:
+        raise SystemExit(f"ffmpeg failed ({r.returncode}): {r.stderr.strip()[-800:]}")
+
+
+@functools.lru_cache(maxsize=None)
+def has_filter(name: str) -> bool:
+    """Some ffmpeg builds (e.g. Homebrew's) ship without drawtext (needs libfreetype)."""
+    out = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, text=True).stdout
+    return any(line.split()[1:2] == [name] for line in out.splitlines() if line.strip())
+
+
+def default_fontfile() -> str | None:
+    """drawtext's `font=` needs fontconfig; a real file path works everywhere."""
+    cands = {"Darwin": ["/System/Library/Fonts/Supplemental/Arial Bold.ttf", "/System/Library/Fonts/Supplemental/Arial.ttf",
+                        "/Library/Fonts/Arial.ttf"],
+             "Windows": ["C:/Windows/Fonts/arialbd.ttf", "C:/Windows/Fonts/arial.ttf"],
+             "Linux": ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf"]}
+    return next((f for f in cands.get(platform.system(), []) if Path(f).exists()), None)
+
+
+def esc(path) -> str:
+    """Path for a single-quoted ffmpeg filter value: inside '...' ':' is literal; use forward slashes."""
+    return str(path).replace("\\", "/").replace("'", "")
 
 
 def clip(c, fps, w, h, dest: Path):
@@ -33,7 +58,8 @@ def clip(c, fps, w, h, dest: Path):
        "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", str(dest))
 
 
-def build_short(s, spec, tmp: Path) -> Path:
+def build_short(s, spec, tmp: Path) -> tuple[Path, bool]:
+    """Returns (file, caption_burned)."""
     fps = int(spec.get("fps", 30))
     w, h = PROFILES[s.get("profile", spec.get("profile", "vertical"))]
     parts = []
@@ -48,14 +74,19 @@ def build_short(s, spec, tmp: Path) -> Path:
 
     out = ROOT / spec.get("out_dir", "marketing/out") / f"{s['id']}.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
-    vf = []
-    if s.get("caption"):
+    vf, burned = [], False
+    if s.get("caption") and not has_filter("drawtext"):
+        print(f"warning: this ffmpeg has no drawtext filter — '{s['id']}' is cut WITHOUT its caption. "
+              "Install an ffmpeg built with libfreetype (macOS: `brew tap homebrew-ffmpeg/ffmpeg && "
+              "brew install homebrew-ffmpeg/ffmpeg/ffmpeg`), or add the caption on the platform.", file=sys.stderr)
+    elif s.get("caption"):
         cap = tmp / f"{s['id']}_cap.txt"
         cap.write_text(s["caption"])
-        font = spec.get("fontfile")
-        fontarg = f"fontfile={font}" if font else "font=Sans"
-        vf.append(f"drawtext={fontarg}:textfile={cap}:fontsize={int(h * 0.045)}:fontcolor=white:"
+        font = spec.get("fontfile") or default_fontfile()
+        fontarg = f"fontfile='{esc(font)}'" if font else "font=Sans"
+        vf.append(f"drawtext={fontarg}:textfile='{esc(cap)}':fontsize={int(h * 0.045)}:fontcolor=white:"
                   f"borderw=6:bordercolor=black@0.7:x=(w-text_w)/2:y=h*0.12")
+        burned = True
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(joined)],
                                capture_output=True, text=True).stdout.strip() or 0)
     args = ["-i", str(joined)]
@@ -65,10 +96,10 @@ def build_short(s, spec, tmp: Path) -> Path:
     if vf:
         args += ["-vf", ",".join(vf)]
     ff(*args, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(out))
-    return out
+    return out, burned
 
 
-def enqueue(s, path: Path, schedule: Path):
+def enqueue(s, path: Path, schedule: Path, caption_burned: bool = True):
     data = yaml.safe_load(schedule.read_text()) if schedule.exists() else {}
     items = data.setdefault("items", [])
     if any(i["id"] == s["id"] for i in items):
@@ -76,7 +107,8 @@ def enqueue(s, path: Path, schedule: Path):
     items.append({"id": s["id"], "file": str(path.relative_to(ROOT)), "title": s.get("title", s.get("caption", s["id"])),
                   "description": s.get("description", ""), "tags": s.get("tags", []),
                   "platforms": s.get("platforms", data.get("default_platforms", ["youtube"])),
-                  "approved": False, "status": "pending_approval", "slot": None})
+                  "approved": False, "status": "pending_approval", "slot": None,
+                  **({} if caption_burned or not s.get("caption") else {"note": "caption NOT burned in (ffmpeg lacks drawtext)"})})
     schedule.write_text(yaml.safe_dump(data, sort_keys=False))
 
 
@@ -93,8 +125,8 @@ def main():
         for s in spec["shorts"]:
             if a.only and s["id"] != a.only:
                 continue
-            out = build_short(s, spec, Path(t))
-            enqueue(s, out, schedule)
+            out, burned = build_short(s, spec, Path(t))
+            enqueue(s, out, schedule, burned)
             print(out.relative_to(ROOT))
 
 

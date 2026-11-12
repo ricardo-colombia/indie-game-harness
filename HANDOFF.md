@@ -12,7 +12,8 @@ A reusable harness/template for indie games made with AI (not a game). Modelled 
 - **No harness code in the game.** The harness drives the game through the Input System (virtual devices / recorded traces) and reads it with reflection probes. It compiles only into the editor and harness builds (`HARNESS` define); `-release` builds are clean. Games must use the Input System package.
 
 ## Status
-- Done: everything in README.md. Offline selftest: 16 tests, all pass (Blender test skipped where Blender is missing).
+- Done: everything in README.md. Offline selftest: 30 tests, all pass (Blender test skipped where Blender is missing).
+- Adversarial review fixes (2026-11-12): see README "Trust model". Still yours to do: set `runner.sandbox.prefix` for real OS isolation, turn off account overage and set `plan_overage_disabled: true`.
 - **Not yet verified on a real machine:** `selftest mcp`, `unity`, `live`. C# has never been compiled. Windows path (`.cmd` shim, stdin prompts) is untested.
 - API field names in `harness/art/pipeline.py` (Magnific generate endpoint, Tripo v3 upload/output fields) are best-effort; check with `--dry-run` against current docs.
 - On GitHub: github.com/ricardo-colombia/indie-game-harness (commits use the noreply email; GitHub email privacy is on).

@@ -34,9 +34,10 @@ bash scripts/selftest.sh live
 `all` runs everything. The offline tests always run first.
 
 ### Offline (≈20 s, no AI, no Unity)
-Expected ending: `Ran 16 tests ... OK` (shows `skipped=N` if Blender or ffmpeg is missing).
+Expected ending: `Ran 30 tests ... OK` (shows `skipped=N` if Blender or ffmpeg is missing).
 What it checks:
 - **Runner:** merges a card, strips your API key from agent calls, forces the model, rejects changes to protected paths, and resumes the session on the fix attempt.
+- **Adversarial:** rejects edits outside the writable allowlist (harness package, Editor code), doesn't execute suspicious code, stops the night if the main checkout's judges change, rejects forged/stale metrics, finds harness code in a release build, sends BLOCKED cards to review, resumes quota-paused cards and bounds the quota loop, requires a strict last-line review verdict, refuses a $0 run that could bill money, refuses `hx run`/`card ready` from an agent session, and re-gates taste cards before merging.
 - **Billing:** no escalation without money; with money, escalation is logged as `api`; a `paid` card waits; when the quota runs out, the card goes back to `ready`.
 - **Workflow:** `taste_review` cards wait for you; dependencies and priority order are respected; metric thresholds are checked.
 - **Pieces:** card files keep their comments, the C# input hook works, the posting queue needs approval, a real ffmpeg short comes out at 1080×1920, the art pipeline's free modes work, and Blender cleanup works.
