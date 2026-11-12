@@ -416,6 +416,16 @@ class Offline(unittest.TestCase):
                     "-of", "csv=p=0", str(mp4)]).stdout.strip()
         self.assertEqual(dims, "1080,1920")
         self.assertIn("approved: false", (self.repo / "marketing/schedule.yaml").read_text())
+        # an ffmpeg without drawtext (Homebrew's default build) still cuts the short, flagged as captionless
+        shim = self.tmp / "noshim"; shim.mkdir()
+        (shim / "ffmpeg").write_text(f'#!/bin/sh\nif [ "$2" = "-filters" ]; then exit 0; fi\nexec "{shutil.which("ffmpeg")}" "$@"\n')
+        (shim / "ffmpeg").chmod(0o755)
+        (self.repo / "marketing/schedule.yaml").write_text("items: []\n")
+        if os.name != "nt":
+            r = run([PY, "harness/marketing/cut_shorts.py", "marketing/shorts.yaml"], cwd=self.repo,
+                    env={"PATH": f"{shim}{os.pathsep}{os.environ['PATH']}"})
+            self.assertEqual(r.returncode, 0, r.stderr[-800:])
+            self.assertIn("no drawtext", r.stderr)
 
     def test_art_pipeline_free_modes(self):
         r = run([PY, "harness/art/pipeline.py", "concept", "example_vehicle"], cwd=self.repo)
