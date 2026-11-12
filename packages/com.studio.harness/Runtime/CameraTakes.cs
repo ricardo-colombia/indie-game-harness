@@ -25,7 +25,7 @@ namespace Harness
     public class TakeList { public int fps = 30; public Take[] takes = Array.Empty<Take>(); }
 
     /// <summary>
-    /// Game.exe -capture marketing/takes/launch.json -harnessOut marketing/out/raw/launch
+    /// Harness build: Game.exe -capture marketing/takes/launch.json -harnessOut marketing/out/raw/launch
     /// Locks the frame rate (Time.captureFramerate) so output is smooth regardless of machine speed,
     /// writes PNG sequences per take: <out>/<take>/f_00001.png. harness/marketing/cut_shorts.py turns them into shorts.
     /// </summary>
@@ -49,7 +49,7 @@ namespace Harness
         IEnumerator Start()
         {
             HarnessMetrics.Enabled = false;
-            HarnessInput.Simulated = true;
+            InputDriver.Init();
             Time.captureFramerate = list.fps;
             foreach (var take in list.takes)
             {
@@ -59,7 +59,7 @@ namespace Harness
                     while (!op.isDone) yield return null;
                 }
                 yield return Film(take);
-                HarnessInput.ClearAll();
+                InputDriver.ReleaseAll();
             }
             Application.Quit(0);
         }

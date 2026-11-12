@@ -26,23 +26,31 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
 | `.claude-plugin/` | lets other game repos install the agents and skills as a plugin |
 | `harness/hx.py` | single CLI: `verify build test autotest capture card cards run report cost` |
 | `harness/runner.py` | the overnight card runner |
-| `packages/com.studio.harness` | Unity package: `HarnessBuild`, `HarnessInput`, `HarnessMetrics`, `HarnessHooks`, AutoPilot (`-autotest`), CameraTakes (`-capture`), smoke tests |
+| `packages/com.studio.harness` | Unity package (editor + harness builds only): `HarnessBuild`, `InputDriver` (virtual devices + trace replay), probes, AutoPilot (`-autotest`), CameraTakes (`-capture`), *Record Input*, smoke tests |
 | `scenarios/` | input scripts and metric thresholds (your "feel contract"), protected from agents |
 | `art/` + `harness/art/` | manifest-driven concept → pick → Tripo → Blender cleanup → Unity |
 | `marketing/` + `harness/marketing/` | camera takes → ffmpeg shorts → approval → slot schedule → poster |
 | `steam/` | store checklist, steamcmd templates, beta-branch upload |
 
-## The key idea: the built game can be driven and measured by a script
-Gameplay reads input only through `HarnessInput` and reports what defines the feel through `HarnessMetrics`:
-```csharp
-// one-time input bootstrap (the only place that touches the Input System)
-HarnessInput.LiveAxis = n => n == "throttle" ? throttleAction.ReadValue<float>() : steerAction.ReadValue<float>();
-// in gameplay
-float t = HarnessInput.Axis("throttle");
-HarnessMetrics.Report("vehicle.speed", rb.linearVelocity.magnitude);
-HarnessMetrics.Count("crop.cut");
+## The key idea: the built game is driven and measured from the outside, with zero harness code in the game
+The game is written normally, with **Unity's Input System** (actions / `PlayerInput`). The harness only observes it from outside.
+
+| Need | How (no game code) |
+|---|---|
+| Play the built game without a human | virtual Keyboard/Mouse/Gamepad devices fed through the Input System (the same technique as Unity's `InputTestFixture`), or **replaying a real session** you recorded with *Harness → Record Input* (`InputEventTrace`) |
+| Measure feel | **probes** in the scenario JSON read fields/properties by reflection, e.g. `Player › Rigidbody › linearVelocity.magnitude` |
+| Set up a test situation | `send` steps call the game's own methods (`SendMessage`), e.g. `GameManager.StartLevel("1")` |
+| Keep it out of the shipped game | the harness assembly only compiles in the editor and in harness builds (`HARNESS` define); `-release` builds contain none of it, and game assemblies can't reference it |
+
+```json
+"probes": [{"name": "vehicle.speed", "target": "Player", "component": "Rigidbody", "member": "linearVelocity.magnitude"}],
+"steps":  [{"action": "set", "control": "<Gamepad>/rightTrigger", "value": 1, "duration": 4},
+           {"action": "screenshot", "name": "full_throttle"}],
+"expect": {"vehicle.speed.max": {"min": 6, "max": 12}}
 ```
-A scenario (`scenarios/*.json`) plays the **built** player headlessly (`Game -autotest scenario.json -harnessOut dir`), takes screenshots, writes `metrics.json`, and the runner checks `expect` thresholds such as `"vehicle.speed.max": {"min": 6, "max": 12}`. Once you've tuned something by feel, lock it in with a threshold so overnight agents can't quietly break it. The same input path lets the camera takes play the game while filming it.
+A scenario (`scenarios/*.json`) plays the **built** player headlessly (`Game -autotest scenario.json -harnessOut dir`), takes screenshots, writes `metrics.json`, and the runner checks the `expect` thresholds. Once you've tuned something by feel, lock it in with a threshold so overnight agents can't quietly break it. Camera takes use the same input path to play the game while filming it.
+
+The only requirement on a game is that it uses the Input System package, which is the default in Unity 6; the legacy Input Manager can't be driven. A small, optional rule: keep feel values in serialized fields, so they can be tuned and probed.
 
 ## Quick start
 1. Use this repo as a template → `bash scripts/bootstrap.sh "My Game"`, then follow its printout (Unity 6 project in `game/`, Funplay package, `UNITY_PATH`).

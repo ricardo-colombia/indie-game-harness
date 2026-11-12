@@ -9,6 +9,9 @@ using UnityEngine;
 namespace Harness.Editor
 {
     /// <summary>
+    /// Harness build (default): adds the HARNESS define so the Studio.Harness runtime assembly is compiled in
+    /// (autotest, capture, input recording). Non-development, so captures have no "Development Build" watermark.
+    /// Release build: pass -release → no HARNESS define → zero harness code in the shipped game.
     /// Unity -batchmode -quit -projectPath game -buildTarget StandaloneWindows64
     ///       -executeMethod Harness.Editor.HarnessBuild.BuildPlayer -harnessBuildPath Builds/Player/MyGame.exe
     /// </summary>
@@ -26,11 +29,12 @@ namespace Harness.Editor
                 scenes = scenes,
                 locationPathName = path,
                 target = EditorUserBuildSettings.activeBuildTarget,
-                options = Arg("-release") != null ? BuildOptions.None : BuildOptions.Development
+                options = Arg("-development") != null ? BuildOptions.Development : BuildOptions.None,
+                extraScriptingDefines = Arg("-release") != null ? Array.Empty<string>() : new[] { "HARNESS" }
             };
             var report = BuildPipeline.BuildPlayer(opts);
             var s = report.summary;
-            Debug.Log($"[Harness] build {s.result} in {s.totalTime.TotalSeconds:0}s, {s.totalSize / 1048576f:0.0} MB, {s.totalErrors} errors, {s.totalWarnings} warnings");
+            Debug.Log($"[Harness] {(Arg("-release") != null ? "RELEASE" : "harness")} build {s.result} in {s.totalTime.TotalSeconds:0}s, {s.totalSize / 1048576f:0.0} MB, {s.totalErrors} errors, {s.totalWarnings} warnings");
             EditorApplication.Exit(s.result == BuildResult.Succeeded ? 0 : 1);
         }
 

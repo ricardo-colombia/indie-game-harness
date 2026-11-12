@@ -9,7 +9,7 @@ Review `git diff main...HEAD` against the card. You did not write this code; be 
 FAIL if any of:
 - Acceptance criteria not plausibly met, or large scope creep beyond the card.
 - Tests deleted, skipped (`[Ignore]`), or assertions loosened; scenario thresholds changed; protected paths touched.
-- Gameplay reads input outside `HarnessInput`; hard-coded feel values that should be serialized.
+- Game code references the `Harness` namespace; legacy `Input.Get*` instead of the Input System; hard-coded feel values that should be serialized.
 - Obvious runtime bugs: null refs on missing references, per-frame allocations/Find calls in Update, unbounded loops, coroutines never stopped.
 - Secrets, absolute local paths, or debug code left enabled.
 

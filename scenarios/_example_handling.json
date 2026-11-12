@@ -1,23 +1,25 @@
 {
-  "_comment": "EXAMPLE for a vehicle game. Copy, rename, and set thresholds from YOUR feel decisions (design/TASTE_LOG.md). The game must Report() these metrics.",
+  "_comment": "EXAMPLE for a vehicle game. Copy, rename, point probes at YOUR objects/fields, and set thresholds from YOUR feel decisions (design/TASTE_LOG.md). No game code changes needed: input goes through the Input System, state is read by reflection.",
   "scene": "Field01",
   "timeout": 90,
+  "probes": [
+    {"name": "vehicle.speed", "target": "Player", "component": "Rigidbody", "member": "linearVelocity.magnitude"},
+    {"name": "vehicle.tilt_deg", "target": "Player", "component": "Transform", "member": "eulerAngles.z"},
+    {"name": "crops.cut", "target": "Field", "component": "FieldManager", "member": "CutCount"}
+  ],
   "steps": [
-    {"action": "hook", "name": "spawn_vehicle", "arg": "start"},
+    {"action": "send", "target": "GameManager", "name": "StartLevel", "arg": "1"},
     {"action": "wait", "duration": 1},
-    {"action": "mark", "name": "phase", "value": 1},
-    {"action": "input", "name": "throttle", "value": 1, "duration": 4},
+    {"action": "set", "control": "<Gamepad>/rightTrigger", "value": 1, "duration": 4},
     {"action": "screenshot", "name": "full_throttle"},
-    {"action": "input", "name": "steer", "value": 1, "duration": 2},
-    {"action": "input", "name": "throttle", "value": 0},
+    {"action": "set", "control": "<Gamepad>/leftStick", "x": 1, "y": 0, "duration": 2},
     {"action": "wait", "duration": 3},
     {"action": "screenshot", "name": "after_turn"}
   ],
   "expect": {
     "vehicle.speed.max": {"min": 6, "max": 12},
-    "vehicle.time_to_top_speed.last": {"max": 2.5},
     "vehicle.tilt_deg.max": {"max": 15},
-    "crop.cut.count": {"min": 20},
+    "crops.cut.last": {"min": 20},
     "frame.ms.p95": {"max": 25}
   }
 }

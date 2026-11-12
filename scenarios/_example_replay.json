@@ -1,0 +1,15 @@
+{
+  "_comment": "EXAMPLE: replay a real play session you recorded with Harness -> Record Input (or Game.exe -recordInput). Best for 'did tonight's change break how my lap feels?'.",
+  "scene": "Field01",
+  "timeout": 180,
+  "probes": [
+    {"name": "player.x", "target": "Player", "component": "Transform", "member": "position.x"}
+  ],
+  "steps": [
+    {"action": "replay", "file": "recordings/REPLACE_ME.inputtrace"},
+    {"action": "screenshot", "name": "end_of_replay"}
+  ],
+  "expect": {
+    "frame.ms.p95": {"max": 25}
+  }
+}

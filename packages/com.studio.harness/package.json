@@ -1,10 +1,11 @@
 {
   "name": "com.studio.harness",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Studio Harness",
-  "description": "Headless build entry point, input/metrics contract, autopilot scenarios and scripted camera takes for AI-driven verification and marketing capture.",
+  "description": "Out-of-game test & capture harness: drives the real Input System with virtual devices or recorded traces, samples game state by reflection (probes), headless build entry, scripted camera takes. Compiled only into the editor and harness builds (HARNESS define) — release builds contain none of it, and game code never references it.",
   "unity": "6000.0",
   "dependencies": {
+    "com.unity.inputsystem": "1.11.2",
     "com.unity.test-framework": "1.4.5"
   }
 }

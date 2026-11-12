@@ -1,6 +1,7 @@
 {
   "name": "Studio.Harness",
   "rootNamespace": "Harness",
-  "references": [],
-  "autoReferenced": true
+  "references": ["Unity.InputSystem"],
+  "defineConstraints": ["UNITY_EDITOR || HARNESS"],
+  "autoReferenced": false
 }

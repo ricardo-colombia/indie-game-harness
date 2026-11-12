@@ -29,7 +29,8 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 sys.path.insert(0, str(HERE))
 PY = sys.executable
-LIVE_MODEL = "haiku"  # cheapest model; forced for every live test
+LIVE_MODEL = "haiku"
+STEP_ACTIONS = {"press", "set", "replay", "wait", "screenshot", "send", "mark"}  # cheapest model; forced for every live test
 NO_KEY = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
 
 FAKE_CLAUDE = r'''#!/usr/bin/env python3
@@ -211,15 +212,18 @@ class Offline(unittest.TestCase):
         self.assertIn("# trivial (haiku)", text)
 
     def test_cs_guard_hook(self):
-        bad = self.tmp / "Bad.cs"
-        bad.write_text('class A { void Update() { var x = Input.GetAxis("h"); } }')
-        good = self.tmp / "Good.cs"
-        good.write_text('class B { void Update() { var x = Harness.HarnessInput.Axis("h"); } }')
         hook = self.repo / "harness/hooks/guard_cs.py"
-        self.assertEqual(subprocess.run([PY, str(hook)], input=json.dumps({"tool_input": {"file_path": str(bad)}}),
-                                        text=True, capture_output=True).returncode, 2)
-        self.assertEqual(subprocess.run([PY, str(hook)], input=json.dumps({"tool_input": {"file_path": str(good)}}),
-                                        text=True, capture_output=True).returncode, 0)
+        cases = {
+            "Legacy.cs": ('class A { void Update() { var x = Input.GetAxis("h"); } }', 2),
+            "UsesHarness.cs": ('using Harness;\nclass B { }', 2),
+            "Good.cs": ('using UnityEngine.InputSystem;\nclass C { InputAction a; void Update() { var v = a.ReadValue<float>(); } }', 0),
+        }
+        for name, (src, want) in cases.items():
+            f = self.tmp / name
+            f.write_text(src)
+            rc = subprocess.run([PY, str(hook)], input=json.dumps({"tool_input": {"file_path": str(f)}}),
+                                text=True, capture_output=True).returncode
+            self.assertEqual(rc, want, name)
 
     def test_posting_queue_requires_approval(self):
         import yaml
@@ -292,7 +296,21 @@ class Offline(unittest.TestCase):
             self.assertTrue((REPO / plug[k]).is_dir())
         for s in REPO.glob("scenarios/*.json"):
             for st in json.loads(s.read_text()).get("steps", []):
-                self.assertIn(st["action"], {"input", "wait", "screenshot", "hook", "mark"}, s)
+                self.assertIn(st["action"], STEP_ACTIONS, s)
+            for pr in json.loads(s.read_text()).get("probes", []):
+                self.assertTrue(pr.get("name") and pr.get("target") and pr.get("member"), s)
+        for t in REPO.glob("marketing/takes/*.json"):
+            for take in json.loads(t.read_text())["takes"]:
+                for st in take.get("steps", []):
+                    self.assertIn(st["action"], STEP_ACTIONS, t)
+
+    def test_game_code_never_references_harness(self):
+        import re
+        rt = json.loads((REPO / "packages/com.studio.harness/Runtime/Studio.Harness.asmdef").read_text())
+        self.assertIn("UNITY_EDITOR || HARNESS", rt["defineConstraints"])  # stripped from release builds
+        self.assertFalse(rt.get("autoReferenced", True))                    # game assemblies can't see it
+        for f in (REPO / "game").rglob("*.cs") if (REPO / "game").exists() else []:
+            self.assertIsNone(re.search(r"^\s*using\s+Harness\b", f.read_text(errors="ignore"), re.M), f)
 
 
 # ------------------------------------------------------------------ mcp (free)

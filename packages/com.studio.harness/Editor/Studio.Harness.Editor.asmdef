@@ -1,7 +1,12 @@
 {
   "name": "Studio.Harness.Editor",
   "rootNamespace": "Harness.Editor",
-  "references": ["Studio.Harness"],
-  "includePlatforms": ["Editor"],
+  "references": [
+    "Studio.Harness",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
   "autoReferenced": true
 }

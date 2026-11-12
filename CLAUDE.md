@@ -3,7 +3,7 @@
 This repo is one indie game built with an AI team. The human is the **creative director**: they make every taste call (feel, look, fun). Agents build, measure and report. When a decision is about taste, don't decide — surface options with screenshots/metrics and set `taste_review: true`.
 
 ## Layout
-- `game/` Unity 6 project. `packages/com.studio.harness` = build entry, `HarnessInput`, `HarnessMetrics`, AutoPilot, CameraTakes.
+- `game/` Unity 6 project. `packages/com.studio.harness` = out-of-game harness (build entry, Input System driver, probes, AutoPilot, CameraTakes), compiled only into the editor and harness builds.
 - `backlog/{inbox,ready,review,done,failed}/` cards (see `backlog/_template.md`). Only humans move cards inbox → ready.
 - `scenarios/*.json` autotest scripts + metric thresholds (the "feel contract"). Protected.
 - `design/PILLARS.md` human-owned vision — read, never edit. `design/TASTE_LOG.md` decisions with reasons.
@@ -11,10 +11,10 @@ This repo is one indie game built with an AI team. The human is the **creative d
 - `harness/hx.py` the only CLI you need: `python harness/hx.py verify|build|test|autotest|capture|cards|cost`.
 
 ## Code contract (Unity / C#)
-- Gameplay reads input **only** via `Harness.HarnessInput.Axis/Button` — so scenarios can drive the built game.
-- Any tunable feel value is a serialized field or ScriptableObject, never a magic number.
-- Report what defines feel: `HarnessMetrics.Report("vehicle.speed", v)`, `HarnessMetrics.Count("crop.cut")`.
-- Expose debug/setup actions to scenarios via `HarnessHooks.Register(...)`.
+- **Game code never references the harness** (`using Harness` is forbidden; it's stripped from release builds). The harness drives and observes the game from outside.
+- Input uses the **Input System** package (InputActions / PlayerInput), never the legacy `Input.GetAxis`. That is what lets scenarios drive the game with virtual devices or recorded traces.
+- Any tunable feel value is a serialized field or ScriptableObject, never a magic number. State worth measuring should be readable as a field/property, so scenario **probes** can read it (e.g. a public `CutCount`).
+- Setup actions for tests are ordinary public methods on game objects (`GameManager.StartLevel(string)`), which scenarios call with `send` steps.
 - New systems get EditMode tests for logic; PlayMode/autotest for behaviour. Never delete or weaken a test to pass.
 - Always commit `.meta` files. Don't hand-edit `.unity`/`.prefab` YAML beyond trivial fixes — use Funplay MCP (`execute_code`) or an Editor script.
 - Never read `game/Library`, `Temp`, `Logs`, `Builds` (huge, useless context).

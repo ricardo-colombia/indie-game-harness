@@ -1,8 +1,16 @@
 {
   "name": "Studio.Harness.Tests.Runtime",
-  "references": ["Studio.Harness", "UnityEngine.TestRunner"],
+  "references": [
+    "Studio.Harness",
+    "UnityEngine.TestRunner",
+    "Unity.InputSystem"
+  ],
   "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
-  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "precompiledReferences": [
+    "nunit.framework.dll"
+  ],
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
   "autoReferenced": false
 }

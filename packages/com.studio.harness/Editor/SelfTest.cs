@@ -8,7 +8,7 @@ namespace Harness.Editor
 {
     /// <summary>
     /// Used by `hx selftest --unity`: creates a throwaway scene (camera, light, ground, a "Player" cube driven by
-    /// HarnessInput and reporting metrics) and puts it first in Build Settings, so build/tests/autotest/capture
+    /// the Input System and read by probes) and puts it first in Build Settings, so build/tests/autotest/capture
     /// can be validated before the real game exists. Never run this on your game project — selftest uses a temp copy.
     /// </summary>
     public static class SelfTest

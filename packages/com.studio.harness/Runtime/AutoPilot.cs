@@ -6,15 +6,16 @@ using UnityEngine.SceneManagement;
 namespace Harness
 {
     /// <summary>
-    /// Built player, launched with:  Game.exe -autotest scenarios/drive_straight.json -harnessOut out/
-    /// Plays the scenario through HarnessInput, samples frame time, counts errors, writes metrics.json, quits.
-    /// Exit code 0 = completed with no errors (thresholds are judged by harness/unity.py).
+    /// Harness build, launched with:  Game.exe -autotest scenarios/x.json -harnessOut out/
+    /// Plays the scenario through the Input System, samples probes + frame time, counts errors, writes metrics.json,
+    /// quits. Exit 0 = completed without errors; thresholds are judged by harness/unity.py.
     /// </summary>
     public class AutoPilot : MonoBehaviour
     {
         string scenarioPath, outDir;
+        Scenario sc;
         int errors;
-        bool completed;
+        bool completed, running;
         float startReal;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -41,25 +42,26 @@ namespace Harness
         {
             Directory.CreateDirectory(outDir);
             startReal = Time.realtimeSinceStartup;
-            var sc = JsonUtility.FromJson<Scenario>(File.ReadAllText(scenarioPath));
+            sc = JsonUtility.FromJson<Scenario>(File.ReadAllText(scenarioPath));
             StartCoroutine(Watchdog(sc.timeout));
-
             if (!string.IsNullOrEmpty(sc.scene) && SceneManager.GetActiveScene().name != sc.scene)
             {
                 var op = SceneManager.LoadSceneAsync(sc.scene);
                 while (!op.isDone) yield return null;
             }
             HarnessMetrics.Report("startup.seconds", Time.realtimeSinceStartup);
-            HarnessInput.Simulated = true;
             Time.timeScale = sc.timeScale > 0 ? sc.timeScale : 1f;
-            yield return StepRunner.Run(sc.steps, outDir);
+            running = true;
+            yield return StepRunner.Run(sc.steps, outDir, Path.GetDirectoryName(Path.GetFullPath(scenarioPath)));
             completed = true;
             Finish();
         }
 
         void Update()
         {
+            if (!running) return;
             HarnessMetrics.Report("frame.ms", Time.unscaledDeltaTime * 1000f);
+            foreach (var p in sc.probes) p.Sample();
         }
 
         IEnumerator Watchdog(float seconds)
@@ -74,6 +76,7 @@ namespace Harness
 
         void Finish()
         {
+            running = false;
             var json = "{\"scenario\":\"" + Path.GetFileNameWithoutExtension(scenarioPath) + "\"," +
                        "\"completed\":" + (completed ? "true" : "false") + "," +
                        "\"errors\":" + errors + "," +

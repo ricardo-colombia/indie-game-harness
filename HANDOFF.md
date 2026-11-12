@@ -9,6 +9,7 @@ A reusable harness/template for indie games made with AI (not a game). Modelled 
 - **$0 must be a first-class mode.** Default runs on the Claude plan's included quota only (API key stripped from agent calls). Money is an optional boost: `paid: true` cards, models not in the plan, one Opus escalation. When the quota runs out the card returns to `ready`, and the runner waits or stops.
 - **Validate at zero cost**, forcing the cheapest model (Haiku) for live tests → `hx selftest` + `scripts/selftest.{sh,ps1}` + `TESTING.md`.
 - **Commits** carry no AI co-author/attribution lines.
+- **No harness code in the game.** The harness drives the game through the Input System (virtual devices / recorded traces) and reads it with reflection probes. It compiles only into the editor and harness builds (`HARNESS` define); `-release` builds are clean. Games must use the Input System package.
 
 ## Status
 - Done: everything in README.md. Offline selftest: 16 tests, all pass (Blender test skipped where Blender is missing).

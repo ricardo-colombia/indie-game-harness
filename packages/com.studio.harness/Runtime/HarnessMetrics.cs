@@ -6,11 +6,9 @@ using System.Text;
 namespace Harness
 {
     /// <summary>
-    /// Gameplay reports numbers here (cheap no-op cost outside harness runs is fine — it's a dictionary write).
-    ///   HarnessMetrics.Report("tractor.speed", rb.linearVelocity.magnitude);
-    ///   HarnessMetrics.Count("crop.cut");
-    /// Scenario JSON `expect` blocks assert on name.stat where stat = min|max|avg|last|p95|count.
-    /// This is how "it handles well" becomes a number an overnight agent can't argue with.
+    /// Harness-internal metric store, filled by scenario probes (Probes.cs), frame timing and `mark` steps.
+    /// Game code does not call this. Scenario `expect` blocks assert on name.stat (min|max|avg|last|p95|count),
+    /// which is how "it handles well" becomes a number an overnight agent can't argue with.
     /// </summary>
     public static class HarnessMetrics
     {

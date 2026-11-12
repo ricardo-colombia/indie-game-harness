@@ -1,10 +1,14 @@
 {
-  "_comment": "Used by `hx selftest --unity` with the generated sample scene. Proves input -> movement -> metrics -> thresholds.",
+  "_comment": "Used by `hx selftest --unity` with the generated sample scene. Proves virtual-device input -> game's own InputAction -> movement -> probes -> thresholds, with no harness code in the 'game'.",
   "scene": "HarnessSelfTest",
   "timeout": 60,
+  "probes": [
+    {"name": "selftest.speed", "target": "Player", "component": "SelfTestMover", "member": "CurrentSpeed"},
+    {"name": "selftest.z", "target": "Player", "component": "Transform", "member": "position.z"}
+  ],
   "steps": [
     {"action": "wait", "duration": 0.5},
-    {"action": "input", "name": "throttle", "value": 1, "duration": 2},
+    {"action": "press", "control": "<Keyboard>/w", "duration": 2},
     {"action": "screenshot", "name": "moved"}
   ],
   "expect": {

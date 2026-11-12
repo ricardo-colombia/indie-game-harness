@@ -3,6 +3,6 @@
   "takes": [
     {"name": "orbit", "type": "orbit", "target": "Player", "duration": 1, "radius": 6, "height": 3, "speed": 60},
     {"name": "follow", "type": "follow", "target": "Player", "duration": 1,
-     "steps": [{"action": "input", "name": "throttle", "value": 1, "duration": 1}]}
+     "steps": [{"action": "press", "control": "<Keyboard>/w", "duration": 1}]}
   ]
 }

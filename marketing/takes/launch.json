@@ -20,8 +20,8 @@
       "offset": {"x": 0, "y": 4, "z": -8},
       "fov": 55,
       "steps": [
-        {"action": "input", "name": "throttle", "value": 1, "duration": 8},
-        {"action": "input", "name": "steer", "value": 0.4, "duration": 3}
+        {"action": "set", "control": "<Gamepad>/rightTrigger", "value": 1, "duration": 8},
+        {"action": "set", "control": "<Gamepad>/leftStick", "x": 0.4, "y": 0, "duration": 3}
       ]
     },
     {
