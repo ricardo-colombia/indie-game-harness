@@ -1,6 +1,6 @@
 ---
 name: taste-review
-description: Prepare the director's morning review — summarise runner results and present backlog/review branches with screenshots and metric deltas so they can make fast taste calls. Use for "what happened overnight", "review queue", "morning".
+description: Prepare the director's review — summarise runner results and present backlog/review branches with screenshots and metric deltas so they can make fast taste calls. Use for "what happened in the last run", "review queue".
 ---
 1. `python harness/hx.py report` and `hx cards`.
 2. For each card in `backlog/review/`: one block with the goal, metrics before → after (from its report vs. last main report), 2–4 screenshots, and the single question to answer ("Turn radius went 9 m → 6 m; keep?").

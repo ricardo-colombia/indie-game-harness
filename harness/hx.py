@@ -6,7 +6,7 @@
   hx capture marketing/takes/launch.json
   hx card new "Title" [--type feature] | hx card ready C-0007 | hx cards
   hx release [--to-steam]            release build (no HARNESS) + scan for harness code; --to-steam stages it
-  hx run [--budget 0] [--dry-run]    overnight runner ($0 = plan quota only)       (director only)
+  hx run [--budget 0] [--dry-run]    card runner, on demand ($0 = plan quota only)       (director only)
   hx merge C-0007 [--trusted]        re-gate a review/ card on current main, then merge   (director only)
   hx selftest [--mcp --unity --live --all]   validate the harness at $0
   hx report                          latest report per card + spend

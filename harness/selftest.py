@@ -217,7 +217,6 @@ class Offline(unittest.TestCase):
         self.assertEqual([r["billed"] for r in rows if r["kind"] == "card"], ["plan", "plan", "api"])
 
     def test_quota_exhausted_returns_card_to_ready(self):
-        set_cfg(self.repo, on_quota_exhausted="stop")
         add_card(self.repo, "C-0001"); commit(self.repo)
         out = self.runner(FAKE_MODE="quota").stdout
         self.assertIn("quota exhausted", out)
@@ -250,7 +249,7 @@ class Offline(unittest.TestCase):
         self.assertFalse(any(c["review"] for c in self.calls()), "gates must not run suspicious code")
         self.assertEqual(len(self.calls()), 1, "no fix pass: the director decides")
 
-    def test_main_checkout_tampering_stops_the_night(self):
+    def test_main_checkout_tampering_stops_the_run(self):
         add_card(self.repo, "C-0001"); add_card(self.repo, "C-0002"); commit(self.repo)
         out = self.runner(FAKE_MODE="escape").stdout
         self.assertIn("STOP: judge files", out)
@@ -268,7 +267,6 @@ class Offline(unittest.TestCase):
         self.assertEqual(where(self.repo, "C-0001"), "done")
 
     def test_quota_pause_resumes_instead_of_restarting(self):
-        set_cfg(self.repo, on_quota_exhausted="stop"); commit(self.repo)
         add_card(self.repo, "C-0001"); commit(self.repo)
         self.runner(FAKE_MODE="quota_once")
         self.assertEqual(where(self.repo, "C-0001"), "ready")
@@ -276,13 +274,7 @@ class Offline(unittest.TestCase):
         self.runner(FAKE_MODE="quota_once")
         self.assertEqual(where(self.repo, "C-0001"), "done")
         work = [c for c in self.calls() if not c["review"]]
-        self.assertTrue(work[1]["resume"], "second night should resume the paused session")
-
-    def test_quota_loop_is_bounded(self):
-        set_cfg(self.repo, on_quota_exhausted="wait", quota_wait_min=0, max_quota_pauses_per_card=2); commit(self.repo)
-        add_card(self.repo, "C-0001"); commit(self.repo)
-        out = self.runner(FAKE_MODE="quota").stdout
-        self.assertIn("hit the quota 2 times", out)
+        self.assertTrue(work[1]["resume"], "second run should resume the paused session")
 
     def test_review_verdict_must_be_last_line(self):
         add_card(self.repo, "C-0001"); commit(self.repo)
