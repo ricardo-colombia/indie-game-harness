@@ -57,16 +57,21 @@ namespace Studio.Pacman
         [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
         [SerializeField] private float wakaInterval = 0.18f;
 
-        private const float PelletSize = 0.2f;
-        private const float PowerPelletSize = 0.5f;
-        private static readonly Color PelletColour = new Color(1f, 0.95f, 0.75f);
-        private static readonly Color PowerPelletColour = new Color(1f, 0.85f, 0.45f);
-        private static readonly Color[] GhostColours =
+        private const float PelletSize = 0.46f;
+        private const float PowerPelletSize = 0.95f;
+        // Pellets are coffee cherries on the bush: mostly ripe red, some still orange-yellow (pinton).
+        private static readonly Color PelletColour = new Color(0.72f, 0.42f, 0.2f);
+        private static readonly Color PelletUnripeColour = new Color(0.88f, 0.66f, 0.36f);
+        private static readonly Color PowerPelletColour = new Color(1f, 0.65f, 0.25f, 0.2f);
+        private static readonly Color LeafColour = new Color(0.3f, 0.8f, 0.25f);
+        // The four pests, in ghost order: the DIAN agent (steel blue suit), the guerrilla fighter (olive), the narco
+        // (cream linen) and the coral snake (red).
+        public static readonly Color[] GhostColours =
         {
-            new Color(1f, 0.1f, 0.1f),
-            new Color(1f, 0.55f, 0.85f),
-            new Color(0.2f, 0.95f, 0.95f),
-            new Color(1f, 0.6f, 0.15f),
+            new Color(0.5f, 0.62f, 0.95f),
+            new Color(0.55f, 0.68f, 0.22f),
+            new Color(0.98f, 0.9f, 0.68f),
+            new Color(0.95f, 0.22f, 0.2f),
         };
 
         private readonly List<PacmanGhost> ghosts = new List<PacmanGhost>();
@@ -279,7 +284,7 @@ namespace Studio.Pacman
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
-                        PacmanVfx.Pop(player.transform.position, new Color(1f, 0.82f, 0.05f), 40);
+                        PacmanVfx.Pop(player.transform.position, new Color(0.95f, 0.85f, 0.6f), 40);
                         post?.Shake(0.18f, 0.2f);
                         Lives--;
                         if (Lives <= 0)
@@ -721,7 +726,7 @@ namespace Studio.Pacman
                     ghost.Eat();
                     Color ghostColour = GhostColours[(int)ghost.Kind];
                     PacmanVfx.Pop(ghost.transform.position, ghostColour, 30);
-                    PacmanUi.Show(ghost.transform.position, points.ToString(), new Color(0.45f, 0.9f, 1f));
+                    PacmanUi.Show(ghost.transform.position, points.ToString(), new Color(0.55f, 0.85f, 1f));
                     post?.Punch(0.7f);
                     post?.Shake(0.12f, 0.18f);
                 }
@@ -745,7 +750,7 @@ namespace Studio.Pacman
             pelletObjects[index].SetActive(false);
 
             player.Gobble();
-            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(1f, 0.85f, 0.4f) : new Color(1f, 0.95f, 0.7f), IsPowerPellet(index) ? 16 : 6);
+            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(0.8f, 0.5f, 0.2f) : new Color(0.85f, 0.55f, 0.3f), IsPowerPellet(index) ? 16 : 6);
             if (IsPowerPellet(index))
             {
                 pacPauseTimer = powerPelletPauseFrames / 60f;
@@ -831,7 +836,7 @@ namespace Studio.Pacman
             PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn);
             if (player != null)
             {
-                PacmanUi.Show(player.transform.position + Vector3.up, "1UP", new Color(0.4f, 1f, 0.5f));
+                PacmanUi.Show(player.transform.position + Vector3.up, "+1 VIDA", new Color(0.4f, 1f, 0.5f));
             }
         }
 
@@ -1026,13 +1031,53 @@ namespace Studio.Pacman
             pellet.transform.position = PacmanMaze.ToWorld(tile);
             pellet.transform.localScale = Vector3.one * (power ? PowerPelletSize : PelletSize);
             SpriteRenderer renderer = pellet.AddComponent<SpriteRenderer>();
-            renderer.sprite = PacmanSprites.Disc;
-            renderer.color = power ? PowerPelletColour : PelletColour;
             renderer.sortingOrder = 1;
+            if (!power)
+            {
+                // A coffee bean: caramel body with a dark crease, each tilted a little differently.
+                bool light = (tile.x * 7 + tile.y * 13) % 5 == 0;
+                renderer.sprite = PacmanSprites.Bean;
+                renderer.color = light ? PelletUnripeColour : PelletColour;
+                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
+                AddPelletPart(pellet.transform, new Color(0.22f, 0.1f, 0.04f), new Vector2(0f, 0f), new Vector3(0.1f, 0.74f, 1f), 0f, 2, PacmanSprites.Square);
+                return pellet;
+            }
+
+            // The espresso: a mug in side view with black coffee, a handle and steam. Drinking it is what lets
+            // the picker chase the pests. The root disc is a warm glow behind it.
+            renderer.sprite = PacmanSprites.Disc;
+            renderer.color = PowerPelletColour;
+            Color cream = new Color(0.95f, 0.91f, 0.8f);
+            Color dark = new Color(0.07f, 0.04f, 0.025f);
+            Transform t = pellet.transform;
+            AddPelletPart(t, cream, new Vector2(0.27f, -0.08f), new Vector3(0.36f, 0.36f, 1f), 0f, 2);
+            AddPelletPart(t, dark, new Vector2(0.28f, -0.08f), new Vector3(0.16f, 0.16f, 1f), 0f, 3);
+            AddPelletPart(t, cream, new Vector2(-0.1f, -0.08f), new Vector3(0.58f, 0.5f, 1f), 0f, 3, PacmanSprites.Square);
+            AddPelletPart(t, cream, new Vector2(-0.1f, -0.33f), new Vector3(0.58f, 0.2f, 1f), 0f, 3);
+            AddPelletPart(t, new Color(1f, 0.98f, 0.9f), new Vector2(-0.1f, 0.17f), new Vector3(0.58f, 0.22f, 1f), 0f, 4);
+            AddPelletPart(t, dark, new Vector2(-0.1f, 0.17f), new Vector3(0.46f, 0.15f, 1f), 0f, 5);
+            AddPelletPart(t, new Color(0.62f, 0.36f, 0.16f), new Vector2(-0.18f, 0.19f), new Vector3(0.18f, 0.05f, 1f), 0f, 6);
+            Color steam = new Color(1f, 1f, 1f, 0.75f);
+            AddPelletPart(t, steam, new Vector2(-0.24f, 0.4f), new Vector3(0.06f, 0.26f, 1f), 14f, 6);
+            AddPelletPart(t, steam, new Vector2(-0.08f, 0.46f), new Vector3(0.06f, 0.3f, 1f), -14f, 6);
+            AddPelletPart(t, steam, new Vector2(0.06f, 0.4f), new Vector3(0.06f, 0.24f, 1f), 14f, 6);
             return pellet;
         }
 
-        /// <summary>The pink bar across the ghost house gate. Cosmetic: the maze grid decides who may pass.</summary>
+        private static void AddPelletPart(Transform parent, Color colour, Vector2 position, Vector3 scale, float angle, int order, Sprite sprite = null)
+        {
+            GameObject part = new GameObject("Part");
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = position;
+            part.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            part.transform.localScale = scale;
+            SpriteRenderer renderer = part.AddComponent<SpriteRenderer>();
+            renderer.sprite = sprite != null ? sprite : PacmanSprites.Disc;
+            renderer.color = colour;
+            renderer.sortingOrder = order;
+        }
+
+        /// <summary>The wooden bar across the pest house gate. Cosmetic: the maze grid decides who may pass.</summary>
         private static void CreateGate(Transform parent, Vector2Int tile)
         {
             GameObject bar = new GameObject("Gate");
@@ -1041,7 +1086,7 @@ namespace Studio.Pacman
             bar.transform.localScale = new Vector3(1f, 0.16f, 1f);
             SpriteRenderer renderer = bar.AddComponent<SpriteRenderer>();
             renderer.sprite = PacmanSprites.Square;
-            renderer.color = new Color(1f, 0.6f, 0.82f);
+            renderer.color = new Color(0.72f, 0.5f, 0.25f);
             renderer.sortingOrder = 2;
         }
 
@@ -1066,7 +1111,7 @@ namespace Studio.Pacman
             {
                 GameObject ghostObject = new GameObject("Ghost_" + kinds[i]);
                 ghostObject.transform.SetParent(transform, false);
-                Transform body = PacmanGhostView.Create(ghostObject.transform, GhostColours[i]);
+                Transform body = PacmanGhostView.Create(ghostObject.transform, GhostColours[i], kinds[i]);
                 PacmanGhost ghost = ghostObject.AddComponent<PacmanGhost>();
                 ghost.Init(this, kinds[i], corners[i]);
                 ghost.PathChase = pathChase;
@@ -1086,7 +1131,7 @@ namespace Studio.Pacman
             // Placeholder; FitCamera sizes the view to the actual screen shape on the first frame.
             cam.orthographicSize = PacmanMaze.Height * 0.5f + 3f;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.005f, 0.006f, 0.02f);
+            cam.backgroundColor = new Color(0.03f, 0.07f, 0.04f);
             // A plain 2D view: the board lies in the XY plane and the camera looks along +Z.
             cam.transform.position = new Vector3(PacmanMaze.Width * 0.5f - 0.5f, -(PacmanMaze.Height * 0.5f - 0.5f), -10f);
             cam.transform.rotation = Quaternion.identity;
