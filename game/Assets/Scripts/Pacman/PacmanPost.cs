@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Camera look: bloom so the neon glows, a vignette and a touch of colour grading, plus short kicks
+    /// Camera look: a soft bloom so the lanterns and cherries glow, a vignette and a touch of colour grading, plus short kicks
     /// (screen shake, chromatic pulse, zoom punch) for impacts. Everything is created at runtime so the
     /// scene file needs no setup.
     /// </summary>
@@ -80,7 +80,8 @@ namespace Studio.Pacman
             ColorAdjustments grade = profile.Add<ColorAdjustments>(true);
             grade.postExposure.value = 0.05f;
             grade.contrast.value = 14f;
-            grade.saturation.value = 10f;
+            grade.saturation.value = 14f;
+            grade.colorFilter.value = new Color(1f, 0.96f, 0.88f); // a warm, late-afternoon tint
 
             FilmGrain grain = profile.Add<FilmGrain>(true);
             grain.type.value = FilmGrainLookup.Thin1;

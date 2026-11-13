@@ -3,15 +3,16 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Draws the maze walls into two sprites: a neon outline (white, tinted at runtime by the scenery) and a
-    /// dark fill. The wall tiles are rasterised, their convex corners are rounded with a morphological
-    /// opening, and the outline is drawn a little inside the wall edge, so thin walls read as the classic
-    /// double line and thick blocks as hollow outlines.
+    /// Draws the maze walls as coffee mountains, into two sprites: a rim light (white, tinted at runtime by the
+    /// scenery) and a baked-colour fill of terraced hillside with rows of coffee bushes (some with red cherries).
+    /// The wall tiles are rasterised, their convex corners are rounded with a morphological opening, and the
+    /// rim is drawn a little inside the wall edge, so thin walls read as ridgelines and thick blocks as
+    /// whole hills.
     /// </summary>
     public static class PacmanMazeArt
     {
         /// <summary>Pixels per tile in the generated textures.</summary>
-        private const int PixelsPerTile = 24;
+        private const int PixelsPerTile = 32;
 
         /// <summary>Tiles of empty margin around the board.</summary>
         private const int Pad = 1;
@@ -52,9 +53,9 @@ namespace Studio.Pacman
             }
 
             float radius = 0.32f * s;
-            float inset = 0.2f * s;
-            float halfWidth = 0.06f * s;
-            float glowReach = 0.1f * s;
+            float inset = 0.08f * s;
+            float halfWidth = 0.032f * s;
+            float glowReach = 0.08f * s;
 
             // Opening: erode the walls by the radius, then grow them back. Convex corners come out round.
             float[] toOpen = Distance(Invert(wall), pw, ph);
@@ -81,13 +82,48 @@ namespace Studio.Pacman
                 float signed = rounded[i] ? toOutside[i] : -toInside[i];
                 float away = Mathf.Abs(signed - inset);
                 float line = Mathf.Clamp01(halfWidth + 0.5f - away);
-                float glow = 0.3f * Mathf.Exp(-away / glowReach);
+                float glow = 0.07f * Mathf.Exp(-away / glowReach);
                 lineColours[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Max(line, glow) * 255f));
-                fillColours[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f + signed) * 255f));
+                Color32 terrain = Terrain(i % pw, i / pw, signed, s);
+                terrain.a = (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f + signed) * 255f);
+                fillColours[i] = terrain;
             }
 
             lineSprite = ToSprite("PacmanWallLine", lineColours, pw, ph, s);
             fillSprite = ToSprite("PacmanWallFill", fillColours, pw, ph, s);
+        }
+
+        private static readonly Color Soil = new Color(0.3f, 0.18f, 0.09f);
+        private static readonly Color Grass = new Color(0.4f, 0.58f, 0.2f);
+        private static readonly Color LeafDark = new Color(0.03f, 0.2f, 0.07f);
+        private static readonly Color LeafMid = new Color(0.1f, 0.5f, 0.14f);
+        private static readonly Color LeafLight = new Color(0.5f, 0.85f, 0.3f);
+        private static readonly Color Cherry = new Color(0.92f, 0.12f, 0.12f);
+
+        private static float Hash(int x, int y)
+        {
+            return (((x * 73856093) ^ (y * 19349663)) & 255) / 255f;
+        }
+
+        /// <summary>
+        /// Colour of the coffee plantation at one pixel. signed is the distance in pixels inside the wall edge.
+        /// The ground is earth with grass tufts. Planted on it, in tight straight rows like a real finca seen from
+        /// above, are coffee bushes: each a rosette of glossy, pointed leaves, darker at the heart and lit from the
+        /// top left, with a few clusters of red cherries on the outer leaves.
+        /// </summary>
+        private static Color32 Terrain(int px, int py, float signed, int pixelsPerTile)
+        {
+            float k = pixelsPerTile / 24f;
+            float tiles = signed / pixelsPerTile;
+
+            // Earth and grass between the rows.
+            float noise = Hash(px, py);
+            Color c = Color.Lerp(Soil, Grass, Mathf.Clamp01((noise - 0.45f) * 2.2f) * 0.8f);
+
+            // The bushes themselves are sprites on top (PacmanBushes); here only a darker, mossy ground shows
+            // through the gaps, deeper towards the middle of the wall.
+            c = Color.Lerp(c, new Color(0.1f, 0.12f, 0.05f), Mathf.Clamp01(0.35f + tiles * 1.2f));
+            return c;
         }
 
         private static Sprite ToSprite(string name, Color32[] pixels, int width, int height, int pixelsPerUnit)
