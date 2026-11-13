@@ -54,7 +54,12 @@ namespace Studio.Pacman
             game = owner;
             instance = this;
             pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
+#if UNITY_WEBGL
+            // Browsers have no OS fonts to load, so use the font that ships with Unity.
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+#else
             font = Font.CreateDynamicFontFromOSFont(new[] { "Arial Rounded MT Bold", "Avenir Next Condensed", "Arial Black", "Helvetica Neue", "Arial" }, 48);
+#endif
         }
 
         private void OnDestroy()
