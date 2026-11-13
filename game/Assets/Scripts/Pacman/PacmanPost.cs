@@ -40,6 +40,12 @@ namespace Studio.Pacman
             return post;
         }
 
+        /// <summary>Changes the resting zoom, for when the screen shape changes.</summary>
+        public void SetBaseSize(float size)
+        {
+            baseSize = size;
+        }
+
         private void Setup(Camera camera)
         {
             cam = camera;
