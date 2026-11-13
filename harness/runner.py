@@ -1,4 +1,4 @@
-"""Overnight card runner.
+"""On-demand card runner (`hx run`).
 
 Billing model (indie-first):
   * Default: everything runs on your Claude plan's included quota (ANTHROPIC_API_KEY is stripped so
@@ -6,11 +6,11 @@ Billing model (indie-first):
   * `--budget N` / runner.money_budget_usd > 0 lets the runner ALSO spend real API money, only for:
     cards marked `paid: true`, models your plan doesn't include, or one escalation attempt after a
     card fails on plan quota. Money is never spent when the budget is 0.
-  * When plan quota runs out, the current card goes back to ready (not failed) and the runner either
-    waits for the quota window to reset (until `run_until`) or stops.
+  * When plan quota runs out, the current card goes back to ready (not failed) and the run stops; run
+    `hx run` again once your quota resets and the card resumes where it left off.
 
 Per card: worktree card/<id> -> headless Claude (turn cap, wall-clock cap, per-card spend cap — on plan
-quota this cap is an estimate that keeps one runaway card from eating the whole night's quota)
+quota this cap is an estimate that keeps one runaway card from eating all of your quota)
 -> independent gates -> one fix pass -> merge | backlog/review (taste) | backlog/failed. Never pushes.
 """
 from __future__ import annotations
@@ -398,7 +398,7 @@ def process(card: Card, cfg, billing: Billing) -> tuple[str, float]:
                 ok, gates = run_gates(card, cfg, wt, out, billing)
             except QuotaExhausted:
                 raise
-            except Exception as e:  # env problems (no Unity, missing scenario) fail the card, not the night
+            except Exception as e:  # env problems (no Unity, missing scenario) fail the card, not the run
                 ok, gates = False, {"error": f"{type(e).__name__}: {e}"}
             if ok or needs_director(gates):
                 break
@@ -491,21 +491,10 @@ def regate_and_merge(card_id: str, cfg, trusted: bool = False) -> int:
     return 0
 
 
-def past(hhmm: str | None, start: dt.datetime) -> bool:
-    if not hhmm:
-        return False
-    h, m = map(int, hhmm.split(":"))
-    stop = start.replace(hour=h, minute=m, second=0)
-    if stop <= start:
-        stop += dt.timedelta(days=1)
-    return dt.datetime.now() >= stop
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--budget", type=float, help="real money (USD) this session may spend; default config money_budget_usd (0)")
     ap.add_argument("--max-cards", type=int)
-    ap.add_argument("--until", help="HH:MM local; stop starting new cards after this (default config run_until)")
     ap.add_argument("--dry-run", action="store_true", help="show what would run")
     ap.add_argument("--merge", metavar="CARD", help="re-gate a backlog/review card on current main and merge it")
     ap.add_argument("--trusted", action="store_true", help="with --merge: you read the flagged suspicious lines; run them")
@@ -528,14 +517,12 @@ def main():
     if problems and not a.dry_run:
         raise SystemExit("refusing to run — this could cost money:\n- " + "\n- ".join(problems))
     fingerprint = judges_fingerprint()
-    until = a.until or r.get("run_until")
     max_cards = a.max_cards or r["max_cards_per_run"]
     print(f"mode: plan quota" + (f" + up to ${billing.money_budget:.2f} API" if billing.money_budget > 0 else " only ($0)"))
 
     fails = done = 0
     skipped: set[str] = set()
-    pauses: dict[str, int] = {}
-    while done < max_cards and not past(until, start):
+    while done < max_cards:
         card = next_card(exclude=skipped)
         if not card:
             print("stop: no runnable ready cards")
@@ -549,17 +536,8 @@ def main():
         try:
             state, money = process(card, cfg, billing)
         except QuotaExhausted as e:
-            print(f"plan quota exhausted during {card.id}: {e}")
-            pauses[card.id] = pauses.get(card.id, 0) + 1
-            if pauses[card.id] >= int(r.get("max_quota_pauses_per_card", 2)):
-                print(f"stop: {card.id} hit the quota {pauses[card.id]} times tonight — quota is really gone, "
-                      "or the detection is misfiring; check its report")
-                break
-            if r.get("on_quota_exhausted", "wait") == "wait" and not past(until, start):
-                wait = int(r.get("quota_wait_min", 30))
-                print(f"waiting {wait} min for the quota window to reset (until {until or 'no limit'})")
-                time.sleep(wait * 60)
-                continue  # card is still in ready; its worktree + session are resumed
+            print(f"plan quota exhausted during {card.id}: {e}\n"
+                  f"{card.id} is back in ready with its worktree and session kept; run `hx run` again after your quota resets.")
             break
         if judges_fingerprint() != fingerprint:
             print(f"STOP: judge files in the main checkout changed while {card.id} ran (harness, scenarios, "
