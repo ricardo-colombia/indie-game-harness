@@ -604,7 +604,7 @@ namespace Studio.Pacman
                 {
                     wakaTimer = wakaInterval;
                     wakaFlip = !wakaFlip;
-                    PacmanSfx.Play(audioSource, wakaFlip ? sfx?.WakaA : sfx?.WakaB, soundOn);
+                    PacmanSfx.Play(audioSource, wakaFlip ? sfx?.StepA : sfx?.StepB, soundOn);
                 }
             }
             else

@@ -126,8 +126,76 @@ namespace Studio.Pacman
             }
         }
 
+        // Distance, in tiles, from every open tile to a target. Eyes follow it downhill, so they always get home
+        // (the classic "aim at the target" rule gets stuck in this maze's loops).
+        private static readonly System.Collections.Generic.Dictionary<Vector2Int, int[,]> DistanceFields =
+            new System.Collections.Generic.Dictionary<Vector2Int, int[,]>();
+
+        private static int[,] DistanceTo(Vector2Int target)
+        {
+            if (DistanceFields.TryGetValue(target, out int[,] cached))
+            {
+                return cached;
+            }
+            int[,] dist = new int[PacmanMaze.Width, PacmanMaze.Height];
+            for (int y = 0; y < PacmanMaze.Height; y++)
+            {
+                for (int x = 0; x < PacmanMaze.Width; x++)
+                {
+                    dist[x, y] = int.MaxValue;
+                }
+            }
+            var queue = new System.Collections.Generic.Queue<Vector2Int>();
+            dist[target.x, target.y] = 0;
+            queue.Enqueue(target);
+            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
+            while (queue.Count > 0)
+            {
+                Vector2Int at = queue.Dequeue();
+                foreach (Vector2Int d in all)
+                {
+                    Vector2Int n = PacmanMaze.Wrap(at + d);
+                    if (n.x < 0 || n.y < 0 || n.x >= PacmanMaze.Width || n.y >= PacmanMaze.Height || PacmanMaze.IsWall(n) || dist[n.x, n.y] != int.MaxValue)
+                    {
+                        continue;
+                    }
+                    dist[n.x, n.y] = dist[at.x, at.y] + 1;
+                    queue.Enqueue(n);
+                }
+            }
+            DistanceFields[target] = dist;
+            return dist;
+        }
+
+        /// <summary>The step that gets eyes closest to their target. Eyes may turn back; they take the shortest way.</summary>
+        private Vector2Int HomewardStep(Vector2Int tile)
+        {
+            int[,] dist = DistanceTo(CurrentTarget());
+            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
+            Vector2Int best = Vector2Int.zero;
+            int bestDistance = int.MaxValue;
+            foreach (Vector2Int d in all)
+            {
+                Vector2Int n = PacmanMaze.Wrap(tile + d);
+                if (n.x < 0 || n.y < 0 || n.x >= PacmanMaze.Width || n.y >= PacmanMaze.Height || PacmanMaze.IsWall(n))
+                {
+                    continue;
+                }
+                if (dist[n.x, n.y] < bestDistance)
+                {
+                    bestDistance = dist[n.x, n.y];
+                    best = d;
+                }
+            }
+            return best;
+        }
+
         protected override Vector2Int ChooseDirection(Vector2Int tile, Vector2Int current)
         {
+            if (Mode == GhostMode.Eaten)
+            {
+                return HomewardStep(tile);
+            }
             options.Clear();
             Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
             foreach (Vector2Int d in all)

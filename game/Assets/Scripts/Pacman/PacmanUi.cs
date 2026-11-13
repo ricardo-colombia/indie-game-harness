@@ -248,7 +248,7 @@ namespace Studio.Pacman
             float run = Mathf.Repeat(t * 0.12f, 1f);
             float x = Mathf.Lerp(-0.1f, 1.1f, run) * Screen.width;
             float y = Screen.height * 0.78f;
-            DrawPac(new Rect(x, y, 64f * s, 64f * s), t);
+            DrawFarmer(new Rect(x, y - 6f * s, 64f * s, 72f * s), t);
             for (int i = 0; i < PacmanGame.GhostColours.Length; i++)
             {
                 float gx = x - (i + 1) * 80f * s - 30f * s;
@@ -398,7 +398,7 @@ namespace Studio.Pacman
                     float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 6f);
                     Fill(row, new Color(Gold.r, Gold.g, Gold.b, 0.16f * pulse), 14f * s);
                     Fill(new Rect(row.x, row.y, 6f * s, row.height), Gold, 3f * s);
-                    DrawPac(new Rect(row.x + 22f * s, row.y + row.height * 0.5f - 14f * s, 28f * s, 28f * s), Time.unscaledTime);
+                    GUI.DrawTexture(new Rect(row.x + 18f * s, row.y + row.height * 0.5f - 16f * s, 36f * s, 36f * s), hatIcon, ScaleMode.StretchToFill, true);
                 }
                 Text(row, text, 38f * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
             }
@@ -480,6 +480,44 @@ namespace Studio.Pacman
                 GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, colour, 0f, 0f);
             }
             GUI.color = previous;
+        }
+
+        /// <summary>The campesino in profile, walking right with his basket: straw hat, white shirt, jeans, swinging legs.</summary>
+        private void DrawFarmer(Rect rect, float time)
+        {
+            float w = rect.width;
+            float h = rect.height;
+            float swing = Mathf.Sin(time * 12f);
+            float bob = Mathf.Abs(swing) * h * 0.03f;
+            Color skin = new Color(0.8f, 0.55f, 0.38f);
+            Color jeans = new Color(0.2f, 0.32f, 0.6f);
+            Color shirt = new Color(0.96f, 0.95f, 0.9f);
+            Color straw = new Color(0.95f, 0.82f, 0.5f);
+            Color boot = new Color(0.25f, 0.15f, 0.08f);
+            float top = rect.y - bob;
+
+            // Far leg and arm first, then body, near leg and arm.
+            Fill(new Rect(rect.x + w * (0.44f - swing * 0.1f), top + h * 0.62f, w * 0.14f, h * 0.3f), jeans * 0.75f, 2f);
+            Fill(new Rect(rect.x + w * (0.44f - swing * 0.16f), top + h * 0.9f, w * 0.2f, h * 0.09f), boot, 2f);
+            // Canasto on the back, with its strap.
+            Fill(new Rect(rect.x + w * 0.08f, top + h * 0.38f, w * 0.26f, h * 0.3f), new Color(0.65f, 0.4f, 0.18f), 4f);
+            Fill(new Rect(rect.x + w * 0.1f, top + h * 0.4f, w * 0.22f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 2f);
+            Fill(new Rect(rect.x + w * 0.3f, top + h * 0.4f, w * 0.06f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 3f);
+            // Torso.
+            Fill(new Rect(rect.x + w * 0.3f, top + h * 0.34f, w * 0.34f, h * 0.34f), shirt, w * 0.08f);
+            // Near leg.
+            Fill(new Rect(rect.x + w * (0.4f + swing * 0.1f), top + h * 0.62f, w * 0.16f, h * 0.3f), jeans, 2f);
+            Fill(new Rect(rect.x + w * (0.4f + swing * 0.16f), top + h * 0.9f, w * 0.22f, h * 0.09f), boot, 2f);
+            // Arm swinging.
+            Fill(new Rect(rect.x + w * (0.42f - swing * 0.08f), top + h * 0.38f, w * 0.12f, h * 0.24f), new Color(0.88f, 0.87f, 0.82f), 3f);
+            // Head, in profile, with a nose.
+            Fill(new Rect(rect.x + w * 0.36f, top + h * 0.17f, w * 0.26f, h * 0.2f), skin, w * 0.1f);
+            Fill(new Rect(rect.x + w * 0.6f, top + h * 0.24f, w * 0.06f, h * 0.06f), skin, 2f);
+            Fill(new Rect(rect.x + w * 0.54f, top + h * 0.22f, w * 0.04f, h * 0.04f), new Color(0.1f, 0.06f, 0.04f), 2f);
+            // Straw hat: wide brim, domed crown, dark band.
+            Fill(new Rect(rect.x + w * 0.22f, top + h * 0.15f, w * 0.56f, h * 0.06f), straw, 3f);
+            Fill(new Rect(rect.x + w * 0.34f, top + h * 0.03f, w * 0.3f, h * 0.15f), straw, w * 0.1f);
+            Fill(new Rect(rect.x + w * 0.34f, top + h * 0.12f, w * 0.3f, h * 0.035f), new Color(0.12f, 0.08f, 0.06f), 1f);
         }
 
         /// <summary>Pac-Man icon, mouth to the right. openness 0..1 picks the frame; negative chomps with time.</summary>

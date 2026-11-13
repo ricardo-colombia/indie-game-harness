@@ -189,5 +189,54 @@ namespace Studio.Pacman.Tests
             r.Reset(1, false);
             Assert.AreEqual(0, r.PersonalCount(2), "a new level starts them over");
         }
+
+        [Test]
+        public void EatenGhost_AlwaysFindsItsWayBackToTheHouse()
+        {
+            // From every open tile, in every heading, the eyes must reach the house centre and revive.
+            GameObject go = new GameObject("EatenTest");
+            try
+            {
+                PacmanGhost ghost = go.AddComponent<PacmanGhost>();
+                ghost.Init(null, GhostKind.Blinky, new Vector2Int(-3, -3));
+                Vector2Int[] dirs = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
+                int tested = 0;
+                for (int y = 0; y < PacmanMaze.Height; y++)
+                {
+                    for (int x = 0; x < PacmanMaze.Width; x++)
+                    {
+                        Vector2Int start = new Vector2Int(x, y);
+                        if (PacmanMaze.IsWall(start) || PacmanMaze.IsGhostHouse(start))
+                        {
+                            continue;
+                        }
+                        foreach (Vector2Int heading in dirs)
+                        {
+                            if (PacmanMaze.IsWall(start + heading))
+                            {
+                                continue;
+                            }
+                            ghost.ResetTo(start, GhostMode.Scatter);
+                            ghost.Tick(0.01f);
+                            ghost.Eat();
+                            bool arrived = false;
+                            // 0.25 tiles a step: 40 tiles of travel per 160 steps; allow a long budget.
+                            for (int step = 0; step < 2000 && !arrived; step++)
+                            {
+                                ghost.Tick(0.25f);
+                                arrived = ghost.Mode == GhostMode.Exiting;
+                            }
+                            Assert.IsTrue(arrived, "eyes eaten at " + start + " never got home");
+                            tested++;
+                        }
+                    }
+                }
+                Assert.Greater(tested, 100);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
     }
 }
