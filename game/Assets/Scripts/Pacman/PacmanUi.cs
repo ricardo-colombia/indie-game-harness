@@ -354,6 +354,22 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>
+        /// Sets the text colour for every GUI state. The mouse over a label switches IMGUI to the hover state,
+        /// whose colour is opaque white by default, which would turn the whole title white.
+        /// </summary>
+        private void SetLabelColour(Color colour)
+        {
+            label.normal.textColor = colour;
+            label.hover.textColor = colour;
+            label.active.textColor = colour;
+            label.focused.textColor = colour;
+            label.onNormal.textColor = colour;
+            label.onHover.textColor = colour;
+            label.onActive.textColor = colour;
+            label.onFocused.textColor = colour;
+        }
+
         /// <summary>Draws text with a drop shadow (and an optional outline-ish blur offset).</summary>
         private void Text(Rect rect, string text, float size, Color colour, TextAnchor anchor,
             Vector2? shadow = null, float spread = 0f, Color? shadowColour = null)
@@ -363,20 +379,20 @@ namespace Studio.Pacman
             if (shadow.HasValue)
             {
                 Color sc = shadowColour ?? new Color(0f, 0f, 0f, 0.7f * colour.a);
-                label.normal.textColor = sc;
+                SetLabelColour(sc);
                 GUI.Label(new Rect(rect.x + shadow.Value.x, rect.y + shadow.Value.y, rect.width, rect.height), text, label);
             }
             if (spread > 0f)
             {
                 // A faint halo: the text repeated a little to the sides.
-                label.normal.textColor = colour;
+                SetLabelColour(colour);
                 GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, label);
                 GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, label);
                 GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, label);
                 GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, label);
                 return;
             }
-            label.normal.textColor = colour;
+            SetLabelColour(colour);
             GUI.Label(rect, text, label);
         }
 
