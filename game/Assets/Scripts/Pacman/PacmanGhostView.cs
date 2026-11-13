@@ -3,15 +3,18 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// The ghost's look, drawn with sprites: the classic dome-and-hem silhouette with a two-frame ripple, eyes
-    /// that look where it is heading, the frightened blue face with a white flash before it ends, and eyes
-    /// only while eaten. It reads the ghost and game state but never changes them.
+    /// The pest's look, drawn with sprites: an insect silhouette whose legs scuttle in two frames, per-species
+    /// markings, eyes that look where it is heading, the frightened "sprayed" blue face with a white flash
+    /// before it ends, and eyes only while eaten. It reads the ghost and game state but never changes them.
+    /// Species by ghost slot: Blinky = broca (borer beetle), Pinky = roya (rust fungus), Inky = minador
+    /// (leaf miner), Clyde = cochinilla (mealybug).
     /// </summary>
     public class PacmanGhostView : MonoBehaviour
     {
+        // Frightened pests are blue: the copper-sulphate spray (caldo bordeles) farmers use on coffee.
         private static readonly Color FrightenedBlue = new Color(0.1f, 0.18f, 0.9f);
         private static readonly Color FlashWhite = new Color(0.95f, 0.95f, 1f);
-        private static readonly Color Pupil = new Color(0.1f, 0.2f, 0.85f);
+        private static readonly Color Pupil = new Color(0.12f, 0.06f, 0.03f);
         private static readonly Vector2 EyeSize = new Vector2(0.22f, 0.28f);
         private static readonly Vector2[] EyeSpots = { new Vector2(-0.15f, 0.1f), new Vector2(0.15f, 0.1f) };
 
@@ -25,6 +28,7 @@ namespace Studio.Pacman
         private Color baseColour;
         private SpriteRenderer body;
         private SpriteRenderer face;
+        private SpriteRenderer[] marks;
         private Transform[] pupils;
         private SpriteRenderer[] eyeRenderers;
         private PacmanGhost ghost;
@@ -34,12 +38,12 @@ namespace Studio.Pacman
         private int shownLook = -1;
 
         /// <summary>Builds a ghost body with its eyes and returns the transform that holds the view.</summary>
-        public static Transform Create(Transform parent, Color colour)
+        public static Transform Create(Transform parent, Color colour, GhostKind kind)
         {
             GameObject root = new GameObject("Body");
             root.transform.SetParent(parent, false);
             PacmanGhostView view = root.AddComponent<PacmanGhostView>();
-            view.Build(colour);
+            view.Build(colour, kind);
             return root.transform;
         }
 
@@ -49,7 +53,7 @@ namespace Studio.Pacman
             game = owningGame;
         }
 
-        private void Build(Color colour)
+        private void Build(Color colour, GhostKind kind)
         {
             baseColour = colour;
             body = gameObject.AddComponent<SpriteRenderer>();
@@ -58,6 +62,7 @@ namespace Studio.Pacman
             body.sortingOrder = 6;
             PacmanGlow.Attach(transform, colour, 2.2f, 0.2f, body);
 
+            marks = BuildMarks(kind, colour);
             face = NewPart("Face", PacmanSprites.FrightFace, Vector2.zero, Vector2.one, 7);
             eyeRenderers = new SpriteRenderer[2];
             pupils = new Transform[2];
@@ -68,6 +73,49 @@ namespace Studio.Pacman
                 pupil.color = Pupil;
                 pupils[i] = pupil.transform;
             }
+        }
+
+        /// <summary>The markings that tell the four pests apart besides their colour. Shown only in the normal look.</summary>
+        private SpriteRenderer[] BuildMarks(GhostKind kind, Color colour)
+        {
+            Color dark = new Color(colour.r * 0.45f, colour.g * 0.45f, colour.b * 0.45f);
+            Color light = Color.Lerp(colour, Color.white, 0.6f);
+            var list = new System.Collections.Generic.List<SpriteRenderer>();
+            switch (kind)
+            {
+                case GhostKind.Blinky:
+                    // Borer beetle: a shell seam and two wing-case dots.
+                    list.Add(NewPart("Seam", PacmanSprites.Square, new Vector2(0f, -0.14f), new Vector2(0.03f, 0.4f), 6, dark));
+                    list.Add(NewPart("Dot", PacmanSprites.Disc, new Vector2(-0.12f, -0.18f), Vector2.one * 0.1f, 6, dark));
+                    list.Add(NewPart("Dot", PacmanSprites.Disc, new Vector2(0.12f, -0.18f), Vector2.one * 0.1f, 6, dark));
+                    break;
+                case GhostKind.Pinky:
+                    // Rust: orange spores scattered over the back.
+                    list.Add(NewPart("Spot", PacmanSprites.Disc, new Vector2(-0.14f, -0.12f), Vector2.one * 0.12f, 6, dark));
+                    list.Add(NewPart("Spot", PacmanSprites.Disc, new Vector2(0.13f, -0.06f), Vector2.one * 0.09f, 6, dark));
+                    list.Add(NewPart("Spot", PacmanSprites.Disc, new Vector2(0.02f, -0.27f), Vector2.one * 0.11f, 6, dark));
+                    break;
+                case GhostKind.Inky:
+                    // Leaf miner: the winding tunnel it leaves, drawn as two bands.
+                    list.Add(NewPart("Band", PacmanSprites.Square, new Vector2(0f, -0.1f), new Vector2(0.5f, 0.035f), 6, dark));
+                    list.Add(NewPart("Band", PacmanSprites.Square, new Vector2(0f, -0.24f), new Vector2(0.4f, 0.035f), 6, dark));
+                    break;
+                default:
+                    // Mealybug: cottony tufts around its edge.
+                    list.Add(NewPart("Tuft", PacmanSprites.Disc, new Vector2(-0.22f, -0.1f), Vector2.one * 0.16f, 6, light));
+                    list.Add(NewPart("Tuft", PacmanSprites.Disc, new Vector2(0.22f, -0.1f), Vector2.one * 0.16f, 6, light));
+                    list.Add(NewPart("Tuft", PacmanSprites.Disc, new Vector2(-0.1f, -0.3f), Vector2.one * 0.15f, 6, light));
+                    list.Add(NewPart("Tuft", PacmanSprites.Disc, new Vector2(0.1f, -0.3f), Vector2.one * 0.15f, 6, light));
+                    break;
+            }
+            return list.ToArray();
+        }
+
+        private SpriteRenderer NewPart(string name, Sprite sprite, Vector2 position, Vector2 scale, int order, Color colour)
+        {
+            SpriteRenderer renderer = NewPart(name, sprite, position, scale, order);
+            renderer.color = colour;
+            return renderer;
         }
 
         private SpriteRenderer NewPart(string name, Sprite sprite, Vector2 position, Vector2 scale, int order)
@@ -138,6 +186,10 @@ namespace Studio.Pacman
             bool frightened = state == 1 || state == 2;
             body.enabled = state != 3;
             face.enabled = frightened;
+            foreach (SpriteRenderer mark in marks)
+            {
+                mark.enabled = state == 0;
+            }
             face.color = state == 2 ? new Color(0.9f, 0.1f, 0.15f) : new Color(1f, 0.85f, 0.75f);
             body.color = state == 1 ? FrightenedBlue : state == 2 ? FlashWhite : baseColour;
 

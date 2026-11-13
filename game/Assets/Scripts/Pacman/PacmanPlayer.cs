@@ -3,15 +3,21 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Player-controlled Pac-Man. The body is a 2D sprite: a disc with a wedge cut out, swapped between
-    /// pre-rendered mouth angles so it chomps, and rotated to point along the movement direction.
+    /// Player-controlled coffee picker (a campesino in a sombrero and poncho, seen from above). The hat brim is
+    /// a 2D sprite: a disc with a wedge cut out, swapped between pre-rendered angles so the picker "gobbles" the
+    /// cherries, and rotated to point along the movement direction. Under the wedge you see the farmer's face
+    /// and moustache. Gameplay is the same as the arcade original: only the look changed.
     /// </summary>
     public class PacmanPlayer : PacmanActor
     {
         private const float MinMouth = 0.04f;
         private const float MaxMouth = 0.72f;
 
-        private static readonly Color Yellow = new Color(1f, 0.85f, 0.05f);
+        private static readonly Color Straw = new Color(0.96f, 0.86f, 0.58f);
+        private static readonly Color HatBand = new Color(0.12f, 0.08f, 0.06f);
+        private static readonly Color Poncho = new Color(0.78f, 0.12f, 0.1f);
+        private static readonly Color Skin = new Color(0.76f, 0.5f, 0.32f);
+        private const float BodyScale = 0.95f;
 
         [Tooltip("Mouth open/close cycles per second while moving.")]
         [SerializeField] private float chompRate = 3.2f;
@@ -20,6 +26,7 @@ namespace Studio.Pacman
         private Vector2Int desired;
         private Transform body;
         private SpriteRenderer sprite;
+        private Transform decor;
         private float phase;
         private float lastMouth = -1f;
         private bool dying;
@@ -46,15 +53,48 @@ namespace Studio.Pacman
             bodyObject.transform.SetParent(transform, false);
             body = bodyObject.transform;
             sprite = bodyObject.AddComponent<SpriteRenderer>();
-            sprite.color = Yellow;
+            sprite.color = Straw;
             sprite.sortingOrder = 5;
-            PacmanGlow.Attach(transform, Yellow, 3.2f, 0.22f);
+            body.localScale = Vector3.one * BodyScale;
+            BuildFarmer();
+            PacmanGlow.Attach(transform, new Color(1f, 0.85f, 0.45f), 3.2f, 0.2f);
 
             ResetFacing();
             SetMouth(0.5f);
         }
 
-        /// <summary>Turns Pac-Man to face left (the classic start) so he never starts looking up or down.</summary>
+        /// <summary>Poncho, face and moustache under the hat, and the crown and band on top. Rotates with the body.</summary>
+        private void BuildFarmer()
+        {
+            GameObject decorObject = new GameObject("Farmer");
+            decorObject.transform.SetParent(body, false);
+            decor = decorObject.transform;
+            // Shoulders: a red poncho wider than the hat, with a dark stripe.
+            Part("Poncho", Poncho, new Vector2(-0.04f, 0f), new Vector2(0.6f, 1.05f), 2, 0f);
+            Part("PonchoStripe", new Color(0.15f, 0.08f, 0.06f), new Vector2(-0.04f, 0f), new Vector2(0.18f, 1.03f), 2, -0.005f);
+            // Face peeks out of the wedge when the mouth opens: skin, two dark eyes and a moustache.
+            Part("Face", Skin, new Vector2(0.28f, 0f), new Vector2(0.34f, 0.34f), 3, 0f);
+            Part("Eye", HatBand, new Vector2(0.36f, 0.07f), new Vector2(0.05f, 0.05f), 4, 0f);
+            Part("Eye", HatBand, new Vector2(0.36f, -0.07f), new Vector2(0.05f, 0.05f), 4, 0f);
+            Part("Moustache", HatBand, new Vector2(0.43f, 0f), new Vector2(0.07f, 0.24f), 4, 0f);
+            // Crown and band on top of the brim (the sombrero aguadeno: white with a black band).
+            Part("HatBand", HatBand, Vector2.zero, new Vector2(0.52f, 0.52f), 5, -0.01f);
+            Part("HatCrown", new Color(0.99f, 0.95f, 0.82f), Vector2.zero, new Vector2(0.38f, 0.38f), 5, -0.02f);
+        }
+
+        private void Part(string name, Color colour, Vector2 position, Vector2 size, int order, float z)
+        {
+            GameObject part = new GameObject(name);
+            part.transform.SetParent(decor, false);
+            part.transform.localPosition = new Vector3(position.x, position.y, z);
+            part.transform.localScale = new Vector3(size.x, size.y, 1f);
+            SpriteRenderer renderer = part.AddComponent<SpriteRenderer>();
+            renderer.sprite = PacmanSprites.Disc;
+            renderer.color = colour;
+            renderer.sortingOrder = order;
+        }
+
+        /// <summary>Turns the picker to face left (the classic start) so he never starts looking up or down.</summary>
         public void ResetFacing()
         {
             if (body != null)
@@ -91,6 +131,10 @@ namespace Studio.Pacman
         {
             dying = false;
             deathTimer = 0f;
+            if (decor != null)
+            {
+                decor.localScale = Vector3.one;
+            }
         }
 
         private void Update()
@@ -107,6 +151,8 @@ namespace Studio.Pacman
                 float t = Mathf.Clamp01(deathTimer / deathDuration);
                 float eased = t * t * (3f - 2f * t);
                 SetMouth(Mathf.Lerp(deathFrom, Mathf.PI, eased));
+                // The poncho, face and hat shrink away with the brim.
+                decor.localScale = Vector3.one * Mathf.Max(0.0001f, 1f - eased);
                 return;
             }
 

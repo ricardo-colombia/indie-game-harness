@@ -4,7 +4,8 @@ namespace Studio.Pacman
 {
     /// <summary>
     /// The game's own music, composed as data and rendered at startup with PacmanSynth:
-    /// a driving A-minor chase loop, a tense frightened loop and a short ready fanfare.
+    /// a cumbia-flavoured A-minor harvest loop (flute lead, tumbao bass, guacharaca scraper), a tense
+    /// frightened loop and a short ready fanfare.
     /// </summary>
     public class PacmanMusic
     {
@@ -12,28 +13,28 @@ namespace Studio.Pacman
         public AudioClip Frightened { get; private set; }
         public AudioClip Intro { get; private set; }
 
-        // Chord roots (MIDI, low octave) and arpeggio tones for Am - F - C - G, two bars each.
-        private static readonly float[] Roots = { 45f, 41f, 48f, 43f };
+        // Chord roots (MIDI, low octave) and arpeggio tones for Am - Dm - E - Am, two bars each (a cumbia turnaround).
+        private static readonly float[] Roots = { 45f, 50f, 52f, 45f };
         private static readonly float[][] ArpTones =
         {
             new[] { 57f, 60f, 64f, 69f },
-            new[] { 53f, 57f, 60f, 65f },
-            new[] { 60f, 64f, 67f, 72f },
-            new[] { 55f, 59f, 62f, 67f },
+            new[] { 62f, 65f, 69f, 74f },
+            new[] { 59f, 64f, 68f, 71f },
+            new[] { 57f, 60f, 64f, 69f },
         };
         private static readonly int[] ArpOrder = { 0, 1, 2, 3, 2, 1, 2, 1 };
 
-        // Lead melody, one entry per note: MIDI pitch (0 = rest) and length in sixteenth steps. 16 steps per bar.
+        // Lead melody (a folk-flute line), one entry per note: MIDI pitch (0 = rest) and length in sixteenth steps. 16 steps per bar.
         private static readonly int[][] Melody =
         {
-            new[] { 76, 3, 79, 1, 76, 2, 72, 2, 69, 2, 72, 2, 76, 4 },
-            new[] { 74, 3, 76, 1, 74, 2, 72, 2, 69, 4, 0, 4 },
-            new[] { 77, 3, 81, 1, 77, 2, 76, 2, 72, 2, 76, 2, 77, 4 },
-            new[] { 76, 3, 77, 1, 76, 2, 74, 2, 72, 4, 0, 4 },
-            new[] { 79, 3, 76, 1, 72, 2, 76, 2, 79, 2, 84, 2, 79, 4 },
-            new[] { 79, 2, 77, 2, 76, 2, 74, 2, 72, 4, 67, 4 },
-            new[] { 74, 3, 79, 1, 74, 2, 71, 2, 67, 2, 71, 2, 74, 4 },
-            new[] { 71, 2, 74, 2, 79, 4, 78, 2, 79, 2, 0, 4 },
+            new[] { 76, 3, 72, 1, 69, 4, 72, 2, 76, 2, 72, 4 },
+            new[] { 69, 2, 72, 2, 76, 4, 74, 2, 72, 2, 69, 4 },
+            new[] { 74, 3, 77, 1, 74, 4, 77, 2, 81, 2, 77, 4 },
+            new[] { 74, 2, 77, 2, 81, 4, 79, 2, 77, 2, 74, 4 },
+            new[] { 76, 3, 80, 1, 83, 4, 80, 2, 76, 2, 71, 4 },
+            new[] { 71, 2, 76, 2, 80, 4, 83, 2, 80, 2, 76, 4 },
+            new[] { 81, 3, 76, 1, 72, 4, 76, 2, 81, 2, 76, 4 },
+            new[] { 72, 2, 69, 2, 76, 4, 72, 2, 69, 2, 69, 2, 0, 2 },
         };
 
         public PacmanMusic()
@@ -45,7 +46,7 @@ namespace Studio.Pacman
 
         private static AudioClip BuildChase()
         {
-            const float bpm = 132f;
+            const float bpm = 108f;
             const int bars = 8;
             float step = 60f / bpm / 4f;
             float[] melodic = PacmanSynth.Buffer(step * 16 * bars);
@@ -63,26 +64,28 @@ namespace Studio.Pacman
                     PacmanSynth.Note(melodic, barStart + s * step, step * 1.4f, midi, Wave.Pulse25, 0.075f, 16f);
                 }
 
-                // Bass: eighths, root with octave jumps.
+                // Tumbao bass: root on 1, fifth on the "and" of 2, root again on 3, octave pickup.
                 float root = Roots[chord];
-                float[] bassPattern = { 0f, 0f, 12f, 0f, 0f, 0f, 12f, 7f };
-                for (int e = 0; e < 8; e++)
+                float[] bassSteps = { 0f, 6f, 8f, 14f };
+                float[] bassNotes = { 0f, 7f, 0f, 12f };
+                for (int b = 0; b < 4; b++)
                 {
-                    PacmanSynth.Note(rhythm, barStart + e * 2 * step, step * 1.9f, root + bassPattern[e], Wave.Triangle, 0.3f, 4f);
+                    PacmanSynth.Note(rhythm, barStart + bassSteps[b] * step, step * 3.4f, root + bassNotes[b], Wave.Triangle, 0.32f, 3.5f);
                 }
 
-                // Drums: kick syncopated, snare on 2 and 4, hats on every eighth with open ones off the beat.
-                foreach (int k in new[] { 0, 6, 8, 14 })
+                // Drums: kick on 1 and 3, a soft rim on 2 and 4, guacharaca scraper in a steady "tchk-a-tchk".
+                foreach (int k in new[] { 0, 8 })
                 {
-                    PacmanSynth.Kick(rhythm, barStart + k * step, 0.5f);
+                    PacmanSynth.Kick(rhythm, barStart + k * step, 0.45f);
                 }
                 foreach (int sn in new[] { 4, 12 })
                 {
-                    PacmanSynth.Snare(rhythm, barStart + sn * step, 0.16f, bar * 3 + sn);
+                    PacmanSynth.Snare(rhythm, barStart + sn * step, 0.09f, bar * 3 + sn);
                 }
-                for (int h = 0; h < 16; h += 2)
+                for (int h = 0; h < 16; h++)
                 {
-                    PacmanSynth.Hat(rhythm, barStart + h * step, h % 4 == 2 ? 0.09f : 0.05f, h % 4 == 2 && h != 14, bar * 17 + h);
+                    bool accent = h % 4 == 2;
+                    PacmanSynth.Hat(rhythm, barStart + h * step, accent ? 0.1f : 0.04f, h % 8 == 6, bar * 17 + h);
                 }
 
                 // Lead.
@@ -93,7 +96,7 @@ namespace Studio.Pacman
                     float length = notes[n + 1] * step;
                     if (notes[n] > 0)
                     {
-                        PacmanSynth.Note(melodic, cursor, length * 0.96f, notes[n], Wave.Square, 0.12f, 1.8f, 5.5f, 0.2f);
+                        PacmanSynth.Note(melodic, cursor, length * 0.96f, notes[n], Wave.Triangle, 0.2f, 1.8f, 5.5f, 0.2f);
                     }
                     cursor += length;
                 }

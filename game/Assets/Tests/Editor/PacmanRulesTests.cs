@@ -8,29 +8,29 @@ namespace Studio.Pacman.Tests
         [Test]
         public void FruitTable_FollowsTheClassicSequence()
         {
-            Assert.AreEqual(FruitKind.Cherry, PacmanFruit.For(1));
-            Assert.AreEqual(FruitKind.Strawberry, PacmanFruit.For(2));
+            Assert.AreEqual(FruitKind.CoffeeCherry, PacmanFruit.For(1));
+            Assert.AreEqual(FruitKind.Banana, PacmanFruit.For(2));
             Assert.AreEqual(FruitKind.Orange, PacmanFruit.For(3));
             Assert.AreEqual(FruitKind.Orange, PacmanFruit.For(4));
-            Assert.AreEqual(FruitKind.Apple, PacmanFruit.For(6));
-            Assert.AreEqual(FruitKind.Melon, PacmanFruit.For(8));
-            Assert.AreEqual(FruitKind.Galaxian, PacmanFruit.For(10));
-            Assert.AreEqual(FruitKind.Bell, PacmanFruit.For(12));
-            Assert.AreEqual(FruitKind.Key, PacmanFruit.For(13));
-            Assert.AreEqual(FruitKind.Key, PacmanFruit.For(99));
+            Assert.AreEqual(FruitKind.Panela, PacmanFruit.For(6));
+            Assert.AreEqual(FruitKind.Tinto, PacmanFruit.For(8));
+            Assert.AreEqual(FruitKind.Sack, PacmanFruit.For(10));
+            Assert.AreEqual(FruitKind.Sombrero, PacmanFruit.For(12));
+            Assert.AreEqual(FruitKind.GoldenBean, PacmanFruit.For(13));
+            Assert.AreEqual(FruitKind.GoldenBean, PacmanFruit.For(99));
         }
 
         [Test]
         public void FruitPoints_MatchTheTable()
         {
-            Assert.AreEqual(100, PacmanFruit.Points(FruitKind.Cherry));
-            Assert.AreEqual(300, PacmanFruit.Points(FruitKind.Strawberry));
+            Assert.AreEqual(100, PacmanFruit.Points(FruitKind.CoffeeCherry));
+            Assert.AreEqual(300, PacmanFruit.Points(FruitKind.Banana));
             Assert.AreEqual(500, PacmanFruit.Points(FruitKind.Orange));
-            Assert.AreEqual(700, PacmanFruit.Points(FruitKind.Apple));
-            Assert.AreEqual(1000, PacmanFruit.Points(FruitKind.Melon));
-            Assert.AreEqual(2000, PacmanFruit.Points(FruitKind.Galaxian));
-            Assert.AreEqual(3000, PacmanFruit.Points(FruitKind.Bell));
-            Assert.AreEqual(5000, PacmanFruit.Points(FruitKind.Key));
+            Assert.AreEqual(700, PacmanFruit.Points(FruitKind.Panela));
+            Assert.AreEqual(1000, PacmanFruit.Points(FruitKind.Tinto));
+            Assert.AreEqual(2000, PacmanFruit.Points(FruitKind.Sack));
+            Assert.AreEqual(3000, PacmanFruit.Points(FruitKind.Sombrero));
+            Assert.AreEqual(5000, PacmanFruit.Points(FruitKind.GoldenBean));
         }
 
         [Test]

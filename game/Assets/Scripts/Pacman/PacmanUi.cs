@@ -18,11 +18,11 @@ namespace Studio.Pacman
             public float Age;
         }
 
-        private static readonly Color Yellow = new Color(1f, 0.86f, 0.1f);
-        private static readonly Color Cyan = new Color(0.35f, 0.85f, 1f);
-        private static readonly Color Pink = new Color(1f, 0.4f, 0.8f);
+        private static readonly Color Gold = new Color(1f, 0.84f, 0.35f);
+        private static readonly Color Leaf = new Color(0.6f, 0.95f, 0.5f);
+        private static readonly Color CherryRed = new Color(1f, 0.35f, 0.3f);
         private static readonly Color Dim = new Color(1f, 1f, 1f, 0.55f);
-        private static readonly Color Panel = new Color(0.02f, 0.03f, 0.1f, 0.88f);
+        private static readonly Color Panel = new Color(0.05f, 0.04f, 0.02f, 0.9f);
 
         [Tooltip("Seconds a score popup floats before it fades out.")]
         [SerializeField] private float popupSeconds = 1.1f;
@@ -127,16 +127,16 @@ namespace Studio.Pacman
                 switch (game.State)
                 {
                     case PacmanState.Ready:
-                        DrawBanner("READY!", Yellow, s, 1.5f);
+                        DrawBanner("¡LISTO!", Gold, s, 1.5f);
                         break;
                     case PacmanState.LevelClear:
-                        DrawBanner("LEVEL CLEAR!", Cyan, s, 1.2f);
+                        DrawBanner("¡COSECHA LISTA!", Leaf, s, 1.2f);
                         break;
                     case PacmanState.GameOver:
                         DrawGameOver(s);
                         break;
                     case PacmanState.Paused:
-                        DrawMenuPanel("PAUSED", s, false);
+                        DrawMenuPanel("PAUSA", s, false);
                         break;
                 }
             }
@@ -151,40 +151,40 @@ namespace Studio.Pacman
 
         private void DrawTitle(float s)
         {
-            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0.03f, 0.55f));
+            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.03f, 0.02f, 0f, 0.55f));
 
             float cx = Screen.width * 0.5f;
             float t = Time.unscaledTime;
 
-            // Logo: shifting neon with a soft echo behind it.
-            string logo = "PAC-MAN";
+            // Logo: shifting gold-to-cherry colour with a soft echo behind it.
+            string logo = "PAC-CAFÉ";
             float size = 150f * s;
-            Color glow = Color.Lerp(Yellow, Pink, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
+            Color glow = Color.Lerp(Gold, CherryRed, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
             float bob = Mathf.Sin(t * 2f) * 6f * s;
             Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
             for (int i = 4; i >= 1; i--)
             {
                 Text(logoRect, logo, size, new Color(glow.r, glow.g, glow.b, 0.09f), TextAnchor.MiddleCenter, new Vector2(0f, 0f), i * 5f * s);
             }
-            Text(logoRect, logo, size, Yellow, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s), 0f, new Color(0.5f, 0.1f, 0.5f, 0.9f));
+            Text(logoRect, logo, size, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s), 0f, new Color(0.3f, 0.12f, 0.03f, 0.9f));
 
             Rect subRect = new Rect(0, Screen.height * 0.12f + size * 1.15f, Screen.width, 50f * s);
-            Text(subRect, "A  NEON  CHASE", 34f * s, Cyan, TextAnchor.MiddleCenter);
+            Text(subRect, "LA  COSECHA  EN  LA  MONTAÑA", 34f * s, Leaf, TextAnchor.MiddleCenter);
 
             DrawMenuItems(s, Screen.height * 0.52f);
 
             if (game.HighScore > 0)
             {
-                Text(new Rect(0, Screen.height * 0.84f, Screen.width, 40f * s), "HIGH SCORE  " + game.HighScore.ToString("N0"), 30f * s, Yellow, TextAnchor.MiddleCenter);
+                Text(new Rect(0, Screen.height * 0.84f, Screen.width, 40f * s), "RÉCORD  " + game.HighScore.ToString("N0"), 30f * s, Gold, TextAnchor.MiddleCenter);
             }
-            Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), "ARROWS / WASD  MOVE      ENTER  SELECT      ESC  PAUSE", 22f * s, Dim, TextAnchor.MiddleCenter);
+            Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), "FLECHAS / WASD  MOVER      ENTER  ELEGIR      ESC  PAUSA", 22f * s, Dim, TextAnchor.MiddleCenter);
 
-            // Decorative chase: Pac-Man followed by four ghosts glide across the bottom.
+            // Decorative chase: the picker followed by four pests scuttles across the bottom.
             float run = Mathf.Repeat(t * 0.12f, 1f);
             float x = Mathf.Lerp(-0.1f, 1.1f, run) * Screen.width;
             float y = Screen.height * 0.78f;
             DrawPac(new Rect(x, y, 64f * s, 64f * s), t);
-            Color[] ghostColours = { new Color(1f, 0.1f, 0.1f), new Color(1f, 0.55f, 0.85f), new Color(0.2f, 0.95f, 0.95f), new Color(1f, 0.6f, 0.15f) };
+            Color[] ghostColours = { new Color(0.95f, 0.25f, 0.55f), new Color(1f, 0.55f, 0.1f), new Color(0.6f, 0.95f, 0.2f), new Color(1f, 0.88f, 0.92f) };
             for (int i = 0; i < ghostColours.Length; i++)
             {
                 float gx = x - (i + 1) * 80f * s - 30f * s;
@@ -198,16 +198,16 @@ namespace Studio.Pacman
             float top = 16f * s;
 
             // Score, top left.
-            Text(new Rect(margin, top, 400f * s, 28f * s), "SCORE", 22f * s, Dim, TextAnchor.UpperLeft);
+            Text(new Rect(margin, top, 400f * s, 28f * s), "PUNTOS", 22f * s, Dim, TextAnchor.UpperLeft);
             Text(new Rect(margin, top + 26f * s, 500f * s, 60f * s), Mathf.RoundToInt(shownScore).ToString("N0"), 52f * s, Color.white, TextAnchor.UpperLeft, new Vector2(0f, 3f * s));
 
             // High score, top centre.
             float high = Mathf.Max(game.HighScore, game.Score);
-            Text(new Rect(0, top, Screen.width, 28f * s), "HIGH SCORE", 22f * s, Dim, TextAnchor.UpperCenter);
-            Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), high.ToString("N0"), 40f * s, Yellow, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
+            Text(new Rect(0, top, Screen.width, 28f * s), "RÉCORD", 22f * s, Dim, TextAnchor.UpperCenter);
+            Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), high.ToString("N0"), 40f * s, Gold, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
 
-            // Lives, top right, as little Pac-Men.
-            Text(new Rect(Screen.width - margin - 300f * s, top, 300f * s, 28f * s), "LIVES", 22f * s, Dim, TextAnchor.UpperRight);
+            // Lives, top right, as little sombreros.
+            Text(new Rect(Screen.width - margin - 300f * s, top, 300f * s, 28f * s), "VIDAS", 22f * s, Dim, TextAnchor.UpperRight);
             float icon = 40f * s;
             for (int i = 0; i < game.Lives; i++)
             {
@@ -216,7 +216,7 @@ namespace Studio.Pacman
             }
 
             // Level, bottom left; a hint while frightened, bottom centre.
-            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "LEVEL  " + game.Level, 30f * s, Cyan, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
+            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "FINCA  " + game.Level, 30f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
             if (game.FrightenedActive)
             {
                 float remaining = game.FrightenedRemaining;
@@ -226,7 +226,7 @@ namespace Studio.Pacman
                 float full = Mathf.Max(0.01f, game.FrightenedDuration);
                 Color c = remaining < 2f ? new Color(1f, 0.35f, 0.4f) : new Color(0.4f, 0.55f, 1f);
                 Fill(new Rect(track.x, track.y, bar * Mathf.Clamp01(remaining / full), track.height), c, 5f * s);
-                Text(new Rect(0, Screen.height - 78f * s, Screen.width, 28f * s), "GHOSTS FRIGHTENED", 22f * s, Dim, TextAnchor.MiddleCenter);
+                Text(new Rect(0, Screen.height - 78f * s, Screen.width, 28f * s), "PLAGAS FUMIGADAS", 22f * s, Dim, TextAnchor.MiddleCenter);
             }
         }
 
@@ -265,30 +265,43 @@ namespace Studio.Pacman
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, Mathf.Clamp01(stateAge * 1.2f) * 0.6f));
             float a = Mathf.Clamp01(stateAge * 1.5f);
             Color red = new Color(1f, 0.25f, 0.3f, a);
-            Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "GAME OVER", 120f * s, red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
-            Text(new Rect(0, Screen.height * 0.46f, Screen.width, 50f * s), "SCORE  " + game.Score.ToString("N0"), 44f * s, new Color(1f, 1f, 1f, a), TextAnchor.MiddleCenter);
+            Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "FIN DE LA COSECHA", 84f * s, red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
+            Text(new Rect(0, Screen.height * 0.46f, Screen.width, 50f * s), "PUNTOS  " + game.Score.ToString("N0"), 44f * s, new Color(1f, 1f, 1f, a), TextAnchor.MiddleCenter);
             if (game.NewHighScore)
             {
                 float blink = 0.6f + 0.4f * Mathf.Sin(Time.unscaledTime * 8f);
-                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 50f * s), "NEW HIGH SCORE!", 40f * s, new Color(Yellow.r, Yellow.g, Yellow.b, a * blink), TextAnchor.MiddleCenter);
+                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 50f * s), "¡NUEVO RÉCORD!", 40f * s, new Color(Gold.r, Gold.g, Gold.b, a * blink), TextAnchor.MiddleCenter);
             }
             else
             {
-                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 44f * s), "HIGH SCORE  " + game.HighScore.ToString("N0"), 32f * s, new Color(Yellow.r, Yellow.g, Yellow.b, a), TextAnchor.MiddleCenter);
+                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 44f * s), "RÉCORD  " + game.HighScore.ToString("N0"), 32f * s, new Color(Gold.r, Gold.g, Gold.b, a), TextAnchor.MiddleCenter);
             }
             float blinkPrompt = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
-            Text(new Rect(0, Screen.height * 0.7f, Screen.width, 40f * s), "PRESS ENTER", 30f * s, new Color(1f, 1f, 1f, a * blinkPrompt), TextAnchor.MiddleCenter);
+            Text(new Rect(0, Screen.height * 0.7f, Screen.width, 40f * s), "PRESIONA ENTER", 30f * s, new Color(1f, 1f, 1f, a * blinkPrompt), TextAnchor.MiddleCenter);
         }
 
         private void DrawMenuPanel(string header, float s, bool large)
         {
-            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0.04f, 0.5f));
+            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.03f, 0.02f, 0f, 0.5f));
             float w = Screen.width * 0.34f;
             Rect panel = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.24f, w, Screen.height * 0.5f);
-            Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Cyan.r, Cyan.g, Cyan.b, 0.5f), 22f * s);
+            Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.5f), 22f * s);
             Fill(panel, Panel, 18f * s);
-            Text(new Rect(panel.x, panel.y + 24f * s, panel.width, 80f * s), header, 64f * s, Yellow, TextAnchor.MiddleCenter, new Vector2(0f, 4f * s));
+            Text(new Rect(panel.x, panel.y + 24f * s, panel.width, 80f * s), header, 64f * s, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 4f * s));
             DrawMenuItems(s, panel.y + 140f * s);
+        }
+
+        /// <summary>Spanish label for a menu item id (the ids are what PacmanGame switches on).</summary>
+        private static string MenuLabel(string item)
+        {
+            switch (item)
+            {
+                case "START": return "A COSECHAR";
+                case "RESUME": return "SEGUIR";
+                case "QUIT": return "SALIR";
+                case "QUIT TO TITLE": return "VOLVER AL INICIO";
+                default: return item;
+            }
         }
 
         private void DrawMenuItems(float s, float top)
@@ -298,17 +311,17 @@ namespace Studio.Pacman
             for (int i = 0; i < items.Length; i++)
             {
                 bool selected = i == game.MenuIndex;
-                string text = items[i] == "SOUND" ? "SOUND:  " + (game.SoundOn ? "ON" : "OFF") : items[i];
+                string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO") : MenuLabel(items[i]);
                 float width = 520f * s;
                 Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
                 if (selected)
                 {
                     float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 6f);
-                    Fill(row, new Color(Yellow.r, Yellow.g, Yellow.b, 0.16f * pulse), 14f * s);
-                    Fill(new Rect(row.x, row.y, 6f * s, row.height), Yellow, 3f * s);
+                    Fill(row, new Color(Gold.r, Gold.g, Gold.b, 0.16f * pulse), 14f * s);
+                    Fill(new Rect(row.x, row.y, 6f * s, row.height), Gold, 3f * s);
                     DrawPac(new Rect(row.x + 22f * s, row.y + row.height * 0.5f - 14f * s, 28f * s, 28f * s), Time.unscaledTime);
                 }
-                Text(row, text, 38f * s, selected ? Yellow : Color.white, TextAnchor.MiddleCenter);
+                Text(row, text, 38f * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
             }
         }
 
@@ -385,21 +398,25 @@ namespace Studio.Pacman
             GUI.color = previous;
         }
 
+        /// <summary>A little pest for the title chase: oval body, scuttling legs, antennae and eyes.</summary>
         private void DrawGhostIcon(Rect rect, Color colour, float time)
         {
-            Fill(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, rect.height * 0.55f), colour, 0f);
-            Fill(new Rect(rect.x, rect.y, rect.width, rect.height * 0.7f), colour, rect.width * 0.5f);
-            float wiggle = Mathf.Sin(time * 8f) * 2f;
+            float wiggle = Mathf.Sin(time * 14f) * 3f;
+            float legW = rect.width * 0.28f;
             for (int i = 0; i < 3; i++)
             {
-                float w = rect.width / 3f;
-                Fill(new Rect(rect.x + i * w + 2f, rect.y + rect.height * 0.8f + (i % 2 == 0 ? wiggle : -wiggle), w - 4f, rect.height * 0.2f), colour, 6f);
+                float ly = rect.y + rect.height * (0.38f + i * 0.17f) + (i % 2 == 0 ? wiggle : -wiggle);
+                Fill(new Rect(rect.x - legW * 0.1f, ly, legW, 4f), colour, 2f);
+                Fill(new Rect(rect.xMax - legW * 0.9f, ly, legW, 4f), colour, 2f);
             }
+            Fill(new Rect(rect.x + rect.width * 0.32f, rect.y - 2f, 4f, rect.height * 0.22f), colour, 2f);
+            Fill(new Rect(rect.xMax - rect.width * 0.32f - 4f, rect.y - 2f, 4f, rect.height * 0.22f), colour, 2f);
+            Fill(new Rect(rect.x + rect.width * 0.14f, rect.y + rect.height * 0.12f, rect.width * 0.72f, rect.height * 0.84f), colour, rect.width * 0.36f);
             float eye = rect.width * 0.2f;
-            foreach (float ex in new[] { 0.28f, 0.62f })
+            foreach (float ex in new[] { 0.28f, 0.52f })
             {
-                Fill(new Rect(rect.x + rect.width * ex, rect.y + rect.height * 0.28f, eye, eye * 1.2f), Color.white, eye * 0.5f);
-                Fill(new Rect(rect.x + rect.width * ex + eye * 0.45f, rect.y + rect.height * 0.35f, eye * 0.5f, eye * 0.6f), new Color(0.1f, 0.2f, 0.85f), eye * 0.25f);
+                Fill(new Rect(rect.x + rect.width * ex, rect.y + rect.height * 0.3f, eye, eye * 1.2f), Color.white, eye * 0.5f);
+                Fill(new Rect(rect.x + rect.width * ex + eye * 0.45f, rect.y + rect.height * 0.37f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
             }
         }
 
@@ -415,8 +432,10 @@ namespace Studio.Pacman
                     float dy = (y + 0.5f) / n * 2f - 1f;
                     float d = Mathf.Sqrt(dx * dx + dy * dy);
                     float edge = Mathf.Clamp01((0.96f - d) * n * 0.5f);
-                    bool mouth = dx > 0f && Mathf.Abs(dy) < dx * mouthSlope;
-                    Color c = mouth ? clear : new Color(Yellow.r, Yellow.g, Yellow.b, edge);
+                    // A sombrero seen from above: straw brim with a bite out of it, dark band, pale crown.
+                    bool mouth = dx > 0f && Mathf.Abs(dy) < dx * mouthSlope && d > 0.42f;
+                    Color hat = d < 0.3f ? new Color(0.99f, 0.95f, 0.82f) : d < 0.42f ? new Color(0.12f, 0.08f, 0.06f) : new Color(0.96f, 0.86f, 0.58f);
+                    Color c = mouth ? clear : new Color(hat.r, hat.g, hat.b, edge);
                     texture.SetPixel(x, y, c);
                 }
             }

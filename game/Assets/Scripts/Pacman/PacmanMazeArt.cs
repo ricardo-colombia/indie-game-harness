@@ -3,10 +3,11 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Draws the maze walls into two sprites: a neon outline (white, tinted at runtime by the scenery) and a
-    /// dark fill. The wall tiles are rasterised, their convex corners are rounded with a morphological
-    /// opening, and the outline is drawn a little inside the wall edge, so thin walls read as the classic
-    /// double line and thick blocks as hollow outlines.
+    /// Draws the maze walls as coffee mountains, into two sprites: a rim light (white, tinted at runtime by the
+    /// scenery) and a baked-colour fill of terraced hillside with rows of coffee bushes (some with red cherries).
+    /// The wall tiles are rasterised, their convex corners are rounded with a morphological opening, and the
+    /// rim is drawn a little inside the wall edge, so thin walls read as ridgelines and thick blocks as
+    /// whole hills.
     /// </summary>
     public static class PacmanMazeArt
     {
@@ -52,9 +53,9 @@ namespace Studio.Pacman
             }
 
             float radius = 0.32f * s;
-            float inset = 0.2f * s;
-            float halfWidth = 0.06f * s;
-            float glowReach = 0.1f * s;
+            float inset = 0.08f * s;
+            float halfWidth = 0.045f * s;
+            float glowReach = 0.08f * s;
 
             // Opening: erode the walls by the radius, then grow them back. Convex corners come out round.
             float[] toOpen = Distance(Invert(wall), pw, ph);
@@ -81,13 +82,70 @@ namespace Studio.Pacman
                 float signed = rounded[i] ? toOutside[i] : -toInside[i];
                 float away = Mathf.Abs(signed - inset);
                 float line = Mathf.Clamp01(halfWidth + 0.5f - away);
-                float glow = 0.3f * Mathf.Exp(-away / glowReach);
+                float glow = 0.14f * Mathf.Exp(-away / glowReach);
                 lineColours[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Max(line, glow) * 255f));
-                fillColours[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f + signed) * 255f));
+                Color32 terrain = Terrain(i % pw, i / pw, signed, s);
+                terrain.a = (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f + signed) * 255f);
+                fillColours[i] = terrain;
             }
 
             lineSprite = ToSprite("PacmanWallLine", lineColours, pw, ph, s);
             fillSprite = ToSprite("PacmanWallFill", fillColours, pw, ph, s);
+        }
+
+        private static readonly Color Slope = new Color(0.2f, 0.46f, 0.17f);
+        private static readonly Color Summit = new Color(0.12f, 0.33f, 0.13f);
+        private static readonly Color Terrace = new Color(0.06f, 0.2f, 0.08f);
+        private static readonly Color BushDark = new Color(0.06f, 0.36f, 0.09f);
+        private static readonly Color BushLight = new Color(0.4f, 0.82f, 0.28f);
+        private static readonly Color Cherry = new Color(0.95f, 0.15f, 0.12f);
+
+        /// <summary>
+        /// Colour of the hillside at one pixel. signed is the distance in pixels inside the wall edge: slopes
+        /// darken towards the middle, terrace lines run parallel to the edge, and staggered rows of round
+        /// coffee bushes sit between them, a few carrying a red cherry.
+        /// </summary>
+        private static Color32 Terrain(int px, int py, float signed, int pixelsPerTile)
+        {
+            float tiles = signed / pixelsPerTile;
+            Color c = Color.Lerp(Slope, Summit, Mathf.Clamp01(tiles / 0.7f));
+
+            // Terrace lines: thin dark contours every quarter tile from the edge.
+            float contour = Mathf.Repeat(signed, 0.25f * pixelsPerTile);
+            if (tiles > 0.05f && contour < 1.4f)
+            {
+                c = Color.Lerp(c, Terrace, 0.8f);
+            }
+
+            // Bushes on a staggered grid, kept off the very edge.
+            float cell = 0.34f * pixelsPerTile;
+            int row = Mathf.FloorToInt(py / cell);
+            float shift = (row & 1) * cell * 0.5f;
+            int col = Mathf.FloorToInt((px + shift) / cell);
+            float cx = (col + 0.5f) * cell - shift;
+            float cy = (row + 0.5f) * cell;
+            float dx = px - cx;
+            float dy = py - cy;
+            float d = Mathf.Sqrt(dx * dx + dy * dy);
+            float radius = cell * 0.42f;
+            if (tiles > 0.16f && d < radius)
+            {
+                // Lit from the top left: the highlight slides to that side of each bush.
+                float light = Mathf.Clamp01(0.5f + (-dx + dy) / (radius * 1.8f));
+                Color bush = Color.Lerp(BushDark, BushLight, light * light);
+                c = Color.Lerp(c, bush, Mathf.Clamp01((radius - d) * 1.2f));
+                int hash = (col * 73856093 ^ row * 19349663) & 15;
+                if (hash < 4)
+                {
+                    float cherryX = dx - radius * 0.25f;
+                    float cherryY = dy + radius * 0.2f;
+                    if (cherryX * cherryX + cherryY * cherryY < 2.6f * 2.6f)
+                    {
+                        c = Cherry;
+                    }
+                }
+            }
+            return c;
         }
 
         private static Sprite ToSprite(string name, Color32[] pixels, int width, int height, int pixelsPerUnit)

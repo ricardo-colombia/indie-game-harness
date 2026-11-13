@@ -22,6 +22,7 @@ namespace Studio.Pacman
         private static Sprite square;
         private static Sprite frightFace;
         private static Sprite gridTile;
+        private static Sprite mountain;
         private static readonly Sprite[] PacSprites = new Sprite[PacFrames + 1];
         private static readonly Sprite[] GhostSprites = new Sprite[2];
 
@@ -74,25 +75,62 @@ namespace Studio.Pacman
             return PacSprites[index];
         }
 
-        /// <summary>The ghost silhouette: round dome, straight sides and a three-foot wavy hem (two ripple frames).</summary>
+        /// <summary>
+        /// The pest silhouette: an oval body, two antennae and three legs a side that scuttle between two
+        /// frames. Same footprint as the old ghost, so eyes, glow and collisions are unchanged.
+        /// </summary>
         public static Sprite Ghost(int frame)
         {
             frame &= 1;
             if (GhostSprites[frame] == null)
             {
-                float phase = frame * Mathf.PI;
-                GhostSprites[frame] = Make("GhostFrame" + frame, FrameSize, (x, y) =>
+                // Leg tip heights for the two scuttle frames, front to back.
+                float[] tips = frame == 0 ? new[] { 0.2f, 0.02f, -0.12f } : new[] { 0.12f, 0.1f, -0.2f };
+                float[] roots = { 0.14f, 0.0f, -0.14f };
+                GhostSprites[frame] = Make("PestFrame" + frame, FrameSize, (x, y) =>
                 {
-                    if (y > 0f)
+                    float body = (1f - Mathf.Sqrt((x * x) / (0.34f * 0.34f) + (y * y) / (0.42f * 0.42f))) * 0.34f;
+                    float best = body;
+                    for (int side = -1; side <= 1; side += 2)
                     {
-                        return BodyRadius - Mathf.Sqrt(x * x + y * y);
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Vector2 from = new Vector2(side * 0.26f, roots[i]);
+                            Vector2 to = new Vector2(side * 0.48f, tips[i]);
+                            best = Mathf.Max(best, 0.03f - SegmentDistance(x, y, from, to));
+                        }
+                        best = Mathf.Max(best, 0.022f - SegmentDistance(x, y, new Vector2(side * 0.09f, 0.36f), new Vector2(side * 0.24f, 0.49f)));
                     }
-                    float theta = (x + BodyRadius) / (2f * BodyRadius) * 3f * 2f * Mathf.PI + phase;
-                    float hem = -BodyRadius + 0.1f * (0.5f + 0.5f * Mathf.Cos(theta));
-                    return Mathf.Min(BodyRadius - Mathf.Abs(x), y - hem);
+                    return best;
                 });
             }
             return GhostSprites[frame];
+        }
+
+        /// <summary>Distance from a point to the line segment a-b.</summary>
+        private static float SegmentDistance(float x, float y, Vector2 a, Vector2 b)
+        {
+            Vector2 p = new Vector2(x, y) - a;
+            Vector2 ab = b - a;
+            float t = Mathf.Clamp01(Vector2.Dot(p, ab) / ab.sqrMagnitude);
+            return (p - ab * t).magnitude;
+        }
+
+        /// <summary>A mountain silhouette filling its one-unit square: a peak in the middle sloping to the base corners.</summary>
+        public static Sprite Mountain
+        {
+            get
+            {
+                if (mountain == null)
+                {
+                    mountain = Make("PacMountain", 128, (x, y) =>
+                    {
+                        float ridge = -0.5f + Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(x) * 2f), 0.85f) + 0.025f * Mathf.Sin(x * 37f);
+                        return Mathf.Min((ridge - y) * 0.7f, y + 0.5f);
+                    });
+                }
+                return mountain;
+            }
         }
 
         /// <summary>The frightened face: two square eyes and a zigzag mouth.</summary>
@@ -116,7 +154,7 @@ namespace Studio.Pacman
             }
         }
 
-        /// <summary>One floor cell: dark navy with a faint line on two edges. Opaque, tiled behind the maze.</summary>
+        /// <summary>One floor cell of the farm path: dark earth with a faint furrow line on two edges. Opaque, tiled behind the maze.</summary>
         public static Sprite GridTile
         {
             get
@@ -131,8 +169,8 @@ namespace Studio.Pacman
                         name = "PacmanGrid",
                         hideFlags = HideFlags.DontSave,
                     };
-                    Color baseColour = new Color(0.012f, 0.016f, 0.05f);
-                    Color line = new Color(0.05f, 0.09f, 0.22f);
+                    Color baseColour = new Color(0.085f, 0.055f, 0.035f);
+                    Color line = new Color(0.14f, 0.09f, 0.055f);
                     for (int y = 0; y < n; y++)
                     {
                         for (int x = 0; x < n; x++)
@@ -140,7 +178,9 @@ namespace Studio.Pacman
                             float dx = (x - n * 0.5f) / (n * 0.5f);
                             float dy = (y - n * 0.5f) / (n * 0.5f);
                             float glow = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy)) * 0.025f;
-                            Color c = x < 2 || y < 2 ? line : baseColour + new Color(glow * 0.4f, glow * 0.6f, glow, 0f);
+                            // Fixed pseudo-random speckle so the earth is not flat.
+                            float grit = ((x * 73856093 ^ y * 19349663) & 255) / 255f;
+                            Color c = x < 2 || y < 2 ? line : baseColour + new Color(glow * 0.8f, glow * 0.5f, glow * 0.2f, 0f) + Color.white * (grit * grit * 0.03f);
                             c.a = 1f;
                             texture.SetPixel(x, y, c);
                         }
