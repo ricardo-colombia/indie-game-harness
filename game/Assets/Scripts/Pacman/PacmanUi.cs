@@ -188,16 +188,15 @@ namespace Studio.Pacman
             }
             Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), "FLECHAS / WASD  MOVER      ENTER  ELEGIR      ESC  PAUSA", 22f * s, Dim, TextAnchor.MiddleCenter);
 
-            // Decorative chase: the picker followed by four pests scuttles across the bottom.
+            // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom.
             float run = Mathf.Repeat(t * 0.12f, 1f);
             float x = Mathf.Lerp(-0.1f, 1.1f, run) * Screen.width;
             float y = Screen.height * 0.78f;
             DrawPac(new Rect(x, y, 64f * s, 64f * s), t);
-            Color[] ghostColours = { new Color(0.95f, 0.25f, 0.55f), new Color(1f, 0.55f, 0.1f), new Color(0.6f, 0.95f, 0.2f), new Color(1f, 0.88f, 0.92f) };
-            for (int i = 0; i < ghostColours.Length; i++)
+            for (int i = 0; i < PacmanGame.GhostColours.Length; i++)
             {
                 float gx = x - (i + 1) * 80f * s - 30f * s;
-                DrawGhostIcon(new Rect(gx, y + 2f * s, 56f * s, 60f * s), ghostColours[i], t + i);
+                DrawGhostIcon(new Rect(gx, y + 2f * s, 56f * s, 60f * s), PacmanGame.GhostColours[i], i, t + i);
             }
         }
 
@@ -423,25 +422,63 @@ namespace Studio.Pacman
             GUI.color = previous;
         }
 
-        /// <summary>A little pest for the title chase: oval body, scuttling legs, antennae and eyes.</summary>
-        private void DrawGhostIcon(Rect rect, Color colour, float time)
+        /// <summary>A little pest for the title chase: 0 DIAN agent, 1 guerrilla fighter, 2 narco, 3 coral snake.</summary>
+        private void DrawGhostIcon(Rect rect, Color colour, int kind, float time)
         {
-            float wiggle = Mathf.Sin(time * 14f) * 3f;
-            float legW = rect.width * 0.28f;
-            for (int i = 0; i < 3; i++)
+            float wiggle = Mathf.Sin(time * 14f);
+            float w = rect.width;
+            float h = rect.height;
+            if (kind == 3)
             {
-                float ly = rect.y + rect.height * (0.38f + i * 0.17f) + (i % 2 == 0 ? wiggle : -wiggle);
-                Fill(new Rect(rect.x - legW * 0.1f, ly, legW, 4f), colour, 2f);
-                Fill(new Rect(rect.xMax - legW * 0.9f, ly, legW, 4f), colour, 2f);
+                // Snake: a column of shrinking segments swaying side to side, with a tongue.
+                for (int i = 0; i < 7; i++)
+                {
+                    float t = i / 6f;
+                    float size = Mathf.Lerp(w * 0.42f, w * 0.14f, t);
+                    float cx = rect.center.x + Mathf.Sin(t * 5f + time * 9f) * w * 0.28f * Mathf.Min(1f, t * 3f);
+                    Fill(new Rect(cx - size * 0.5f, rect.y + h * (0.2f + t * 0.72f) - size * 0.5f, size, size), i % 3 == 1 ? new Color(1f, 0.85f, 0.15f) : colour, size * 0.5f);
+                }
+                Fill(new Rect(rect.center.x - 2f, rect.y - h * 0.04f, 3f, h * 0.14f), new Color(0.95f, 0.1f, 0.25f), 1f);
+                Fill(new Rect(rect.center.x - w * 0.22f, rect.y + h * 0.08f, w * 0.44f, h * 0.2f), new Color(0.12f, 0.1f, 0.1f), w * 0.2f);
+                foreach (float ex in new[] { -0.12f, 0.06f })
+                {
+                    Fill(new Rect(rect.center.x + w * ex, rect.y + h * 0.14f, w * 0.08f, w * 0.08f), Color.white, w * 0.04f);
+                }
+                return;
             }
-            Fill(new Rect(rect.x + rect.width * 0.32f, rect.y - 2f, 4f, rect.height * 0.22f), colour, 2f);
-            Fill(new Rect(rect.xMax - rect.width * 0.32f - 4f, rect.y - 2f, 4f, rect.height * 0.22f), colour, 2f);
-            Fill(new Rect(rect.x + rect.width * 0.14f, rect.y + rect.height * 0.12f, rect.width * 0.72f, rect.height * 0.84f), colour, rect.width * 0.36f);
-            float eye = rect.width * 0.2f;
-            foreach (float ex in new[] { 0.28f, 0.52f })
+
+            // Person: legs, torso, head, then the prop that says who it is.
+            Fill(new Rect(rect.x + w * 0.22f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f + wiggle * 3f), colour * 0.7f, 2f);
+            Fill(new Rect(rect.x + w * 0.58f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f - wiggle * 3f), colour * 0.7f, 2f);
+            Fill(new Rect(rect.x + w * 0.12f, rect.y + h * 0.4f, w * 0.76f, h * 0.44f), colour, w * 0.2f);
+            Fill(new Rect(rect.x + w * 0.26f, rect.y + h * 0.05f, w * 0.48f, h * 0.44f), colour, w * 0.24f);
+            switch (kind)
             {
-                Fill(new Rect(rect.x + rect.width * ex, rect.y + rect.height * 0.3f, eye, eye * 1.2f), Color.white, eye * 0.5f);
-                Fill(new Rect(rect.x + rect.width * ex + eye * 0.45f, rect.y + rect.height * 0.37f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
+                case 0:
+                    Fill(new Rect(rect.center.x - w * 0.04f, rect.y + h * 0.46f, w * 0.08f, h * 0.3f), new Color(0.85f, 0.1f, 0.12f), 1f);
+                    Fill(new Rect(rect.xMax - w * 0.2f, rect.y + h * 0.7f, w * 0.3f, h * 0.22f), new Color(0.5f, 0.28f, 0.12f), 2f);
+                    break;
+                case 1:
+                    Fill(new Rect(rect.x + w * 0.22f, rect.y - h * 0.02f, w * 0.58f, h * 0.18f), new Color(0.5f, 0.1f, 0.08f), w * 0.1f);
+                    Fill(new Rect(rect.x + w * 0.3f, rect.y + h * 0.02f, w * 0.1f, w * 0.1f), new Color(1f, 0.85f, 0.15f), w * 0.05f);
+                    break;
+                default:
+                    foreach (float gx in new[] { 0.3f, 0.46f, 0.62f })
+                    {
+                        Fill(new Rect(rect.x + w * gx, rect.y + h * (gx == 0.46f ? 0.5f : 0.46f), w * 0.1f, w * 0.1f), new Color(1f, 0.8f, 0.1f), w * 0.05f);
+                    }
+                    break;
+            }
+            float eye = w * 0.14f;
+            foreach (float ex in new[] { 0.33f, 0.53f })
+            {
+                if (kind == 2)
+                {
+                    Fill(new Rect(rect.x + w * ex - 1f, rect.y + h * 0.22f, eye * 1.2f, eye * 0.8f), new Color(0.05f, 0.05f, 0.08f), 2f);
+                    continue;
+                }
+                Fill(new Rect(rect.x + w * ex, rect.y + h * 0.2f, eye, eye * 1.2f), Color.white, eye * 0.5f);
+                Fill(new Rect(rect.x + w * ex + eye * 0.35f, rect.y + h * 0.25f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
             }
         }
 

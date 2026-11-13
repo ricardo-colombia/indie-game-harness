@@ -97,6 +97,7 @@ namespace Studio.Pacman
             outline.color = themeColour;
             outline.sortingOrder = -4;
 
+            PacmanBushes.Build(transform);
             BuildMountains();
             BuildPortals();
             BuildStars(centre);

@@ -66,6 +66,7 @@ namespace Studio.Pacman
             bodyObject.transform.SetParent(transform, false);
             body = bodyObject.transform;
             body.localScale = Vector3.one * BodyScale;
+            Prim(body, PacmanSprites.Disc, new Color(0f, 0f, 0f, 0.4f), new Vector2(0f, -0.5f), new Vector2(0.55f, 0.13f), 0f, 4);
             BuildFarmer();
             PacmanGlow.Attach(transform, new Color(1f, 0.85f, 0.45f), 3.2f, 0.2f);
 

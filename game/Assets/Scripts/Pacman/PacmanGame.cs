@@ -62,13 +62,14 @@ namespace Studio.Pacman
         private static readonly Color PelletUnripeColour = new Color(0.88f, 0.66f, 0.36f);
         private static readonly Color PowerPelletColour = new Color(1f, 0.65f, 0.25f, 0.2f);
         private static readonly Color LeafColour = new Color(0.3f, 0.8f, 0.25f);
-        // The four pests, in ghost order: broca (borer beetle), roya (rust), minador (leaf miner), cochinilla (mealybug).
-        private static readonly Color[] GhostColours =
+        // The four pests, in ghost order: the DIAN agent (steel blue suit), the guerrilla fighter (olive), the narco
+        // (cream linen) and the coral snake (red).
+        public static readonly Color[] GhostColours =
         {
-            new Color(0.95f, 0.25f, 0.55f),
-            new Color(1f, 0.55f, 0.1f),
-            new Color(0.6f, 0.95f, 0.2f),
-            new Color(1f, 0.88f, 0.92f),
+            new Color(0.5f, 0.62f, 0.95f),
+            new Color(0.55f, 0.68f, 0.22f),
+            new Color(0.98f, 0.9f, 0.68f),
+            new Color(0.95f, 0.22f, 0.2f),
         };
 
         private readonly List<PacmanGhost> ghosts = new List<PacmanGhost>();
