@@ -10,8 +10,8 @@ namespace Studio.Pacman.Tests
         {
             Assert.AreEqual(FruitKind.CoffeeCherry, PacmanFruit.For(1));
             Assert.AreEqual(FruitKind.Banana, PacmanFruit.For(2));
-            Assert.AreEqual(FruitKind.Orange, PacmanFruit.For(3));
-            Assert.AreEqual(FruitKind.Orange, PacmanFruit.For(4));
+            Assert.AreEqual(FruitKind.Arepa, PacmanFruit.For(3));
+            Assert.AreEqual(FruitKind.Arepa, PacmanFruit.For(4));
             Assert.AreEqual(FruitKind.Panela, PacmanFruit.For(6));
             Assert.AreEqual(FruitKind.Tinto, PacmanFruit.For(8));
             Assert.AreEqual(FruitKind.Sack, PacmanFruit.For(10));
@@ -25,7 +25,7 @@ namespace Studio.Pacman.Tests
         {
             Assert.AreEqual(100, PacmanFruit.Points(FruitKind.CoffeeCherry));
             Assert.AreEqual(300, PacmanFruit.Points(FruitKind.Banana));
-            Assert.AreEqual(500, PacmanFruit.Points(FruitKind.Orange));
+            Assert.AreEqual(500, PacmanFruit.Points(FruitKind.Arepa));
             Assert.AreEqual(700, PacmanFruit.Points(FruitKind.Panela));
             Assert.AreEqual(1000, PacmanFruit.Points(FruitKind.Tinto));
             Assert.AreEqual(2000, PacmanFruit.Points(FruitKind.Sack));

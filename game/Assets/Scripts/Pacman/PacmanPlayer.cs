@@ -15,7 +15,7 @@ namespace Studio.Pacman
 
         private static readonly Color Straw = new Color(0.96f, 0.86f, 0.58f);
         private static readonly Color HatBand = new Color(0.12f, 0.08f, 0.06f);
-        private static readonly Color Poncho = new Color(0.78f, 0.12f, 0.1f);
+        private static readonly Color Poncho = new Color(0.96f, 0.95f, 0.9f);
         private static readonly Color Skin = new Color(0.76f, 0.5f, 0.32f);
         private const float BodyScale = 0.95f;
 
@@ -69,9 +69,13 @@ namespace Studio.Pacman
             GameObject decorObject = new GameObject("Farmer");
             decorObject.transform.SetParent(body, false);
             decor = decorObject.transform;
-            // Shoulders: a red poncho wider than the hat, with a dark stripe.
+            // Canasto (the woven picking basket) carried on the back, behind the hat.
+            Part("Basket", new Color(0.62f, 0.38f, 0.28f), new Vector2(-0.5f, 0f), new Vector2(0.46f, 0.62f), 3, 0f);
+            Part("BasketInside", new Color(0.3f, 0.16f, 0.1f), new Vector2(-0.52f, 0f), new Vector2(0.3f, 0.46f), 3, -0.005f);
+            Part("BasketCherries", new Color(0.88f, 0.1f, 0.14f), new Vector2(-0.52f, 0.06f), new Vector2(0.18f, 0.2f), 4, -0.01f);
+            // Shoulders: a white shirt wider than the hat, with a basket strap across it.
             Part("Poncho", Poncho, new Vector2(-0.04f, 0f), new Vector2(0.6f, 1.05f), 2, 0f);
-            Part("PonchoStripe", new Color(0.15f, 0.08f, 0.06f), new Vector2(-0.04f, 0f), new Vector2(0.18f, 1.03f), 2, -0.005f);
+            Part("PonchoStripe", new Color(0.55f, 0.34f, 0.2f), new Vector2(-0.14f, 0f), new Vector2(0.1f, 1.03f), 2, -0.005f);
             // Face peeks out of the wedge when the mouth opens: skin, two dark eyes and a moustache.
             Part("Face", Skin, new Vector2(0.28f, 0f), new Vector2(0.34f, 0.34f), 3, 0f);
             Part("Eye", HatBand, new Vector2(0.36f, 0.07f), new Vector2(0.05f, 0.05f), 4, 0f);

@@ -56,11 +56,11 @@ namespace Studio.Pacman
         [SerializeField] private float wakaInterval = 0.18f;
 
         private const float PelletSize = 0.2f;
-        private const float PowerPelletSize = 0.5f;
+        private const float PowerPelletSize = 0.64f;
         // Pellets are coffee cherries on the bush: mostly ripe red, some still orange-yellow (pinton).
         private static readonly Color PelletColour = new Color(0.95f, 0.14f, 0.12f);
         private static readonly Color PelletUnripeColour = new Color(1f, 0.62f, 0.15f);
-        private static readonly Color PowerPelletColour = new Color(0.9f, 0.08f, 0.1f);
+        private static readonly Color PowerPelletColour = new Color(0.9f, 0.86f, 0.76f);
         private static readonly Color LeafColour = new Color(0.3f, 0.8f, 0.25f);
         // The four pests, in ghost order: broca (borer beetle), roya (rust), minador (leaf miner), cochinilla (mealybug).
         private static readonly Color[] GhostColours =
@@ -604,7 +604,7 @@ namespace Studio.Pacman
             pelletObjects[index].SetActive(false);
 
             player.Gobble();
-            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(1f, 0.35f, 0.3f) : new Color(1f, 0.5f, 0.35f), IsPowerPellet(index) ? 16 : 6);
+            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(0.8f, 0.5f, 0.2f) : new Color(1f, 0.5f, 0.35f), IsPowerPellet(index) ? 16 : 6);
             if (IsPowerPellet(index))
             {
                 pacPauseTimer = powerPelletPauseFrames / 60f;
@@ -891,9 +891,13 @@ namespace Studio.Pacman
             renderer.sortingOrder = 1;
             if (power)
             {
-                // The big ripe cherry: a leaf on top and a bright highlight, so it reads as the special one.
-                AddPelletPart(pellet.transform, LeafColour, new Vector2(0.18f, 0.5f), new Vector3(0.55f, 0.28f, 1f), 25f, 2);
-                AddPelletPart(pellet.transform, new Color(1f, 0.8f, 0.75f), new Vector2(-0.2f, 0.18f), new Vector3(0.22f, 0.22f, 1f), 0f, 2);
+                // The espresso: a cup seen from above on its saucer, with a handle, dark crema and a highlight.
+                // Drinking it is what lets the picker chase the pests.
+                AddPelletPart(pellet.transform, new Color(0.93f, 0.9f, 0.82f), new Vector2(0.4f, -0.04f), new Vector3(0.3f, 0.2f, 1f), 0f, 2);
+                AddPelletPart(pellet.transform, Color.white, new Vector2(-0.02f, 0f), new Vector3(0.74f, 0.74f, 1f), 0f, 2);
+                AddPelletPart(pellet.transform, new Color(0.62f, 0.36f, 0.14f), new Vector2(-0.02f, 0f), new Vector3(0.6f, 0.6f, 1f), 0f, 3);
+                AddPelletPart(pellet.transform, new Color(0.13f, 0.06f, 0.025f), new Vector2(-0.02f, 0f), new Vector3(0.48f, 0.48f, 1f), 0f, 3);
+                AddPelletPart(pellet.transform, new Color(0.85f, 0.6f, 0.3f), new Vector2(-0.14f, 0.12f), new Vector3(0.14f, 0.1f, 1f), 30f, 4);
             }
             return pellet;
         }

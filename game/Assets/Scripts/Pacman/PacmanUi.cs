@@ -168,7 +168,14 @@ namespace Studio.Pacman
             }
             Text(logoRect, logo, size, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s), 0f, new Color(0.3f, 0.12f, 0.03f, 0.9f));
 
-            Rect subRect = new Rect(0, Screen.height * 0.12f + size * 1.15f, Screen.width, 50f * s);
+            // Colombian flag stripe under the logo: yellow (half), blue and red (a quarter each).
+            float flagW = 520f * s;
+            float flagY = Screen.height * 0.12f + size * 1.12f;
+            Fill(new Rect(cx - flagW * 0.5f, flagY, flagW, 5f * s), new Color(0.99f, 0.82f, 0.09f));
+            Fill(new Rect(cx - flagW * 0.5f, flagY + 5f * s, flagW, 2.5f * s), new Color(0.0f, 0.22f, 0.65f));
+            Fill(new Rect(cx - flagW * 0.5f, flagY + 7.5f * s, flagW, 2.5f * s), new Color(0.81f, 0.07f, 0.17f));
+
+            Rect subRect = new Rect(0, Screen.height * 0.12f + size * 1.15f + 12f * s, Screen.width, 50f * s);
             Text(subRect, "LA  COSECHA  EN  LA  MONTAÑA", 34f * s, Leaf, TextAnchor.MiddleCenter);
 
             DrawMenuItems(s, Screen.height * 0.52f);

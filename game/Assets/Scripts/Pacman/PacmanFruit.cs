@@ -4,7 +4,7 @@ namespace Studio.Pacman
     {
         CoffeeCherry,
         Banana,
-        Orange,
+        Arepa,
         Panela,
         Tinto,
         Sack,
@@ -32,7 +32,7 @@ namespace Studio.Pacman
                 case 1: return FruitKind.CoffeeCherry;
                 case 2: return FruitKind.Banana;
                 case 3:
-                case 4: return FruitKind.Orange;
+                case 4: return FruitKind.Arepa;
                 case 5:
                 case 6: return FruitKind.Panela;
                 case 7:
@@ -51,7 +51,7 @@ namespace Studio.Pacman
             {
                 case FruitKind.CoffeeCherry: return 100;
                 case FruitKind.Banana: return 300;
-                case FruitKind.Orange: return 500;
+                case FruitKind.Arepa: return 500;
                 case FruitKind.Panela: return 700;
                 case FruitKind.Tinto: return 1000;
                 case FruitKind.Sack: return 2000;

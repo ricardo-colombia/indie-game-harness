@@ -45,11 +45,13 @@ namespace Studio.Pacman
                     Blob(t, Green, new Vector2(0f, 0.38f), new Vector2(0.4f, 0.1f), 6);
                     break;
 
-                case FruitKind.Orange:
-                    Blob(t, new Color(1f, 0.55f, 0.08f), new Vector2(0f, -0.06f), 0.78f, 5);
-                    Blob(t, new Color(1f, 0.8f, 0.45f), new Vector2(-0.14f, 0.06f), 0.16f, 6);
-                    Blob(t, Green, new Vector2(0.07f, 0.36f), new Vector2(0.24f, 0.14f), 6);
-                    Bar(t, Brown, new Vector2(0f, 0.3f), new Vector2(0f, 0.42f), 0.05f, 6);
+                case FruitKind.Arepa:
+                    // An arepa: a round corn cake, golden, with grill marks.
+                    Blob(t, new Color(0.82f, 0.58f, 0.24f), new Vector2(0f, 0f), 0.82f, 5);
+                    Blob(t, new Color(0.97f, 0.82f, 0.46f), new Vector2(0f, 0.02f), 0.72f, 6);
+                    Bar(t, new Color(0.45f, 0.26f, 0.08f), new Vector2(-0.26f, -0.12f), new Vector2(0.12f, 0.24f), 0.06f, 7);
+                    Bar(t, new Color(0.45f, 0.26f, 0.08f), new Vector2(-0.14f, -0.2f), new Vector2(0.24f, 0.14f), 0.06f, 7);
+                    Bar(t, new Color(0.45f, 0.26f, 0.08f), new Vector2(-0.34f, 0.0f), new Vector2(0.0f, 0.32f), 0.06f, 7);
                     break;
 
                 case FruitKind.Panela:
@@ -77,7 +79,10 @@ namespace Studio.Pacman
                     Blob(t, new Color(0.78f, 0.6f, 0.34f), new Vector2(0f, 0.22f), new Vector2(0.34f, 0.4f), 5);
                     Bar(t, new Color(0.35f, 0.2f, 0.08f), new Vector2(-0.16f, 0.14f), new Vector2(0.16f, 0.14f), 0.08f, 6);
                     Blob(t, new Color(0.9f, 0.76f, 0.5f), new Vector2(-0.18f, -0.02f), new Vector2(0.14f, 0.3f), 6);
-                    Blob(t, new Color(0.25f, 0.12f, 0.06f), new Vector2(0f, -0.2f), new Vector2(0.26f, 0.2f), 6);
+                    // The Colombian flag stripes down the front, as on a "Café de Colombia" sack.
+                    Part(t, PacmanSprites.Square, new Color(0.99f, 0.82f, 0.09f), new Vector2(-0.07f, -0.14f), new Vector3(0.09f, 0.5f, 1f), 0f, 7);
+                    Part(t, PacmanSprites.Square, new Color(0.0f, 0.22f, 0.65f), new Vector2(0.02f, -0.14f), new Vector3(0.09f, 0.5f, 1f), 0f, 7);
+                    Part(t, PacmanSprites.Square, new Color(0.81f, 0.07f, 0.17f), new Vector2(0.11f, -0.14f), new Vector3(0.09f, 0.5f, 1f), 0f, 7);
                     break;
 
                 case FruitKind.Sombrero:
@@ -86,6 +91,11 @@ namespace Studio.Pacman
                     Blob(t, new Color(0.98f, 0.93f, 0.78f), new Vector2(0f, 0.1f), new Vector2(0.52f, 0.5f), 5);
                     Part(t, PacmanSprites.Square, new Color(0.12f, 0.08f, 0.06f), new Vector2(0f, -0.02f), new Vector3(0.52f, 0.1f, 1f), 0f, 6);
                     Blob(t, new Color(1f, 0.97f, 0.88f), new Vector2(-0.1f, 0.2f), new Vector2(0.14f, 0.16f), 6);
+                    // Sombrero vueltiao: black and white weave on the brim edge.
+                    for (int i = 0; i < 5; i++)
+                    {
+                        Part(t, PacmanSprites.Square, new Color(0.1f, 0.07f, 0.05f), new Vector2(-0.36f + i * 0.18f, -0.26f), new Vector3(0.07f, 0.06f, 1f), 0f, 6);
+                    }
                     break;
 
                 default:
