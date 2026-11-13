@@ -81,7 +81,7 @@ namespace Harness
                 InputDevice target = null;
                 foreach (var d in devices)
                     if (info.layout == d.layout) { target = d; break; }
-                if (target != null) ctrl = ctrl.WithDeviceMappedFromTo(info.deviceId, target);
+                if (target != null) ctrl = ctrl.WithDeviceMappedFromTo(info.deviceId, target.deviceId);
             }
             ctrl = ctrl.WithAllDevicesMappedToNewInstances();   // only affects devices not mapped above
             ctrl = frameByFrame ? ctrl.PlayAllFramesOneByOne() : ctrl.PlayAllEventsAccordingToTimestamps();
