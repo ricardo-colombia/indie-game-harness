@@ -1,7 +1,7 @@
 # Indie Game Harness
 
 A template for making small Unity 6 games with an AI team in Claude Code.
-**You are the creative director:** agents write code, build, test, make assets and cut clips overnight; you decide what's fun and what ships.
+**You are the creative director:** agents write code, build, test, make assets and cut clips on demand; you decide what's fun and what ships.
 
 ## 1. Set up (once per game)
 1. Create a repo from this template, then run `bash scripts/bootstrap.sh "My Game"` and follow its printout.
@@ -15,9 +15,9 @@ A template for making small Unity 6 games with an AI team in Claude Code.
 |---|---|---|
 | Day | Playtest and tune in the open editor | `playtest` skill |
 | Day | Turn feedback into cards | `write-card` skill → `backlog/inbox/` |
-| Day | Approve cards for tonight | `hx card ready C-0001` |
-| Night | Agents work through `backlog/ready/` | `hx run` (cron / Task Scheduler) |
-| Morning | Review results, make taste calls | `taste-review` skill → `hx merge C-0001` |
+| Any time | Approve cards to be worked on | `hx card ready C-0001` |
+| Any time | Agents work through `backlog/ready/` | `hx run` |
+| After a run | Review results, make taste calls | `taste-review` skill → `hx merge C-0001` |
 
 Cards move `inbox → ready → done` (merged), `review` (needs you) or `failed`. A card is one Markdown file; see `backlog/_template.md`.
 
@@ -27,7 +27,7 @@ Cards move `inbox → ready → done` (merged), `review` (needs you) or `failed`
 | Command | What |
 |---|---|
 | `hx cards` · `hx card new "Title"` · `hx card ready <id>` | list, create, approve cards |
-| `hx run [--budget 10] [--dry-run]` | overnight runner; $0 (plan quota) by default |
+| `hx run [--budget 10] [--dry-run]` | work through ready cards, on demand; $0 (plan quota) by default |
 | `hx merge <id>` | re-check a reviewed card on current main and merge it |
 | `hx verify` · `hx build` · `hx test EditMode` · `hx autotest smoke` | run gates by hand |
 | `hx report` · `hx cost` | last results, spend |
@@ -37,7 +37,7 @@ Other skills: `art-asset`, `capture-shorts`, `steam-page`, `steam-release`, `run
 
 ## 4. Make it yours
 - `design/PILLARS.md`, `art/style.md` — your vision (written by `new-game`).
-- `harness/config.yaml` — build target, binary name, models, `run_until`, art providers.
+- `harness/config.yaml` — build target, binary name, models, art providers.
 - `scenarios/*.json` — your "feel contract": once something feels right, lock it with a metric threshold so agents can't break it.
 
 The only requirement on the game: use Unity's **Input System** (the Unity 6 default).

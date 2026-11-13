@@ -23,12 +23,8 @@ runner:
   # then hitting the plan limit silently bills money instead of stopping. Check your Claude account's usage
   # settings, turn extra usage off, then set this to true. The runner refuses to start a $0 run until you do.
   plan_overage_disabled: false
-  max_quota_pauses_per_card: 2         # a card that hits "quota" this many times in one night stops the runner
   force_model: ""                      # e.g. haiku — overrides every model choice (selftest uses this)
   escalation: {enabled: true, model: opus, budget_usd: 3.0}   # only ever used when money_budget_usd > 0
-  on_quota_exhausted: wait             # wait | stop — wait sleeps and retries until run_until
-  quota_wait_min: 30
-  run_until: "07:30"                   # don't start new cards after this local time ("" = no limit)
   main_branch: main
   worktrees_dir: .worktrees            # gitignored; one worktree per card
   max_cards_per_run: 12
@@ -58,7 +54,7 @@ runner:
                 AWS_SESSION_TOKEN, AWS_BEARER_TOKEN_BEDROCK, GOOGLE_APPLICATION_CREDENTIALS]
   defaults:
     model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
-    budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating the night
+    budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating your quota
     timeout_min: 45
     max_turns: 80
     gates: [build, release, editmode, playmode, autotest, review]   # release = build without HARNESS + scan
