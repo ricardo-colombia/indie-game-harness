@@ -506,6 +506,7 @@ namespace Studio.Pacman
             pelletObjects[index].SetActive(false);
 
             player.Gobble();
+            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(1f, 0.85f, 0.4f) : new Color(1f, 0.95f, 0.7f), IsPowerPellet(index) ? 16 : 6);
             if (IsPowerPellet(index))
             {
                 pacPauseTimer = powerPelletPauseFrames / 60f;
@@ -675,6 +676,7 @@ namespace Studio.Pacman
                             if (c == 'o')
                             {
                                 powerPelletObjects.Add(pellet);
+                                PacmanJuice.Attach(pellet.transform, PacmanJuice.Kind.Pulse, 0.18f, 1.5f, 0f);
                             }
                             break;
                         case 'P':
@@ -730,6 +732,9 @@ namespace Studio.Pacman
                     {
                         r.material.SetColor("_BaseColor", GhostColours[i]);
                         r.material.SetColor("_Color", GhostColours[i]);
+                        // A soft self-glow so the ghosts stand out against the dark maze.
+                        r.material.EnableKeyword("_EMISSION");
+                        r.material.SetColor("_EmissionColor", GhostColours[i] * 0.45f);
                     }
                     if (ghostEyesModel != null)
                     {
@@ -741,6 +746,7 @@ namespace Studio.Pacman
                     body = CreatePrimitiveModel(ghostObject.transform, PrimitiveType.Sphere, GhostColours[i], 0.8f);
                 }
 
+                PacmanJuice.Attach(body, PacmanJuice.Kind.Bob, 0.05f, 2f, i * 0.25f);
                 PacmanGhost ghost = ghostObject.AddComponent<PacmanGhost>();
                 ghost.Init(this, kinds[i], corners[i], body);
                 ghosts.Add(ghost);
@@ -827,12 +833,20 @@ namespace Studio.Pacman
 
         private void DrawMenu(string header, string[] items)
         {
+            // Dark panel behind the menu so the text reads clearly over the maze.
+            Color previous = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.7f);
+            GUI.DrawTexture(new Rect(Screen.width * 0.25f, Screen.height * 0.24f, Screen.width * 0.5f, Screen.height * 0.5f), Texture2D.whiteTexture);
+            GUI.color = previous;
+
             GUI.Label(new Rect(0, Screen.height * 0.28f, Screen.width, 60), header, bigStyle);
             float top = Screen.height * 0.5f;
             for (int i = 0; i < items.Length; i++)
             {
+                bool selected = i == menuIndex;
                 string label = items[i] == "SOUND" ? "SOUND: " + (soundOn ? "ON" : "OFF") : items[i];
-                string text = i == menuIndex ? "> " + label + " <" : label;
+                string text = selected ? "> " + label + " <" : label;
+                menuStyle.normal.textColor = selected ? new Color(1f, 0.85f, 0.1f) : Color.white;
                 GUI.Label(new Rect(0, top + i * 48f, Screen.width, 44), text, menuStyle);
             }
         }
