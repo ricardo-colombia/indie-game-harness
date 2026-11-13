@@ -16,8 +16,12 @@ namespace Studio.Pacman
         [Tooltip("Mouth open/close cycles per second while moving.")]
         [SerializeField] private float chompRate = 3.2f;
 
+        [Tooltip("How far past a junction centre, in tiles, a late turn is still accepted. 0 turns it off.")]
+        [SerializeField, Range(0f, 0.5f)] private float turnForgiveness = 0.3f;
+
         private PacmanGame game;
         private Vector2Int desired;
+        private bool freshRequest;
         private Transform body;
         private SpriteRenderer sprite;
         private float phase;
@@ -67,14 +71,56 @@ namespace Studio.Pacman
         {
             if (direction != Vector2Int.zero)
             {
+                freshRequest = direction != desired;
                 desired = direction;
             }
         }
 
+        /// <summary>A new game or life starts with no buffered input, so an old swipe cannot steer the first step.</summary>
+        public override void Place(Vector2Int tile)
+        {
+            base.Place(tile);
+            desired = Vector2Int.zero;
+            freshRequest = false;
+        }
+
         public void Tick(float tiles)
         {
+            ApplyFreshRequest();
             Advance(tiles);
             FaceDirection(body);
+        }
+
+        /// <summary>
+        /// Two forgiving rules for a new request. Reversing is instant, even between tiles, as in the arcade.
+        /// A turn asked for just after the junction centre was passed is still taken, by stepping back to it.
+        /// </summary>
+        private void ApplyFreshRequest()
+        {
+            if (!freshRequest)
+            {
+                return;
+            }
+            freshRequest = false;
+            if (Dir == Vector2Int.zero || desired == Dir)
+            {
+                return;
+            }
+
+            if (desired == -Dir)
+            {
+                // Reverse() keeps the world position; the tile behind is always open since we came from it.
+                if (!Blocked(Tile - Dir) || Progress > 0f)
+                {
+                    Reverse();
+                }
+                return;
+            }
+
+            if (Progress >= 0f && Progress <= turnForgiveness && !Blocked(Tile + desired))
+            {
+                SnapTurn(desired);
+            }
         }
 
         /// <summary>Starts the death animation: the mouth opens until the body collapses to nothing.</summary>

@@ -37,6 +37,8 @@ namespace Studio.Pacman
         [SerializeField] private int ghostPoints = 200;
         [Tooltip("Distance (in tiles) at which a ghost touches Pac-Man.")]
         [SerializeField] private float collisionDistance = 0.6f;
+        [Tooltip("Chasing ghosts steer by walking distance through the maze instead of straight-line distance.")]
+        [SerializeField] private bool pathChase = true;
         [Tooltip("Score that earns one extra life (once per game).")]
         [SerializeField] private int extraLifeScore = 10000;
 
@@ -265,7 +267,12 @@ namespace Studio.Pacman
                     break;
 
                 case PacmanState.Playing:
-                    Simulate(Time.deltaTime);
+                    // Long frames are cut into short steps so actors cannot pass through each other.
+                    int steps = PacmanTiming.Steps(Time.deltaTime, out float step);
+                    for (int s = 0; s < steps && State == PacmanState.Playing; s++)
+                    {
+                        Simulate(step);
+                    }
                     break;
 
                 case PacmanState.Dying:
@@ -1062,6 +1069,7 @@ namespace Studio.Pacman
                 Transform body = PacmanGhostView.Create(ghostObject.transform, GhostColours[i]);
                 PacmanGhost ghost = ghostObject.AddComponent<PacmanGhost>();
                 ghost.Init(this, kinds[i], corners[i]);
+                ghost.PathChase = pathChase;
                 body.GetComponent<PacmanGhostView>()?.Bind(ghost, this);
                 ghosts.Add(ghost);
             }
