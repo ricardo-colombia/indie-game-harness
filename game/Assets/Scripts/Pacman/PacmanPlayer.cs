@@ -22,6 +22,10 @@ namespace Studio.Pacman
         private Mesh mesh;
         private float phase;
         private float lastMouth = -1f;
+        private bool dying;
+        private float deathTimer;
+        private float deathDuration = 1f;
+        private float deathFrom;
 
         public Vector2Int Desired => desired;
 
@@ -68,10 +72,36 @@ namespace Studio.Pacman
             FaceDirection(body);
         }
 
+        /// <summary>Starts the death animation: the mouth opens until the body collapses to a line.</summary>
+        public void StartDeath(float duration)
+        {
+            dying = true;
+            deathTimer = 0f;
+            deathDuration = Mathf.Max(0.01f, duration);
+            deathFrom = MouthAngle;
+        }
+
+        /// <summary>Leaves the death animation and restores the normal chomp.</summary>
+        public void CancelDeath()
+        {
+            dying = false;
+            deathTimer = 0f;
+        }
+
         private void Update()
         {
             if (body == null)
             {
+                return;
+            }
+
+            if (dying)
+            {
+                // Ease the mouth open to a full collapse, so the body sinks to a line over the death time.
+                deathTimer += Time.deltaTime;
+                float t = Mathf.Clamp01(deathTimer / deathDuration);
+                float eased = t * t * (3f - 2f * t);
+                SetMouth(Mathf.Lerp(deathFrom, Mathf.PI - 0.01f, eased));
                 return;
             }
 

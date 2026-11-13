@@ -13,19 +13,22 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanGame : MonoBehaviour
     {
-        [Header("Speeds (tiles per second)")]
-        [SerializeField] private float pacmanSpeed = 6f;
-        [SerializeField] private float ghostSpeed = 5.5f;
-        [SerializeField] private float frightenedGhostSpeed = 3f;
+        [Header("Speeds")]
+        [Tooltip("Tiles per second at 100% speed. Per-level speeds are percentages of this (PacmanLevelTable). Taste call: 6 keeps the current feel at levels 5-20.")]
+        [SerializeField] private float fullSpeed = 6f;
+        [Tooltip("Tiles per second for eaten ghosts returning home (not in the Dossier table).")]
         [SerializeField] private float eatenGhostSpeed = 10f;
+        [Tooltip("Tunnel tiles at each end of row 8 where ghosts slow down (the Dossier's tunnel speed).")]
+        [SerializeField] private int tunnelSlowColumns = 4;
+        [Tooltip("Frames Pac-Man stops after eating a dot (Dossier: one frame at 60 fps).")]
+        [SerializeField] private int dotPauseFrames = 1;
+        [Tooltip("Frames Pac-Man stops after eating a power pellet (Dossier: three frames at 60 fps).")]
+        [SerializeField] private int powerPelletPauseFrames = 3;
 
         [Header("Timers (seconds)")]
         [SerializeField] private float readyDuration = 2f;
         [SerializeField] private float deathDuration = 1.5f;
         [SerializeField] private float levelClearDuration = 2.5f;
-        [SerializeField] private float frightenedDuration = 6f;
-        [Tooltip("Alternating scatter / chase durations. The last value holds for the rest of the level.")]
-        [SerializeField] private float[] ghostModeSchedule = { 7f, 20f, 7f, 20f, 5f, 20f, 5f, 9999f };
 
         [Header("Rules")]
         [SerializeField] private int startingLives = 3;
@@ -38,16 +41,6 @@ namespace Studio.Pacman
         [SerializeField] private float ghostReleaseDelay = 3f;
         [Tooltip("Seconds between each further house ghost leaving.")]
         [SerializeField] private float ghostReleaseStagger = 2f;
-
-        [Header("Cruise Elroy (Blinky)")]
-        [Tooltip("Blinky enters Elroy 1 when this many pellets or fewer remain (arcade level 1: 20).")]
-        [SerializeField] private int elroyOnePellets = 20;
-        [Tooltip("Blinky enters Elroy 2 when this many pellets or fewer remain (arcade level 1: 10).")]
-        [SerializeField] private int elroyTwoPellets = 10;
-        [Tooltip("Blinky speed multiplier in Elroy 1. Placeholder, for the director to tune.")]
-        [SerializeField] private float elroyOneSpeedFactor = 1.05f;
-        [Tooltip("Blinky speed multiplier in Elroy 2. Placeholder, for the director to tune.")]
-        [SerializeField] private float elroyTwoSpeedFactor = 1.1f;
 
         [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
         [SerializeField] private float wakaInterval = 0.18f;
@@ -78,6 +71,7 @@ namespace Studio.Pacman
         private int ghostChain;
         private float stateTimer;
         private float frightenedTimer;
+        private float pacPauseTimer;
         private float playTime;
 
         /// <summary>Seconds of play since the last reset. Probe for ghost release timing.</summary>
@@ -113,11 +107,18 @@ namespace Studio.Pacman
         public Vector2Int PacmanDir => player != null ? player.Dir : Vector2Int.zero;
         public GhostMode GlobalMode => (modeIndex % 2 == 0) ? GhostMode.Scatter : GhostMode.Chase;
 
+        /// <summary>1-based level number. Probe for level progression tests.</summary>
+        public int Level => level;
+        private int level = 1;
+
+        /// <summary>Difficulty row for the current level (Dossier table).</summary>
+        private LevelRule Rule => PacmanLevelTable.For(level);
+
         /// <summary>
-        /// Cruise Elroy: 0 normal, 1 or 2 when pellets drop to the thresholds. Blinky then ignores
+        /// Cruise Elroy: 0 normal, 1 or 2 when pellets drop to the level's thresholds. Blinky then ignores
         /// scatter and keeps chasing (Dossier). Probe for autotest scenarios.
         /// </summary>
-        public int ElroyLevel => pelletCount <= elroyTwoPellets ? 2 : pelletCount <= elroyOnePellets ? 1 : 0;
+        public int ElroyLevel => pelletCount <= Rule.ElroyTwoPellets ? 2 : pelletCount <= Rule.ElroyOnePellets ? 1 : 0;
 
         /// <summary>The global mode a ghost should follow right now, taking Elroy into account.</summary>
         private GhostMode ModeFor(PacmanGhost ghost)
@@ -147,6 +148,7 @@ namespace Studio.Pacman
         {
             Score = 0;
             Lives = startingLives;
+            level = 1;
             RestoreLevel();
         }
 
@@ -216,6 +218,7 @@ namespace Studio.Pacman
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
+                        level++;
                         RestoreLevel();
                     }
                     break;
@@ -356,7 +359,18 @@ namespace Studio.Pacman
 
         private void Simulate(float dt)
         {
-            player.Tick(pacmanSpeed * dt);
+            float pacPercent = FrightenedActive && Rule.PacmanFrightenedPercent > 0f
+                ? Rule.PacmanFrightenedPercent
+                : Rule.PacmanPercent;
+            if (pacPauseTimer > 0f)
+            {
+                // Pac-Man stops for a frame or three after eating (Dossier).
+                pacPauseTimer -= dt;
+            }
+            else
+            {
+                player.Tick(fullSpeed * pacPercent / 100f * dt);
+            }
 
             if (player.Dir != Vector2Int.zero)
             {
@@ -389,8 +403,9 @@ namespace Studio.Pacman
                 modeTimer -= dt;
                 if (modeTimer <= 0f)
                 {
-                    modeIndex = Mathf.Min(modeIndex + 1, ghostModeSchedule.Length - 1);
-                    modeTimer = ghostModeSchedule[modeIndex];
+                    float[] schedule = Rule.ModeSchedule;
+                    modeIndex = Mathf.Min(modeIndex + 1, schedule.Length - 1);
+                    modeTimer = schedule[modeIndex];
                     foreach (PacmanGhost ghost in ghosts)
                     {
                         if (ghost.Mode == GhostMode.Scatter || ghost.Mode == GhostMode.Chase)
@@ -410,23 +425,39 @@ namespace Studio.Pacman
                     continue;
                 }
 
-                float speed = ghostSpeed;
-                if (ghost.Mode == GhostMode.Frightened)
-                {
-                    speed = frightenedGhostSpeed;
-                }
-                else if (ghost.Mode == GhostMode.Eaten)
+                float speed;
+                if (ghost.Mode == GhostMode.Eaten)
                 {
                     speed = eatenGhostSpeed;
                 }
-                else if (ghost.Kind == GhostKind.Blinky)
+                else if (ghost.Mode == GhostMode.Frightened)
                 {
-                    speed *= ElroyLevel == 2 ? elroyTwoSpeedFactor : ElroyLevel == 1 ? elroyOneSpeedFactor : 1f;
+                    speed = fullSpeed * Rule.GhostFrightenedPercent / 100f;
+                }
+                else if (ghost.Kind == GhostKind.Blinky && ElroyLevel > 0)
+                {
+                    float elroyPercent = ElroyLevel == 2 ? Rule.ElroyTwoPercent : Rule.ElroyOnePercent;
+                    speed = fullSpeed * elroyPercent / 100f;
+                }
+                else if (InTunnel(ghost.Tile))
+                {
+                    speed = fullSpeed * Rule.GhostTunnelPercent / 100f;
+                }
+                else
+                {
+                    speed = fullSpeed * Rule.GhostPercent / 100f;
                 }
                 ghost.Tick(speed * dt);
             }
 
             CheckGhostCollisions();
+        }
+
+        /// <summary>True on the wrapping tunnel row, within tunnelSlowColumns of either end.</summary>
+        private bool InTunnel(Vector2Int tile)
+        {
+            return tile.y == PacmanMaze.TunnelRow
+                && (tile.x < tunnelSlowColumns || tile.x >= PacmanMaze.Width - tunnelSlowColumns);
         }
 
         /// <summary>Blinky starts outside the house; the others wait in it for their release time.</summary>
@@ -461,6 +492,7 @@ namespace Studio.Pacman
                 {
                     State = PacmanState.Dying;
                     stateTimer = deathDuration;
+                    player.StartDeath(deathDuration);
                     PacmanSfx.Play(audioSource, sfx?.Death, soundOn);
                     return;
                 }
@@ -476,17 +508,23 @@ namespace Studio.Pacman
             player.Gobble();
             if (IsPowerPellet(index))
             {
+                pacPauseTimer = powerPelletPauseFrames / 60f;
                 Score += powerPelletPoints;
                 ghostChain = 0;
-                frightenedTimer = frightenedDuration;
-                foreach (PacmanGhost ghost in ghosts)
+                // Levels 17 and up have no frightened mode (Dossier), so the pellet only scores.
+                if (Rule.FrightenedSeconds > 0f)
                 {
-                    ghost.Frighten();
+                    frightenedTimer = Rule.FrightenedSeconds;
+                    foreach (PacmanGhost ghost in ghosts)
+                    {
+                        ghost.Frighten();
+                    }
                 }
                 PacmanSfx.Play(audioSource, sfx?.Power, soundOn);
             }
             else
             {
+                pacPauseTimer = dotPauseFrames / 60f;
                 Score += pelletPoints;
                 PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn);
             }
@@ -532,7 +570,7 @@ namespace Studio.Pacman
             ghostChain = 0;
             frightenedTimer = 0f;
             modeIndex = 0;
-            modeTimer = ghostModeSchedule[0];
+            modeTimer = Rule.ModeSchedule[0];
             ResetActors();
             State = PacmanState.Ready;
             stateTimer = readyDuration;
@@ -542,7 +580,9 @@ namespace Studio.Pacman
         {
             ghostChain = 0;
             frightenedTimer = 0f;
+            pacPauseTimer = 0f;
             playTime = 0f;
+            player.CancelDeath();
             player.Place(playerStart);
             player.Request(Vector2Int.zero);
             for (int i = 0; i < ghosts.Count; i++)
