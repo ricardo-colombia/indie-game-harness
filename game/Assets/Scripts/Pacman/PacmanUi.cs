@@ -34,6 +34,7 @@ namespace Studio.Pacman
         private PacmanGame game;
         private Font font;
         private Texture2D[] pacIcons;
+        private Texture2D hatIcon;
         private GUIStyle label;
         private readonly List<Popup> popups = new List<Popup>();
         private float shownScore;
@@ -53,6 +54,7 @@ namespace Studio.Pacman
         {
             game = owner;
             instance = this;
+            hatIcon = MakeHatIcon(64);
             pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
             font = Font.CreateDynamicFontFromOSFont(new[] { "Arial Rounded MT Bold", "Avenir Next Condensed", "Arial Black", "Helvetica Neue", "Arial" }, 48);
         }
@@ -219,7 +221,7 @@ namespace Studio.Pacman
             for (int i = 0; i < game.Lives; i++)
             {
                 float x = Screen.width - margin - (i + 1) * (icon + 8f * s);
-                DrawPac(new Rect(x, top + 32f * s, icon, icon), 0.4f, 0.55f);
+                GUI.DrawTexture(new Rect(x, top + 32f * s, icon, icon), hatIcon, ScaleMode.StretchToFill, true);
             }
 
             // Level, bottom left; a hint while frightened, bottom centre.
@@ -425,6 +427,31 @@ namespace Studio.Pacman
                 Fill(new Rect(rect.x + rect.width * ex, rect.y + rect.height * 0.3f, eye, eye * 1.2f), Color.white, eye * 0.5f);
                 Fill(new Rect(rect.x + rect.width * ex + eye * 0.45f, rect.y + rect.height * 0.37f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
             }
+        }
+
+        private static Texture2D MakeHatIcon(int n)
+        {
+            // A straw hat in front view: wide brim, domed crown, dark band.
+            Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, name = "HatIcon" };
+            for (int y = 0; y < n; y++)
+            {
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n * 2f - 1f;
+                    float dy = (y + 0.5f) / n * 2f - 1f;
+                    float brim = 1f - Mathf.Sqrt(dx * dx / (0.98f * 0.98f) + (dy + 0.3f) * (dy + 0.3f) / (0.22f * 0.22f));
+                    float crown = dy > -0.32f ? 1f - Mathf.Sqrt(dx * dx / (0.5f * 0.5f) + (dy + 0.32f) * (dy + 0.32f) / (0.78f * 0.78f)) : -1f;
+                    Color c = new Color(0.96f, 0.86f, 0.58f);
+                    if (crown > 0f)
+                    {
+                        c = dy < -0.02f ? new Color(0.12f, 0.08f, 0.06f) : new Color(0.99f, 0.95f, 0.82f);
+                    }
+                    float a = Mathf.Clamp01(Mathf.Max(brim, crown) * n * 0.25f);
+                    texture.SetPixel(x, y, new Color(c.r, c.g, c.b, a));
+                }
+            }
+            texture.Apply();
+            return texture;
         }
 
         private static Texture2D MakePacIcon(int n, float mouthSlope)

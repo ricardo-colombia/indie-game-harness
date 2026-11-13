@@ -55,12 +55,12 @@ namespace Studio.Pacman
         [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
         [SerializeField] private float wakaInterval = 0.18f;
 
-        private const float PelletSize = 0.2f;
-        private const float PowerPelletSize = 0.64f;
+        private const float PelletSize = 0.46f;
+        private const float PowerPelletSize = 0.95f;
         // Pellets are coffee cherries on the bush: mostly ripe red, some still orange-yellow (pinton).
-        private static readonly Color PelletColour = new Color(0.95f, 0.14f, 0.12f);
-        private static readonly Color PelletUnripeColour = new Color(1f, 0.62f, 0.15f);
-        private static readonly Color PowerPelletColour = new Color(0.9f, 0.86f, 0.76f);
+        private static readonly Color PelletColour = new Color(0.72f, 0.42f, 0.2f);
+        private static readonly Color PelletUnripeColour = new Color(0.88f, 0.66f, 0.36f);
+        private static readonly Color PowerPelletColour = new Color(1f, 0.65f, 0.25f, 0.2f);
         private static readonly Color LeafColour = new Color(0.3f, 0.8f, 0.25f);
         // The four pests, in ghost order: broca (borer beetle), roya (rust), minador (leaf miner), cochinilla (mealybug).
         private static readonly Color[] GhostColours =
@@ -604,7 +604,7 @@ namespace Studio.Pacman
             pelletObjects[index].SetActive(false);
 
             player.Gobble();
-            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(0.8f, 0.5f, 0.2f) : new Color(1f, 0.5f, 0.35f), IsPowerPellet(index) ? 16 : 6);
+            PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(0.8f, 0.5f, 0.2f) : new Color(0.85f, 0.55f, 0.3f), IsPowerPellet(index) ? 16 : 6);
             if (IsPowerPellet(index))
             {
                 pacPauseTimer = powerPelletPauseFrames / 60f;
@@ -885,24 +885,40 @@ namespace Studio.Pacman
             pellet.transform.position = PacmanMaze.ToWorld(tile);
             pellet.transform.localScale = Vector3.one * (power ? PowerPelletSize : PelletSize);
             SpriteRenderer renderer = pellet.AddComponent<SpriteRenderer>();
-            renderer.sprite = PacmanSprites.Disc;
-            bool unripe = !power && (tile.x * 7 + tile.y * 13) % 5 == 0;
-            renderer.color = power ? PowerPelletColour : unripe ? PelletUnripeColour : PelletColour;
             renderer.sortingOrder = 1;
-            if (power)
+            if (!power)
             {
-                // The espresso: a cup seen from above on its saucer, with a handle, dark crema and a highlight.
-                // Drinking it is what lets the picker chase the pests.
-                AddPelletPart(pellet.transform, new Color(0.93f, 0.9f, 0.82f), new Vector2(0.4f, -0.04f), new Vector3(0.3f, 0.2f, 1f), 0f, 2);
-                AddPelletPart(pellet.transform, Color.white, new Vector2(-0.02f, 0f), new Vector3(0.74f, 0.74f, 1f), 0f, 2);
-                AddPelletPart(pellet.transform, new Color(0.62f, 0.36f, 0.14f), new Vector2(-0.02f, 0f), new Vector3(0.6f, 0.6f, 1f), 0f, 3);
-                AddPelletPart(pellet.transform, new Color(0.13f, 0.06f, 0.025f), new Vector2(-0.02f, 0f), new Vector3(0.48f, 0.48f, 1f), 0f, 3);
-                AddPelletPart(pellet.transform, new Color(0.85f, 0.6f, 0.3f), new Vector2(-0.14f, 0.12f), new Vector3(0.14f, 0.1f, 1f), 30f, 4);
+                // A coffee bean: caramel body with a dark crease, each tilted a little differently.
+                bool light = (tile.x * 7 + tile.y * 13) % 5 == 0;
+                renderer.sprite = PacmanSprites.Bean;
+                renderer.color = light ? PelletUnripeColour : PelletColour;
+                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
+                AddPelletPart(pellet.transform, new Color(0.22f, 0.1f, 0.04f), new Vector2(0f, 0f), new Vector3(0.1f, 0.74f, 1f), 0f, 2, PacmanSprites.Square);
+                return pellet;
             }
+
+            // The espresso: a mug in side view with black coffee, a handle and steam. Drinking it is what lets
+            // the picker chase the pests. The root disc is a warm glow behind it.
+            renderer.sprite = PacmanSprites.Disc;
+            renderer.color = PowerPelletColour;
+            Color cream = new Color(0.95f, 0.91f, 0.8f);
+            Color dark = new Color(0.07f, 0.04f, 0.025f);
+            Transform t = pellet.transform;
+            AddPelletPart(t, cream, new Vector2(0.27f, -0.08f), new Vector3(0.36f, 0.36f, 1f), 0f, 2);
+            AddPelletPart(t, dark, new Vector2(0.28f, -0.08f), new Vector3(0.16f, 0.16f, 1f), 0f, 3);
+            AddPelletPart(t, cream, new Vector2(-0.1f, -0.08f), new Vector3(0.58f, 0.5f, 1f), 0f, 3, PacmanSprites.Square);
+            AddPelletPart(t, cream, new Vector2(-0.1f, -0.33f), new Vector3(0.58f, 0.2f, 1f), 0f, 3);
+            AddPelletPart(t, new Color(1f, 0.98f, 0.9f), new Vector2(-0.1f, 0.17f), new Vector3(0.58f, 0.22f, 1f), 0f, 4);
+            AddPelletPart(t, dark, new Vector2(-0.1f, 0.17f), new Vector3(0.46f, 0.15f, 1f), 0f, 5);
+            AddPelletPart(t, new Color(0.62f, 0.36f, 0.16f), new Vector2(-0.18f, 0.19f), new Vector3(0.18f, 0.05f, 1f), 0f, 6);
+            Color steam = new Color(1f, 1f, 1f, 0.75f);
+            AddPelletPart(t, steam, new Vector2(-0.24f, 0.4f), new Vector3(0.06f, 0.26f, 1f), 14f, 6);
+            AddPelletPart(t, steam, new Vector2(-0.08f, 0.46f), new Vector3(0.06f, 0.3f, 1f), -14f, 6);
+            AddPelletPart(t, steam, new Vector2(0.06f, 0.4f), new Vector3(0.06f, 0.24f, 1f), 14f, 6);
             return pellet;
         }
 
-        private static void AddPelletPart(Transform parent, Color colour, Vector2 position, Vector3 scale, float angle, int order)
+        private static void AddPelletPart(Transform parent, Color colour, Vector2 position, Vector3 scale, float angle, int order, Sprite sprite = null)
         {
             GameObject part = new GameObject("Part");
             part.transform.SetParent(parent, false);
@@ -910,7 +926,7 @@ namespace Studio.Pacman
             part.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
             part.transform.localScale = scale;
             SpriteRenderer renderer = part.AddComponent<SpriteRenderer>();
-            renderer.sprite = PacmanSprites.Disc;
+            renderer.sprite = sprite != null ? sprite : PacmanSprites.Disc;
             renderer.color = colour;
             renderer.sortingOrder = order;
         }

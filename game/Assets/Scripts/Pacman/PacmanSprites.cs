@@ -19,6 +19,7 @@ namespace Studio.Pacman
         private const int FrameSize = 64;
 
         private static Sprite disc;
+        private static Sprite bean;
         private static Sprite square;
         private static Sprite frightFace;
         private static Sprite gridTile;
@@ -36,6 +37,19 @@ namespace Studio.Pacman
                     disc = Make("PacDisc", 32, (x, y) => 0.5f - Mathf.Sqrt(x * x + y * y));
                 }
                 return disc;
+            }
+        }
+
+        /// <summary>A coffee bean: an upright ellipse (0.6 wide, 0.92 tall) in its one-unit square. The crease is a separate dark bar.</summary>
+        public static Sprite Bean
+        {
+            get
+            {
+                if (bean == null)
+                {
+                    bean = Make("PacBean", 48, (x, y) => (1f - Mathf.Sqrt((x * x) / (0.3f * 0.3f) + (y * y) / (0.46f * 0.46f))) * 0.3f);
+                }
+                return bean;
             }
         }
 

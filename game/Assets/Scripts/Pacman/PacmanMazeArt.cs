@@ -54,7 +54,7 @@ namespace Studio.Pacman
 
             float radius = 0.32f * s;
             float inset = 0.08f * s;
-            float halfWidth = 0.045f * s;
+            float halfWidth = 0.032f * s;
             float glowReach = 0.08f * s;
 
             // Opening: erode the walls by the radius, then grow them back. Convex corners come out round.
@@ -82,7 +82,7 @@ namespace Studio.Pacman
                 float signed = rounded[i] ? toOutside[i] : -toInside[i];
                 float away = Mathf.Abs(signed - inset);
                 float line = Mathf.Clamp01(halfWidth + 0.5f - away);
-                float glow = 0.14f * Mathf.Exp(-away / glowReach);
+                float glow = 0.07f * Mathf.Exp(-away / glowReach);
                 lineColours[i] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(Mathf.Max(line, glow) * 255f));
                 Color32 terrain = Terrain(i % pw, i / pw, signed, s);
                 terrain.a = (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f + signed) * 255f);

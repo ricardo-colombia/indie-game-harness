@@ -13,11 +13,11 @@ namespace Studio.Pacman
         // sunset, dusk.
         private static readonly Color[] Themes =
         {
-            new Color(0.5f, 0.95f, 0.3f),
+            new Color(0.85f, 0.72f, 0.4f),
             new Color(1f, 0.8f, 0.25f),
-            new Color(0.45f, 0.9f, 0.8f),
-            new Color(1f, 0.55f, 0.25f),
-            new Color(0.8f, 0.55f, 1f),
+            new Color(0.6f, 0.82f, 0.72f),
+            new Color(0.95f, 0.55f, 0.28f),
+            new Color(0.78f, 0.62f, 0.9f),
         };
 
         private static readonly Color AlertColour = new Color(0.25f, 0.55f, 1f);
