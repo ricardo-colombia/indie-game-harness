@@ -58,7 +58,7 @@ namespace Studio.Pacman
         [SerializeField] private GameObject ghostModel;
         [SerializeField] private GameObject ghostEyesModel;
 
-        private static readonly Color WallColour = new Color(0.05f, 0.07f, 0.22f);
+        private static readonly Color WallColour = new Color(0.13f, 0.17f, 0.42f);
         private static readonly Color PelletColour = new Color(1f, 0.95f, 0.75f);
         private static readonly Color[] GhostColours =
         {

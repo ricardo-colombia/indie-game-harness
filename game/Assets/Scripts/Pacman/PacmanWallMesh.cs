@@ -4,14 +4,13 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Builds the maze walls as one mesh of rounded blocks: each tile has rounded plan corners and
-    /// bevelled top edges, so the walls read as soft tubes rather than flat cubes. Cosmetic only;
-    /// collision still uses the tile grid.
+    /// Builds the maze walls as one mesh of blocks with flat tops and rounded plan corners. A corner is
+    /// rounded only where it is exposed, so joined walls stay flush. Cosmetic only; collision still uses
+    /// the tile grid.
     /// </summary>
     public static class PacmanWallMesh
     {
         private const float Height = 1f;
-        private const float Bevel = 0.2f;
         private const int ArcSegments = 6;
 
         /// <summary>Corner offsets in tile units, walked in order around each tile.</summary>
@@ -44,15 +43,10 @@ namespace Studio.Pacman
             return mesh;
         }
 
-        /// <summary>
-        /// One tile as a rounded block. A plan corner is rounded only when both neighbours beside it are
-        /// open, so walls that join up stay flush. The top edge is bevelled all the way round.
-        /// </summary>
+        /// <summary>One tile as a block: flat top, vertical sides, rounded exposed plan corners.</summary>
         private static void AddBlock(Vector2Int tile, Vector3 centre, float r, List<Vector3> v, List<Vector3> n, List<int> t)
         {
             var outline = BuildOutline(tile, r);
-            float shrink = 1f - Bevel / 0.5f;
-            float sideTop = Height - Bevel;
             Vector3 up = Vector3.up;
             Vector3 topCentre = centre + up * Height;
 
@@ -61,25 +55,15 @@ namespace Studio.Pacman
                 Vector2 a = outline[i];
                 Vector2 b = outline[(i + 1) % outline.Count];
                 Vector3 side = new Vector3((a.x + b.x) * 0.5f, 0f, -(a.y + b.y) * 0.5f).normalized;
-                Vector3 bevelNormal = (side + up).normalized;
 
                 Vector3 a0 = Point(centre, a, 0f);
                 Vector3 b0 = Point(centre, b, 0f);
-                Vector3 aSide = Point(centre, a, sideTop);
-                Vector3 bSide = Point(centre, b, sideTop);
-                Vector3 aTop = Point(centre, a * shrink, Height);
-                Vector3 bTop = Point(centre, b * shrink, Height);
+                Vector3 a1 = Point(centre, a, Height);
+                Vector3 b1 = Point(centre, b, Height);
 
-                // Vertical side from the ground up to the bevel.
-                AddTri(a0, b0, bSide, side, v, n, t);
-                AddTri(a0, bSide, aSide, side, v, n, t);
-
-                // Bevel from the side to the flat top.
-                AddTri(aSide, bSide, bTop, bevelNormal, v, n, t);
-                AddTri(aSide, bTop, aTop, bevelNormal, v, n, t);
-
-                // Flat top, fanned from the centre.
-                AddTri(topCentre, aTop, bTop, up, v, n, t);
+                AddTri(a0, b0, b1, side, v, n, t);
+                AddTri(a0, b1, a1, side, v, n, t);
+                AddTri(topCentre, a1, b1, up, v, n, t);
             }
         }
 
@@ -103,6 +87,11 @@ namespace Studio.Pacman
                 Vector2 arcCentre = new Vector2(dx * (0.5f - r), dy * (0.5f - r));
                 float a0 = Mathf.Atan2(0f, dx) * Mathf.Rad2Deg;
                 float a1 = Mathf.Atan2(dy, 0f) * Mathf.Rad2Deg;
+                if (dx * dy < 0)
+                {
+                    // The outline walks the corners in order, so the arc must start on the side shared with the previous corner.
+                    (a0, a1) = (a1, a0);
+                }
                 float sweep = Mathf.DeltaAngle(a0, a1) * Mathf.Deg2Rad;
                 float start = a0 * Mathf.Deg2Rad;
                 for (int i = 0; i <= ArcSegments; i++)
