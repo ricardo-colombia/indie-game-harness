@@ -36,21 +36,35 @@ namespace Studio.Pacman
             Mode = GhostMode.Scatter;
         }
 
+        /// <summary>
+        /// Switches the global mode. The original forces a 180-degree turn on scatter/chase switches,
+        /// and on entering frightened; it does not turn ghosts back when frightened ends.
+        /// </summary>
         public void SetMode(GhostMode mode)
         {
             if (Mode == GhostMode.Eaten || Mode == GhostMode.Exiting)
             {
                 return;
             }
+            if (IsGlobalMode(Mode) && mode != Mode)
+            {
+                Reverse();
+            }
             Mode = mode;
         }
 
         public void Frighten()
         {
-            if (Mode == GhostMode.Scatter || Mode == GhostMode.Chase)
+            if (IsGlobalMode(Mode))
             {
+                Reverse();
                 Mode = GhostMode.Frightened;
             }
+        }
+
+        private static bool IsGlobalMode(GhostMode mode)
+        {
+            return mode == GhostMode.Scatter || mode == GhostMode.Chase;
         }
 
         public void Eat()
@@ -177,8 +191,8 @@ namespace Studio.Pacman
                     return InkyTarget(pac, pacDir, game.GhostTile(GhostKind.Blinky));
                 case GhostKind.Clyde:
                     Vector2Int d = pac - Tile;
-                    // Clyde chases while far away and retreats to his corner when close.
-                    return d.sqrMagnitude > 64 ? pac : scatterCorner;
+                    // Clyde chases at eight tiles or more and retreats to his corner when closer (Dossier).
+                    return d.sqrMagnitude >= 64 ? pac : scatterCorner;
                 default:
                     return pac;
             }

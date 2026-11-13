@@ -35,6 +35,28 @@ namespace Studio.Pacman
             return PacmanMaze.IsWall(tile);
         }
 
+        /// <summary>
+        /// Turns the actor around in place, keeping its world position. Used for the forced
+        /// 180-degree turn when the global ghost mode changes.
+        /// </summary>
+        protected void Reverse()
+        {
+            if (Dir == Vector2Int.zero)
+            {
+                return;
+            }
+
+            if (Progress > 0f)
+            {
+                // Mid-tile: the position is Tile + Progress * Dir. Re-express it as
+                // (Tile + Dir) + (1 - Progress) * (-Dir), which is the same point.
+                Tile = PacmanMaze.Wrap(Tile + Dir);
+                Progress = 1f - Progress;
+            }
+            Dir = -Dir;
+            UpdateTransform();
+        }
+
         protected void Advance(float tiles)
         {
             float remaining = tiles;

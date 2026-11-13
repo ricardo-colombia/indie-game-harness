@@ -39,6 +39,16 @@ namespace Studio.Pacman
         [Tooltip("Seconds between each further house ghost leaving.")]
         [SerializeField] private float ghostReleaseStagger = 2f;
 
+        [Header("Cruise Elroy (Blinky)")]
+        [Tooltip("Blinky enters Elroy 1 when this many pellets or fewer remain (arcade level 1: 20).")]
+        [SerializeField] private int elroyOnePellets = 20;
+        [Tooltip("Blinky enters Elroy 2 when this many pellets or fewer remain (arcade level 1: 10).")]
+        [SerializeField] private int elroyTwoPellets = 10;
+        [Tooltip("Blinky speed multiplier in Elroy 1. Placeholder, for the director to tune.")]
+        [SerializeField] private float elroyOneSpeedFactor = 1.05f;
+        [Tooltip("Blinky speed multiplier in Elroy 2. Placeholder, for the director to tune.")]
+        [SerializeField] private float elroyTwoSpeedFactor = 1.1f;
+
         [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
         [SerializeField] private float wakaInterval = 0.18f;
 
@@ -102,6 +112,18 @@ namespace Studio.Pacman
         public Vector2Int PacmanTile => player != null ? player.Tile : Vector2Int.zero;
         public Vector2Int PacmanDir => player != null ? player.Dir : Vector2Int.zero;
         public GhostMode GlobalMode => (modeIndex % 2 == 0) ? GhostMode.Scatter : GhostMode.Chase;
+
+        /// <summary>
+        /// Cruise Elroy: 0 normal, 1 or 2 when pellets drop to the thresholds. Blinky then ignores
+        /// scatter and keeps chasing (Dossier). Probe for autotest scenarios.
+        /// </summary>
+        public int ElroyLevel => pelletCount <= elroyTwoPellets ? 2 : pelletCount <= elroyOnePellets ? 1 : 0;
+
+        /// <summary>The global mode a ghost should follow right now, taking Elroy into account.</summary>
+        private GhostMode ModeFor(PacmanGhost ghost)
+        {
+            return ghost.Kind == GhostKind.Blinky && ElroyLevel > 0 ? GhostMode.Chase : GlobalMode;
+        }
 
         private void Awake()
         {
@@ -361,16 +383,20 @@ namespace Studio.Pacman
                 }
             }
 
-            modeTimer -= dt;
-            if (modeTimer <= 0f)
+            // The scatter/chase timer pauses while ghosts are frightened (Dossier).
+            if (frightenedTimer <= 0f)
             {
-                modeIndex = Mathf.Min(modeIndex + 1, ghostModeSchedule.Length - 1);
-                modeTimer = ghostModeSchedule[modeIndex];
-                foreach (PacmanGhost ghost in ghosts)
+                modeTimer -= dt;
+                if (modeTimer <= 0f)
                 {
-                    if (ghost.Mode == GhostMode.Scatter || ghost.Mode == GhostMode.Chase)
+                    modeIndex = Mathf.Min(modeIndex + 1, ghostModeSchedule.Length - 1);
+                    modeTimer = ghostModeSchedule[modeIndex];
+                    foreach (PacmanGhost ghost in ghosts)
                     {
-                        ghost.SetMode(GlobalMode);
+                        if (ghost.Mode == GhostMode.Scatter || ghost.Mode == GhostMode.Chase)
+                        {
+                            ghost.SetMode(ModeFor(ghost));
+                        }
                     }
                 }
             }
@@ -392,6 +418,10 @@ namespace Studio.Pacman
                 else if (ghost.Mode == GhostMode.Eaten)
                 {
                     speed = eatenGhostSpeed;
+                }
+                else if (ghost.Kind == GhostKind.Blinky)
+                {
+                    speed *= ElroyLevel == 2 ? elroyTwoSpeedFactor : ElroyLevel == 1 ? elroyOneSpeedFactor : 1f;
                 }
                 ghost.Tick(speed * dt);
             }
@@ -475,7 +505,7 @@ namespace Studio.Pacman
             {
                 if (ghost.Mode == GhostMode.Frightened)
                 {
-                    ghost.SetMode(GlobalMode);
+                    ghost.SetMode(ModeFor(ghost));
                 }
             }
         }
@@ -520,7 +550,7 @@ namespace Studio.Pacman
                 Vector2Int start = i == 0 ? blinkyStart : ghostStarts[i - 1];
                 // Blinky starts outside and scatters at once. The others start inside the house and
                 // head for the house exit first, as in the original, before joining the global mode.
-                ghosts[i].ResetTo(start, i == 0 ? GlobalMode : GhostMode.Exiting);
+                ghosts[i].ResetTo(start, i == 0 ? ModeFor(ghosts[i]) : GhostMode.Exiting);
             }
         }
 
@@ -638,7 +668,15 @@ namespace Studio.Pacman
             player = playerObject.AddComponent<PacmanPlayer>();
             player.Init(this, MakeMaterial(new Color(1f, 0.82f, 0.05f)));
 
-            Vector2Int[] corners = { new Vector2Int(17, 0), new Vector2Int(1, 0), new Vector2Int(18, 16), new Vector2Int(0, 16) };
+            // Scatter targets sit in the dead space above and below the maze, as in the original
+            // (Blinky top-right, Pinky top-left, Inky bottom-right, Clyde bottom-left).
+            Vector2Int[] corners =
+            {
+                new Vector2Int(PacmanMaze.Width + 2, -3),
+                new Vector2Int(-3, -3),
+                new Vector2Int(PacmanMaze.Width + 2, PacmanMaze.Height + 2),
+                new Vector2Int(-3, PacmanMaze.Height + 2),
+            };
             GhostKind[] kinds = { GhostKind.Blinky, GhostKind.Pinky, GhostKind.Inky, GhostKind.Clyde };
             for (int i = 0; i < kinds.Length; i++)
             {
