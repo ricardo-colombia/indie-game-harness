@@ -42,6 +42,15 @@ namespace Studio.Pacman
         [Tooltip("Seconds between each further house ghost leaving.")]
         [SerializeField] private float ghostReleaseStagger = 2f;
 
+        [Tooltip("Pellets eaten in a level before the cherry bonus appears (once per level).")]
+        [SerializeField] private int cherryAfterPellets = 70;
+        [Tooltip("Seconds the cherry stays on the maze before it disappears.")]
+        [SerializeField] private float cherryDuration = 9.5f;
+        [SerializeField] private int cherryPoints = 100;
+
+        [Tooltip("Radius in tiles of the rounded outer wall corners and inner fillets.")]
+        [SerializeField] private float wallCornerRadius = 0.3f;
+
         [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
         [SerializeField] private float wakaInterval = 0.18f;
 
@@ -49,7 +58,7 @@ namespace Studio.Pacman
         [SerializeField] private GameObject ghostModel;
         [SerializeField] private GameObject ghostEyesModel;
 
-        private static readonly Color WallColour = new Color(0.12f, 0.22f, 0.95f);
+        private static readonly Color WallColour = new Color(0.05f, 0.07f, 0.22f);
         private static readonly Color PelletColour = new Color(1f, 0.95f, 0.75f);
         private static readonly Color[] GhostColours =
         {
@@ -88,6 +97,12 @@ namespace Studio.Pacman
         private int menuIndex;
         private float wakaTimer;
         private bool wakaFlip;
+        private GameObject cherryObject;
+        private bool cherryActive;
+        private bool cherrySpawnedThisLevel;
+        private float cherryTimer;
+        private Vector2Int cherryTile;
+        private int pelletTotal;
 
         private static readonly string[] TitleItems = { "START", "SOUND", "QUIT" };
         private static readonly string[] PauseItems = { "RESUME", "SOUND", "QUIT TO TITLE" };
@@ -100,6 +115,10 @@ namespace Studio.Pacman
         public int Score { get; private set; }
         public int Lives { get; private set; }
         public int PelletsRemaining => pelletCount;
+        /// <summary>True while the cherry bonus is on the maze. Probe for bonus-fruit tests.</summary>
+        public bool CherryActive => cherryActive;
+        /// <summary>Tile the cherry bonus sits on. Probe for bonus-fruit tests.</summary>
+        public Vector2Int CherryTile => cherryTile;
         public PacmanState State { get; private set; }
         public bool FrightenedActive => frightenedTimer > 0f;
         public int GhostsEatenInChain => ghostChain;
@@ -166,6 +185,11 @@ namespace Studio.Pacman
 
         public void OnPlayerTile(Vector2Int tile)
         {
+            if (cherryActive && tile == cherryTile)
+            {
+                EatCherry();
+            }
+
             int index = Index(tile);
             if (index >= 0 && pelletLeft[index])
             {
@@ -416,6 +440,15 @@ namespace Studio.Pacman
                 }
             }
 
+            if (cherryActive)
+            {
+                cherryTimer -= dt;
+                if (cherryTimer <= 0f)
+                {
+                    HideCherry();
+                }
+            }
+
             playTime += dt;
             for (int i = 0; i < ghosts.Count; i++)
             {
@@ -530,12 +563,99 @@ namespace Studio.Pacman
                 PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn);
             }
 
+            if (!cherrySpawnedThisLevel && pelletTotal - pelletCount >= cherryAfterPellets)
+            {
+                SpawnCherry();
+            }
+
             if (pelletCount <= 0)
             {
                 State = PacmanState.LevelClear;
                 stateTimer = levelClearDuration;
                 PacmanSfx.Play(audioSource, sfx?.LevelClear, soundOn);
             }
+        }
+
+        /// <summary>Shows the cherry on the pellet tile nearest the start, for a fixed time.</summary>
+        private void SpawnCherry()
+        {
+            cherrySpawnedThisLevel = true;
+            cherryTile = FindCherryTile();
+            cherryObject.transform.position = PacmanMaze.ToWorld(cherryTile) + Vector3.up * 0.2f;
+            cherryObject.SetActive(true);
+            cherryActive = true;
+            cherryTimer = cherryDuration;
+            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+        }
+
+        private void HideCherry()
+        {
+            cherryActive = false;
+            cherryTimer = 0f;
+            if (cherryObject != null)
+            {
+                cherryObject.SetActive(false);
+            }
+        }
+
+        private void EatCherry()
+        {
+            Score += cherryPoints;
+            PacmanVfx.Burst(cherryObject.transform.position, new Color(1f, 0.1f, 0.15f), 14);
+            PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn);
+            HideCherry();
+        }
+
+        /// <summary>The closest tile that still holds a pellet and is at least 3 steps from the start.</summary>
+        private Vector2Int FindCherryTile()
+        {
+            Vector2Int best = playerStart;
+            int bestDistance = int.MaxValue;
+            for (int i = 0; i < pelletLeft.Length; i++)
+            {
+                if (!pelletLeft[i])
+                {
+                    continue;
+                }
+                Vector2Int tile = new Vector2Int(i % PacmanMaze.Width, i / PacmanMaze.Width);
+                int distance = Mathf.Abs(tile.x - playerStart.x) + Mathf.Abs(tile.y - playerStart.y);
+                if (distance >= 3 && distance < bestDistance)
+                {
+                    best = tile;
+                    bestDistance = distance;
+                }
+            }
+            return best;
+        }
+
+        /// <summary>Procedural cherry pair: two red fruit on green stems, gently bobbing.</summary>
+        private Transform BuildCherry(Transform parent)
+        {
+            GameObject root = new GameObject("Cherry");
+            root.transform.SetParent(parent, false);
+            root.transform.localScale = Vector3.one * 1.6f;
+            GameObject model = new GameObject("Model");
+            model.transform.SetParent(root.transform, false);
+
+            Color red = new Color(0.85f, 0.05f, 0.1f);
+            Color green = new Color(0.2f, 0.6f, 0.15f);
+            float[] fruitX = { -0.09f, 0.09f };
+            float[] stemZ = { -14f, 14f };
+            for (int i = 0; i < fruitX.Length; i++)
+            {
+                Transform fruit = CreatePrimitiveModel(model.transform, PrimitiveType.Sphere, red, 0.18f);
+                fruit.name = "Fruit";
+                fruit.localPosition = new Vector3(fruitX[i], -0.05f, 0f);
+
+                Transform stem = CreatePrimitiveModel(model.transform, PrimitiveType.Cube, green, 1f);
+                stem.name = "Stem";
+                stem.localScale = new Vector3(0.03f, 0.19f, 0.03f);
+                stem.localPosition = new Vector3(-fruitX[i] * 0.5f, 0.13f, 0f);
+                stem.localRotation = Quaternion.Euler(0f, 0f, stemZ[i]);
+            }
+
+            PacmanJuice.Attach(model.transform, PacmanJuice.Kind.Bob, 0.04f, 1.2f, 0f);
+            return root.transform;
         }
 
         private void EndFrightenedIfNeeded()
@@ -567,6 +687,10 @@ namespace Studio.Pacman
                     pelletCount++;
                 }
             }
+
+            pelletTotal = pelletCount;
+            cherrySpawnedThisLevel = false;
+            HideCherry();
 
             ghostChain = 0;
             frightenedTimer = 0f;
@@ -689,15 +813,14 @@ namespace Studio.Pacman
                 }
             }
 
-            foreach (Vector2Int tile in walls)
-            {
-                GameObject wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                wall.name = "Wall";
-                wall.transform.SetParent(mazeRoot, false);
-                wall.transform.position = PacmanMaze.ToWorld(tile) + Vector3.up * 0.5f;
-                Destroy(wall.GetComponent<Collider>());
-                wall.GetComponent<Renderer>().sharedMaterial = wallMaterial;
-            }
+            // One mesh for the whole maze, with rounded outer corners and filleted inner joins.
+            GameObject wallObject = new GameObject("Walls");
+            wallObject.transform.SetParent(mazeRoot, false);
+            wallObject.AddComponent<MeshFilter>().sharedMesh = PacmanWallMesh.Build(walls, wallCornerRadius);
+            wallObject.AddComponent<MeshRenderer>().sharedMaterial = wallMaterial;
+
+            cherryObject = BuildCherry(mazeRoot).gameObject;
+            cherryObject.SetActive(false);
 
             ghostStarts = ghostSpawns.ToArray();
             blinkyStart = new Vector2Int(9, 5);
@@ -732,9 +855,6 @@ namespace Studio.Pacman
                     {
                         r.material.SetColor("_BaseColor", GhostColours[i]);
                         r.material.SetColor("_Color", GhostColours[i]);
-                        // A soft self-glow so the ghosts stand out against the dark maze.
-                        r.material.EnableKeyword("_EMISSION");
-                        r.material.SetColor("_EmissionColor", GhostColours[i] * 0.45f);
                     }
                     if (ghostEyesModel != null)
                     {
@@ -743,7 +863,7 @@ namespace Studio.Pacman
                 }
                 else
                 {
-                    body = CreatePrimitiveModel(ghostObject.transform, PrimitiveType.Sphere, GhostColours[i], 0.8f);
+                    body = PacmanGhostMesh.Create(ghostObject.transform, GhostColours[i]);
                 }
 
                 PacmanJuice.Attach(body, PacmanJuice.Kind.Bob, 0.05f, 2f, i * 0.25f);

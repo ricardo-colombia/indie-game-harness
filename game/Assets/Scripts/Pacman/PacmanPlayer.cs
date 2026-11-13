@@ -55,7 +55,24 @@ namespace Studio.Pacman
             MeshRenderer meshRenderer = bodyObject.AddComponent<MeshRenderer>();
             meshRenderer.sharedMaterial = material;
 
+            // The classic eye: a small dark dot on the upper half of the body, behind the mouth line.
+            GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            eye.name = "Eye";
+            eye.transform.SetParent(body, false);
+            eye.transform.localPosition = new Vector3(0.08f, 0.05f, 0.2f);
+            eye.transform.localScale = Vector3.one * 0.1f;
+            Destroy(eye.GetComponent<Collider>());
+            eye.GetComponent<Renderer>().sharedMaterial = MakeEyeMaterial();
+
             SetMouth(0.5f);
+        }
+
+        private static Material MakeEyeMaterial()
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            Material material = new Material(shader);
+            material.color = new Color(0.05f, 0.05f, 0.05f);
+            return material;
         }
 
         public void Request(Vector2Int direction)

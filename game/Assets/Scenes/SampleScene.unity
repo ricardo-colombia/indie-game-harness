@@ -443,8 +443,8 @@ MonoBehaviour:
   ghostReleaseDelay: 3
   ghostReleaseStagger: 2
   wakaInterval: 0.18
-  ghostModel: {fileID: 919132149155446097, guid: 00909ee9333be4dafbf4ddf89eba6faa, type: 3}
-  ghostEyesModel: {fileID: 919132149155446097, guid: c933c405867c9454eb9844a98562c347, type: 3}
+  ghostModel: {fileID: 0}
+  ghostEyesModel: {fileID: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
