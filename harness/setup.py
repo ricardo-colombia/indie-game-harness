@@ -124,8 +124,8 @@ def setup(name: str | None, yes: bool, dry: bool) -> int:
         if (game / ".gitkeep").exists() and not dry:
             (game / ".gitkeep").unlink()
         cmd = ["unity", "projects", "create", PROJECT, "--path", str(ROOT), "--editor-version", editors[0] if editors else "lts",
-               "--no-cloud", "--accept-eula", "--non-interactive"]
-        run(cmd + ([] if editors else ["--install-editor"]), dry)
+               "--no-cloud", "--non-interactive"]
+        run(cmd + ([] if editors else ["--install-editor", "--accept-eula"]), dry)  # --accept-eula only goes with --install-editor
 
     # 4. Harness package + Pipeline package in the project
     f = game / "Packages/manifest.json"

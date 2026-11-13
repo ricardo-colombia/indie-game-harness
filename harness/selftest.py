@@ -43,6 +43,8 @@ if a[:2] == ["editors", "--installed"]:
     items = [] if os.environ.get("FAKE_UNITY_NO_EDITOR") else [{"version": "6000.3.1f1"}, {"version": "2022.3.1f1"}]
     print(json.dumps({"success": True, "data": {"items": items}}))
 elif a[:2] == ["projects", "create"]:
+    if "--accept-eula" in a and "--install-editor" not in a:  # the real CLI rejects this
+        print("Error: --accept-eula applies only with --install-editor."); sys.exit(2)
     p = Path(a[a.index("--path") + 1]) / a[2]
     (p / "ProjectSettings").mkdir(parents=True); (p / "Packages").mkdir()
     (p / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 6000.3.1f1\n")
@@ -497,7 +499,7 @@ class Offline(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stdout)
         self.assertNotIn("projects create", (self.tmp / "unity.log").read_text())
         run([PY, "harness/hx.py", "setup", "My Game", "--yes"], cwd=self.repo, env=env)
-        self.assertIn("--install-editor", (self.tmp / "unity.log").read_text())
+        self.assertIn("--install-editor --accept-eula", (self.tmp / "unity.log").read_text())
 
     def test_static_files(self):
         import yaml
