@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 import unity
-from core import REPORTS, ROOT, Card, ledger_add, ledger_total, load_config, next_card, sh
+from core import REPORTS, ROOT, Card, find_unity, ledger_add, ledger_total, load_config, next_card, sh
 
 # The judges: everything that decides whether a card passes. Checked in the main checkout before/after every card
 # and in the worktree after the gates ran (gate processes execute agent-written code).
@@ -520,8 +520,8 @@ def main():
         raise SystemExit("Main checkout is dirty; commit or stash before running cards.")
     if current_branch() != r["main_branch"] and not a.dry_run:
         raise SystemExit(f"Main checkout is on '{current_branch()}', not '{r['main_branch']}'.")
-    if not a.dry_run and ("${" in str(cfg["unity"]["editor_path"]) or not cfg["unity"]["editor_path"]):
-        print("warning: UNITY_PATH not set — cards whose gates need Unity will fail")
+    if not a.dry_run and not find_unity(cfg, ROOT / cfg["game"]["unity_project"]):
+        print("warning: Unity editor not found (unity CLI / unity.editor_path) — cards whose gates need Unity will fail")
     start = dt.datetime.now().replace(microsecond=0)  # ledger timestamps are second-precision
     billing = Billing(cfg, a.budget if a.budget is not None else float(r.get("money_budget_usd", 0)), start)
     problems = billing_preflight(cfg, billing.money_budget)

@@ -5,7 +5,7 @@ A template for making small Unity 6 games with an AI team in Claude Code.
 
 ## 1. Set up (once per game)
 1. Create a repo from this template, then run `bash scripts/bootstrap.sh "My Game"` and follow its printout.
-2. Install `ffmpeg`, `blender`, `uv` (and `xvfb` on headless Linux). Log in to Claude Code with your plan: `claude` → `/login`.
+2. Install the [Unity CLI](https://unity.com/install.sh) and a Unity 6 editor (`unity install lts`), plus `ffmpeg`, Blender, `uv` (and `xvfb` on headless Linux). The editor and Blender are found automatically. Log in to Claude Code with your plan: `claude` → `/login`.
 3. Turn off extra usage on your Claude account, then set `runner.plan_overage_disabled: true` in `harness/config.yaml`.
 4. Check everything works: `python harness/hx.py selftest --all` ([details](TESTING.md)).
 5. In Claude Code: *"use the new-game skill"* → pillars interview, style guide, first cards.

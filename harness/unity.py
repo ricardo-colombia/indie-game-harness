@@ -10,7 +10,7 @@ import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from core import sh
+from core import find_unity, sh
 
 HARNESS_MARKER = b"Studio.Harness"   # assembly name; present in any build that compiled the harness in
 
@@ -23,10 +23,11 @@ def _run(cfg, cmd, **kw):
     return sh(list(sb.get("prefix") or []) + cmd, unset=unset, **kw)
 
 
-def _unity(cfg) -> str:
-    exe = cfg["unity"]["editor_path"]
-    if not exe or "${" in exe:
-        raise RuntimeError("Set UNITY_PATH (or unity.editor_path in harness/config.yaml)")
+def _unity(cfg, project: Path | None = None) -> str:
+    exe = find_unity(cfg, project)
+    if not exe:
+        raise RuntimeError("Unity editor not found: install the Unity CLI (unity.com/install.sh) and the project's "
+                           "editor (`unity install <version>`), or set unity.editor_path in harness/config.yaml")
     return exe
 
 
@@ -40,7 +41,7 @@ def _display_wrap(cmd: list[str]) -> list[str]:
 def build(cfg, project: Path, out: Path, release: bool = False, binary: Path | None = None):
     binary = binary or (project / (_release_binary(cfg) if release else cfg["game"]["player_binary"]))
     log = out / ("build-release.log" if release else "build.log")
-    r = _run(cfg, [_unity(cfg), "-batchmode", "-nographics", "-quit", "-projectPath", str(project),
+    r = _run(cfg, [_unity(cfg, project), "-batchmode", "-nographics", "-quit", "-projectPath", str(project),
                    "-buildTarget", cfg["game"]["build_target"],
                    "-executeMethod", "Harness.Editor.HarnessBuild.BuildPlayer",
                    "-harnessBuildPath", str(binary), *(["-release"] if release else []), "-logFile", "-"],
@@ -88,7 +89,7 @@ def scan_for_harness(binary: Path) -> list[str]:
 def tests(cfg, project: Path, out: Path, platform_: str):
     results = out / f"tests-{platform_}.xml"
     log = out / f"tests-{platform_}.log"
-    cmd = ([_unity(cfg), "-batchmode", "-projectPath", str(project), "-runTests",
+    cmd = ([_unity(cfg, project), "-batchmode", "-projectPath", str(project), "-runTests",
             "-testPlatform", platform_, "-testResults", str(results), "-logFile", "-"]
            + (["-nographics"] if platform_ == "EditMode" else []))
     if results.exists():

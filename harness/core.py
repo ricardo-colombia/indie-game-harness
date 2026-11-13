@@ -20,6 +20,70 @@ REPORTS = ROOT / "harness" / "reports"
 STATES = ["inbox", "ready", "review", "done", "failed"]
 
 
+def _json_find(obj, keys=("location", "path")):
+    """First string value under one of `keys`, searching the CLI's JSON envelope depth-first."""
+    if isinstance(obj, dict):
+        for k in keys:
+            if isinstance(obj.get(k), str):
+                return obj[k]
+        obj = list(obj.values())
+    if isinstance(obj, list):
+        for v in obj:
+            hit = _json_find(v, keys)
+            if hit:
+                return hit
+    return None
+
+
+def _editor_exe(location: str) -> str | None:
+    """Editor install location (dir or .app bundle) -> the Unity executable inside it."""
+    loc = Path(location)
+    for c in [loc, loc / "Contents/MacOS/Unity", loc / "Unity.app/Contents/MacOS/Unity",
+              loc / "Editor/Unity.exe", loc / "Unity.exe", loc / "Editor/Unity", loc / "Unity"]:
+        if c.is_file():
+            return str(c)
+    return None
+
+
+def project_editor_version(project: Path | None) -> str | None:
+    f = project / "ProjectSettings/ProjectVersion.txt" if project else None
+    if f and f.exists():
+        m = re.search(r"m_EditorVersion:\s*(\S+)", f.read_text())
+        return m.group(1) if m else None
+    return None
+
+
+def find_unity(cfg: dict, project: Path | None = None) -> str | None:
+    """Unity editor binary. `unity.editor_path` in config wins if set; otherwise ask the Unity CLI
+    (`unity editors path <version>`) for the project's editor version, or the latest installed one."""
+    exe = str((cfg.get("unity") or {}).get("editor_path") or "")
+    if exe and "${" not in exe:
+        return exe
+    if not shutil.which("unity"):
+        return None
+    for ver in filter(None, [project_editor_version(project), "latest"]):
+        r = subprocess.run(["unity", "editors", "path", ver, "--format", "json", "--no-banner"],
+                           capture_output=True, text=True)
+        try:
+            loc = _json_find(json.loads(r.stdout).get("data")) if r.returncode == 0 else None
+        except json.JSONDecodeError:
+            loc = None
+        if loc and (hit := _editor_exe(loc)):
+            return hit
+    return None
+
+
+def find_blender(cfg: dict | None = None) -> str | None:
+    """Blender binary: config `art.blender.path`, PATH, then the standard app locations (macOS/Windows)."""
+    want = str((((cfg or {}).get("art") or {}).get("blender") or {}).get("path") or "blender")
+    if (hit := shutil.which(want)) or (Path(want).is_file() and (hit := want)):
+        return hit
+    cands = [Path("/Applications/Blender.app/Contents/MacOS/Blender"),
+             Path.home() / "Applications/Blender.app/Contents/MacOS/Blender",
+             *sorted(Path("C:/Program Files/Blender Foundation").glob("Blender*/blender.exe"), reverse=True)]
+    return next((str(c) for c in cands if c.is_file()), None)
+
+
 def load_config(root: Path = ROOT) -> dict:
     text = os.path.expandvars((root / "harness" / "config.yaml").read_text())
     return yaml.safe_load(text)
