@@ -41,6 +41,8 @@ namespace Studio.Pacman
         private float fade;
         private PacmanState lastState = PacmanState.Title;
         private float stateAge;
+        private readonly List<Rect> menuRows = new List<Rect>();
+        private Rect pauseButton;
 
         public static void Show(Vector3 world, string text, Color colour)
         {
@@ -56,7 +58,43 @@ namespace Studio.Pacman
             instance = this;
             hatIcon = MakeHatIcon(64);
             pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
+#if UNITY_WEBGL
+            // Browsers have no OS fonts to load, so use the font that ships with Unity.
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+#else
             font = Font.CreateDynamicFontFromOSFont(new[] { "Arial Rounded MT Bold", "Avenir Next Condensed", "Arial Black", "Helvetica Neue", "Arial" }, 48);
+#endif
+        }
+
+        /// <summary>Index of the menu row under a screen position (y down, like IMGUI), or -1.</summary>
+        public int MenuRowAt(Vector2 gui)
+        {
+            for (int i = 0; i < menuRows.Count; i++)
+            {
+                if (menuRows[i].Contains(gui))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>True when a position (y down) is on the on-screen pause button, which only shows for touch play.</summary>
+        public bool OnPauseButton(Vector2 gui)
+        {
+            return game != null && game.TouchMode && game.State == PacmanState.Playing && pauseButton.Contains(gui);
+        }
+
+        /// <summary>
+        /// One scale for every size on screen. It follows the screen height on wide screens and the width on
+        /// tall ones, and is larger on touch devices, where fingers need bigger targets and text.
+        /// </summary>
+        private float UiScale()
+        {
+            float aspect = (float)Screen.width / Mathf.Max(1, Screen.height);
+            float referenceWidth = Mathf.Lerp(900f, 1500f, Mathf.InverseLerp(0.7f, 1.3f, aspect));
+            float referenceHeight = game.TouchMode ? 760f : 1080f;
+            return Mathf.Clamp(Mathf.Min(Screen.height / referenceHeight, Screen.width / referenceWidth), 0.3f, 3f);
         }
 
         private void OnDestroy()
@@ -115,8 +153,10 @@ namespace Studio.Pacman
                 return;
             }
 
-            float s = Mathf.Clamp(Screen.height / 1080f, 0.55f, 2.5f);
+            float s = UiScale();
             EnsureStyle();
+            menuRows.Clear();
+            pauseButton = new Rect(-1000f, -1000f, 0f, 0f);
 
             if (game.State == PacmanState.Title)
             {
@@ -125,6 +165,10 @@ namespace Studio.Pacman
             else
             {
                 DrawHud(s);
+                if (game.TouchMode && game.State == PacmanState.Playing)
+                {
+                    DrawPauseButton(s);
+                }
                 DrawPopups(s);
                 switch (game.State)
                 {
@@ -180,13 +224,25 @@ namespace Studio.Pacman
             Rect subRect = new Rect(0, Screen.height * 0.12f + size * 1.15f + 12f * s, Screen.width, 50f * s);
             Text(subRect, "LA  COSECHA  EN  LA  MONTAÑA", 34f * s, Leaf, TextAnchor.MiddleCenter);
 
+            if (Screen.width < Screen.height)
+            {
+                // Tall screens put the menu over the maze, so give it a backing panel to stay readable.
+                float panelWidth = Mathf.Min(580f * s, Screen.width * 0.94f);
+                float panelHeight = game.ActiveMenu.Length * 64f * s + 24f * s;
+                Rect backing = new Rect((Screen.width - panelWidth) * 0.5f, Screen.height * 0.52f - 16f * s, panelWidth, panelHeight);
+                Fill(new Rect(backing.x - 3f * s, backing.y - 3f * s, backing.width + 6f * s, backing.height + 6f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.4f), 20f * s);
+                Fill(backing, Panel, 16f * s);
+            }
             DrawMenuItems(s, Screen.height * 0.52f);
 
             if (game.HighScore > 0)
             {
                 Text(new Rect(0, Screen.height * 0.84f, Screen.width, 40f * s), "RÉCORD  " + game.HighScore.ToString("N0"), 30f * s, Gold, TextAnchor.MiddleCenter);
             }
-            Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), "FLECHAS / WASD  MOVER      ENTER  ELEGIR      ESC  PAUSA", 22f * s, Dim, TextAnchor.MiddleCenter);
+            string hint = game.TouchMode
+                ? "DESLIZA  MOVER      TOCA  ELEGIR"
+                : "FLECHAS / WASD  MOVER      ENTER  ELEGIR      ESC  PAUSA";
+            Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
 
             // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom.
             float run = Mathf.Repeat(t * 0.12f, 1f);
@@ -238,6 +294,19 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>Touch play has no Escape key, so a pause button sits in the bottom-right corner.</summary>
+        private void DrawPauseButton(float s)
+        {
+            float size = 76f * s;
+            float margin = 24f * s;
+            Rect r = new Rect(Screen.width - margin - size, Screen.height - margin - size, size, size);
+            pauseButton = new Rect(r.x - 16f * s, r.y - 16f * s, r.width + 32f * s, r.height + 32f * s);
+            Fill(r, new Color(1f, 1f, 1f, 0.12f), 16f * s);
+            float bar = 10f * s;
+            Fill(new Rect(r.x + size * 0.5f - bar * 1.6f, r.y + size * 0.26f, bar, size * 0.48f), new Color(1f, 1f, 1f, 0.7f), 3f * s);
+            Fill(new Rect(r.x + size * 0.5f + bar * 0.6f, r.y + size * 0.26f, bar, size * 0.48f), new Color(1f, 1f, 1f, 0.7f), 3f * s);
+        }
+
         private void DrawPopups(float s)
         {
             Camera cam = Camera.main;
@@ -273,7 +342,7 @@ namespace Studio.Pacman
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, Mathf.Clamp01(stateAge * 1.2f) * 0.6f));
             float a = Mathf.Clamp01(stateAge * 1.5f);
             Color red = new Color(1f, 0.25f, 0.3f, a);
-            Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "FIN DE LA COSECHA", 84f * s, red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
+            Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "FIN DE LA COSECHA", Mathf.Min(84f * s, Screen.width * 0.09f), red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
             Text(new Rect(0, Screen.height * 0.46f, Screen.width, 50f * s), "PUNTOS  " + game.Score.ToString("N0"), 44f * s, new Color(1f, 1f, 1f, a), TextAnchor.MiddleCenter);
             if (game.NewHighScore)
             {
@@ -285,14 +354,15 @@ namespace Studio.Pacman
                 Text(new Rect(0, Screen.height * 0.55f, Screen.width, 44f * s), "RÉCORD  " + game.HighScore.ToString("N0"), 32f * s, new Color(Gold.r, Gold.g, Gold.b, a), TextAnchor.MiddleCenter);
             }
             float blinkPrompt = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
-            Text(new Rect(0, Screen.height * 0.7f, Screen.width, 40f * s), "PRESIONA ENTER", 30f * s, new Color(1f, 1f, 1f, a * blinkPrompt), TextAnchor.MiddleCenter);
+            Text(new Rect(0, Screen.height * 0.7f, Screen.width, 40f * s), game.TouchMode ? "TOCA PARA SEGUIR" : "PRESIONA ENTER", 30f * s, new Color(1f, 1f, 1f, a * blinkPrompt), TextAnchor.MiddleCenter);
         }
 
         private void DrawMenuPanel(string header, float s, bool large)
         {
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.03f, 0.02f, 0f, 0.5f));
-            float w = Screen.width * 0.34f;
-            Rect panel = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.24f, w, Screen.height * 0.5f);
+            float w = Mathf.Min(Mathf.Max(Screen.width * 0.34f, 640f * s), Screen.width * 0.94f);
+            float h = Mathf.Min(Screen.height * 0.5f, 560f * s);
+            Rect panel = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.24f, w, h);
             Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.5f), 22f * s);
             Fill(panel, Panel, 18f * s);
             Text(new Rect(panel.x, panel.y + 24f * s, panel.width, 80f * s), header, 64f * s, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 4f * s));
@@ -320,8 +390,9 @@ namespace Studio.Pacman
             {
                 bool selected = i == game.MenuIndex;
                 string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO") : MenuLabel(items[i]);
-                float width = 520f * s;
+                float width = Mathf.Min(520f * s, Screen.width * 0.9f);
                 Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
+                menuRows.Add(new Rect(row.x, row.y - 4f * s, row.width, rowHeight));
                 if (selected)
                 {
                     float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 6f);
