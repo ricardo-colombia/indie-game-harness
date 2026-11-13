@@ -26,8 +26,9 @@ namespace Studio.Pacman
             renderer.sharedMaterial = MakeMaterial(colour);
 
             // Eyes: white sclera with a blue pupil, looking forward.
-            AddEye(model.transform, new Vector3(-0.14f, 0.1f, 0.34f));
-            AddEye(model.transform, new Vector3(0.14f, 0.1f, 0.34f));
+            // Eyes sit on top of the dome so they show from the straight-down camera.
+            AddEye(model.transform, new Vector3(-0.12f, 0.3f, 0.1f));
+            AddEye(model.transform, new Vector3(0.12f, 0.3f, 0.1f));
             return model.transform;
         }
 
