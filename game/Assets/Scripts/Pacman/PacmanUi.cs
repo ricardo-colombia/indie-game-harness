@@ -1,0 +1,432 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace Studio.Pacman
+{
+    /// <summary>
+    /// All on-screen UI: title and pause menus, the HUD, floating score popups and the READY / game-over
+    /// banners. It reads the game's public probes and draws; it never changes game state. Sizes scale with
+    /// the screen height.
+    /// </summary>
+    public class PacmanUi : MonoBehaviour
+    {
+        private struct Popup
+        {
+            public Vector3 World;
+            public string Text;
+            public Color Colour;
+            public float Age;
+        }
+
+        private static readonly Color Yellow = new Color(1f, 0.86f, 0.1f);
+        private static readonly Color Cyan = new Color(0.35f, 0.85f, 1f);
+        private static readonly Color Pink = new Color(1f, 0.4f, 0.8f);
+        private static readonly Color Dim = new Color(1f, 1f, 1f, 0.55f);
+        private static readonly Color Panel = new Color(0.02f, 0.03f, 0.1f, 0.88f);
+
+        [Tooltip("Seconds a score popup floats before it fades out.")]
+        [SerializeField] private float popupSeconds = 1.1f;
+        [Tooltip("How fast the displayed score counts up to the real one, in points per second.")]
+        [SerializeField] private float countRate = 2500f;
+
+        private static PacmanUi instance;
+
+        private PacmanGame game;
+        private Font font;
+        private Texture2D[] pacIcons;
+        private GUIStyle label;
+        private readonly List<Popup> popups = new List<Popup>();
+        private float shownScore;
+        private float fade;
+        private PacmanState lastState = PacmanState.Title;
+        private float stateAge;
+
+        public static void Show(Vector3 world, string text, Color colour)
+        {
+            if (instance != null)
+            {
+                instance.popups.Add(new Popup { World = world, Text = text, Colour = colour });
+            }
+        }
+
+        public void Init(PacmanGame owner)
+        {
+            game = owner;
+            instance = this;
+            pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
+#if UNITY_WEBGL
+            // Browsers have no OS fonts to load, so use the font that ships with Unity.
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+#else
+            font = Font.CreateDynamicFontFromOSFont(new[] { "Arial Rounded MT Bold", "Avenir Next Condensed", "Arial Black", "Helvetica Neue", "Arial" }, 48);
+#endif
+        }
+
+        private void OnDestroy()
+        {
+            if (instance == this)
+            {
+                instance = null;
+            }
+        }
+
+        private void Update()
+        {
+            if (game == null)
+            {
+                return;
+            }
+
+            if (game.State != lastState)
+            {
+                // Entering a new screen: fade in from black, but only when a game or level begins.
+                if (game.State == PacmanState.Ready)
+                {
+                    fade = 1f;
+                }
+                lastState = game.State;
+                stateAge = 0f;
+            }
+            stateAge += Time.unscaledDeltaTime;
+            fade = Mathf.MoveTowards(fade, 0f, Time.unscaledDeltaTime * 2.2f);
+
+            if (game.State == PacmanState.Title || game.Score < shownScore)
+            {
+                shownScore = game.Score;
+            }
+            shownScore = Mathf.MoveTowards(shownScore, game.Score, countRate * Time.unscaledDeltaTime);
+
+            for (int i = popups.Count - 1; i >= 0; i--)
+            {
+                Popup p = popups[i];
+                p.Age += Time.unscaledDeltaTime;
+                if (p.Age >= popupSeconds)
+                {
+                    popups.RemoveAt(i);
+                }
+                else
+                {
+                    popups[i] = p;
+                }
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (game == null || Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            float s = Mathf.Clamp(Screen.height / 1080f, 0.55f, 2.5f);
+            EnsureStyle();
+
+            if (game.State == PacmanState.Title)
+            {
+                DrawTitle(s);
+            }
+            else
+            {
+                DrawHud(s);
+                DrawPopups(s);
+                switch (game.State)
+                {
+                    case PacmanState.Ready:
+                        DrawBanner("READY!", Yellow, s, 1.5f);
+                        break;
+                    case PacmanState.LevelClear:
+                        DrawBanner("LEVEL CLEAR!", Cyan, s, 1.2f);
+                        break;
+                    case PacmanState.GameOver:
+                        DrawGameOver(s);
+                        break;
+                    case PacmanState.Paused:
+                        DrawMenuPanel("PAUSED", s, false);
+                        break;
+                }
+            }
+
+            if (fade > 0.001f)
+            {
+                Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, fade));
+            }
+        }
+
+        // ---------------------------------------------------------------- screens
+
+        private void DrawTitle(float s)
+        {
+            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0.03f, 0.55f));
+
+            float cx = Screen.width * 0.5f;
+            float t = Time.unscaledTime;
+
+            // Logo: shifting neon with a soft echo behind it.
+            string logo = "PAC-MAN";
+            float size = 150f * s;
+            Color glow = Color.Lerp(Yellow, Pink, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
+            float bob = Mathf.Sin(t * 2f) * 6f * s;
+            Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
+            for (int i = 4; i >= 1; i--)
+            {
+                Text(logoRect, logo, size, new Color(glow.r, glow.g, glow.b, 0.09f), TextAnchor.MiddleCenter, new Vector2(0f, 0f), i * 5f * s);
+            }
+            Text(logoRect, logo, size, Yellow, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s), 0f, new Color(0.5f, 0.1f, 0.5f, 0.9f));
+
+            Rect subRect = new Rect(0, Screen.height * 0.12f + size * 1.15f, Screen.width, 50f * s);
+            Text(subRect, "A  NEON  CHASE", 34f * s, Cyan, TextAnchor.MiddleCenter);
+
+            DrawMenuItems(s, Screen.height * 0.52f);
+
+            if (game.HighScore > 0)
+            {
+                Text(new Rect(0, Screen.height * 0.84f, Screen.width, 40f * s), "HIGH SCORE  " + game.HighScore.ToString("N0"), 30f * s, Yellow, TextAnchor.MiddleCenter);
+            }
+            Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), "ARROWS / WASD  MOVE      ENTER  SELECT      ESC  PAUSE", 22f * s, Dim, TextAnchor.MiddleCenter);
+
+            // Decorative chase: Pac-Man followed by four ghosts glide across the bottom.
+            float run = Mathf.Repeat(t * 0.12f, 1f);
+            float x = Mathf.Lerp(-0.1f, 1.1f, run) * Screen.width;
+            float y = Screen.height * 0.78f;
+            DrawPac(new Rect(x, y, 64f * s, 64f * s), t);
+            Color[] ghostColours = { new Color(1f, 0.1f, 0.1f), new Color(1f, 0.55f, 0.85f), new Color(0.2f, 0.95f, 0.95f), new Color(1f, 0.6f, 0.15f) };
+            for (int i = 0; i < ghostColours.Length; i++)
+            {
+                float gx = x - (i + 1) * 80f * s - 30f * s;
+                DrawGhostIcon(new Rect(gx, y + 2f * s, 56f * s, 60f * s), ghostColours[i], t + i);
+            }
+        }
+
+        private void DrawHud(float s)
+        {
+            float margin = 28f * s;
+            float top = 16f * s;
+
+            // Score, top left.
+            Text(new Rect(margin, top, 400f * s, 28f * s), "SCORE", 22f * s, Dim, TextAnchor.UpperLeft);
+            Text(new Rect(margin, top + 26f * s, 500f * s, 60f * s), Mathf.RoundToInt(shownScore).ToString("N0"), 52f * s, Color.white, TextAnchor.UpperLeft, new Vector2(0f, 3f * s));
+
+            // High score, top centre.
+            float high = Mathf.Max(game.HighScore, game.Score);
+            Text(new Rect(0, top, Screen.width, 28f * s), "HIGH SCORE", 22f * s, Dim, TextAnchor.UpperCenter);
+            Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), high.ToString("N0"), 40f * s, Yellow, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
+
+            // Lives, top right, as little Pac-Men.
+            Text(new Rect(Screen.width - margin - 300f * s, top, 300f * s, 28f * s), "LIVES", 22f * s, Dim, TextAnchor.UpperRight);
+            float icon = 40f * s;
+            for (int i = 0; i < game.Lives; i++)
+            {
+                float x = Screen.width - margin - (i + 1) * (icon + 8f * s);
+                DrawPac(new Rect(x, top + 32f * s, icon, icon), 0.4f, 0.55f);
+            }
+
+            // Level, bottom left; a hint while frightened, bottom centre.
+            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "LEVEL  " + game.Level, 30f * s, Cyan, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
+            if (game.FrightenedActive)
+            {
+                float remaining = game.FrightenedRemaining;
+                float bar = Screen.width * 0.22f;
+                Rect track = new Rect((Screen.width - bar) * 0.5f, Screen.height - 46f * s, bar, 10f * s);
+                Fill(track, new Color(1f, 1f, 1f, 0.12f), 5f * s);
+                float full = Mathf.Max(0.01f, game.FrightenedDuration);
+                Color c = remaining < 2f ? new Color(1f, 0.35f, 0.4f) : new Color(0.4f, 0.55f, 1f);
+                Fill(new Rect(track.x, track.y, bar * Mathf.Clamp01(remaining / full), track.height), c, 5f * s);
+                Text(new Rect(0, Screen.height - 78f * s, Screen.width, 28f * s), "GHOSTS FRIGHTENED", 22f * s, Dim, TextAnchor.MiddleCenter);
+            }
+        }
+
+        private void DrawPopups(float s)
+        {
+            Camera cam = Camera.main;
+            if (cam == null)
+            {
+                return;
+            }
+            foreach (Popup p in popups)
+            {
+                float t = p.Age / popupSeconds;
+                Vector3 screen = cam.WorldToScreenPoint(p.World);
+                float rise = Mathf.Sqrt(t) * 60f * s;
+                float pop = t < 0.15f ? Mathf.Lerp(0.6f, 1.25f, t / 0.15f) : Mathf.Lerp(1.25f, 1f, Mathf.Clamp01((t - 0.15f) * 4f));
+                float alpha = t < 0.7f ? 1f : 1f - (t - 0.7f) / 0.3f;
+                Color c = p.Colour;
+                c.a = alpha;
+                float size = 34f * s * pop;
+                Rect r = new Rect(screen.x - 120f * s, Screen.height - screen.y - size * 0.5f - rise, 240f * s, size * 1.2f);
+                Text(r, p.Text, size, c, TextAnchor.MiddleCenter, new Vector2(0f, 2f * s));
+            }
+        }
+
+        private void DrawBanner(string message, Color colour, float s, float pulseRate)
+        {
+            float pulse = 1f + 0.06f * Mathf.Sin(Time.unscaledTime * pulseRate * 2f * Mathf.PI);
+            float size = 76f * s * pulse;
+            Rect r = new Rect(0, Screen.height * 0.5f - size * 0.1f, Screen.width, size * 1.3f);
+            Text(r, message, size, colour, TextAnchor.MiddleCenter, new Vector2(0f, 5f * s), 0f, new Color(0f, 0f, 0f, 0.85f));
+        }
+
+        private void DrawGameOver(float s)
+        {
+            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, Mathf.Clamp01(stateAge * 1.2f) * 0.6f));
+            float a = Mathf.Clamp01(stateAge * 1.5f);
+            Color red = new Color(1f, 0.25f, 0.3f, a);
+            Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "GAME OVER", 120f * s, red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
+            Text(new Rect(0, Screen.height * 0.46f, Screen.width, 50f * s), "SCORE  " + game.Score.ToString("N0"), 44f * s, new Color(1f, 1f, 1f, a), TextAnchor.MiddleCenter);
+            if (game.NewHighScore)
+            {
+                float blink = 0.6f + 0.4f * Mathf.Sin(Time.unscaledTime * 8f);
+                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 50f * s), "NEW HIGH SCORE!", 40f * s, new Color(Yellow.r, Yellow.g, Yellow.b, a * blink), TextAnchor.MiddleCenter);
+            }
+            else
+            {
+                Text(new Rect(0, Screen.height * 0.55f, Screen.width, 44f * s), "HIGH SCORE  " + game.HighScore.ToString("N0"), 32f * s, new Color(Yellow.r, Yellow.g, Yellow.b, a), TextAnchor.MiddleCenter);
+            }
+            float blinkPrompt = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
+            Text(new Rect(0, Screen.height * 0.7f, Screen.width, 40f * s), "PRESS ENTER", 30f * s, new Color(1f, 1f, 1f, a * blinkPrompt), TextAnchor.MiddleCenter);
+        }
+
+        private void DrawMenuPanel(string header, float s, bool large)
+        {
+            Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0.04f, 0.5f));
+            float w = Screen.width * 0.34f;
+            Rect panel = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.24f, w, Screen.height * 0.5f);
+            Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Cyan.r, Cyan.g, Cyan.b, 0.5f), 22f * s);
+            Fill(panel, Panel, 18f * s);
+            Text(new Rect(panel.x, panel.y + 24f * s, panel.width, 80f * s), header, 64f * s, Yellow, TextAnchor.MiddleCenter, new Vector2(0f, 4f * s));
+            DrawMenuItems(s, panel.y + 140f * s);
+        }
+
+        private void DrawMenuItems(float s, float top)
+        {
+            string[] items = game.ActiveMenu;
+            float rowHeight = 64f * s;
+            for (int i = 0; i < items.Length; i++)
+            {
+                bool selected = i == game.MenuIndex;
+                string text = items[i] == "SOUND" ? "SOUND:  " + (game.SoundOn ? "ON" : "OFF") : items[i];
+                float width = 520f * s;
+                Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
+                if (selected)
+                {
+                    float pulse = 0.85f + 0.15f * Mathf.Sin(Time.unscaledTime * 6f);
+                    Fill(row, new Color(Yellow.r, Yellow.g, Yellow.b, 0.16f * pulse), 14f * s);
+                    Fill(new Rect(row.x, row.y, 6f * s, row.height), Yellow, 3f * s);
+                    DrawPac(new Rect(row.x + 22f * s, row.y + row.height * 0.5f - 14f * s, 28f * s, 28f * s), Time.unscaledTime);
+                }
+                Text(row, text, 38f * s, selected ? Yellow : Color.white, TextAnchor.MiddleCenter);
+            }
+        }
+
+        // ---------------------------------------------------------------- drawing helpers
+
+        private void EnsureStyle()
+        {
+            if (label != null)
+            {
+                return;
+            }
+            label = new GUIStyle(GUI.skin.label)
+            {
+                fontStyle = FontStyle.Bold,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+            };
+            if (font != null)
+            {
+                label.font = font;
+            }
+        }
+
+        /// <summary>Draws text with a drop shadow (and an optional outline-ish blur offset).</summary>
+        private void Text(Rect rect, string text, float size, Color colour, TextAnchor anchor,
+            Vector2? shadow = null, float spread = 0f, Color? shadowColour = null)
+        {
+            label.fontSize = Mathf.Max(8, Mathf.RoundToInt(size));
+            label.alignment = anchor;
+            if (shadow.HasValue)
+            {
+                Color sc = shadowColour ?? new Color(0f, 0f, 0f, 0.7f * colour.a);
+                label.normal.textColor = sc;
+                GUI.Label(new Rect(rect.x + shadow.Value.x, rect.y + shadow.Value.y, rect.width, rect.height), text, label);
+            }
+            if (spread > 0f)
+            {
+                // A faint halo: the text repeated a little to the sides.
+                label.normal.textColor = colour;
+                GUI.Label(new Rect(rect.x - spread, rect.y, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, label);
+                return;
+            }
+            label.normal.textColor = colour;
+            GUI.Label(rect, text, label);
+        }
+
+        private static void Fill(Rect rect, Color colour, float radius = 0f)
+        {
+            Color previous = GUI.color;
+            GUI.color = Color.white;
+            if (radius > 0f)
+            {
+                GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, colour,
+                    Vector4.zero, new Vector4(radius, radius, radius, radius));
+            }
+            else
+            {
+                GUI.DrawTexture(rect, Texture2D.whiteTexture, ScaleMode.StretchToFill, true, 0f, colour, 0f, 0f);
+            }
+            GUI.color = previous;
+        }
+
+        /// <summary>Pac-Man icon, mouth to the right. openness 0..1 picks the frame; negative chomps with time.</summary>
+        private void DrawPac(Rect rect, float time, float openness = -1f)
+        {
+            float open = openness >= 0f ? openness : 0.5f + 0.5f * Mathf.Sin(time * 10f);
+            int frame = open > 0.66f ? 0 : open > 0.33f ? 1 : 2;
+            Color previous = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(rect, pacIcons[frame], ScaleMode.StretchToFill, true);
+            GUI.color = previous;
+        }
+
+        private void DrawGhostIcon(Rect rect, Color colour, float time)
+        {
+            Fill(new Rect(rect.x, rect.y + rect.height * 0.35f, rect.width, rect.height * 0.55f), colour, 0f);
+            Fill(new Rect(rect.x, rect.y, rect.width, rect.height * 0.7f), colour, rect.width * 0.5f);
+            float wiggle = Mathf.Sin(time * 8f) * 2f;
+            for (int i = 0; i < 3; i++)
+            {
+                float w = rect.width / 3f;
+                Fill(new Rect(rect.x + i * w + 2f, rect.y + rect.height * 0.8f + (i % 2 == 0 ? wiggle : -wiggle), w - 4f, rect.height * 0.2f), colour, 6f);
+            }
+            float eye = rect.width * 0.2f;
+            foreach (float ex in new[] { 0.28f, 0.62f })
+            {
+                Fill(new Rect(rect.x + rect.width * ex, rect.y + rect.height * 0.28f, eye, eye * 1.2f), Color.white, eye * 0.5f);
+                Fill(new Rect(rect.x + rect.width * ex + eye * 0.45f, rect.y + rect.height * 0.35f, eye * 0.5f, eye * 0.6f), new Color(0.1f, 0.2f, 0.85f), eye * 0.25f);
+            }
+        }
+
+        private static Texture2D MakePacIcon(int n, float mouthSlope)
+        {
+            Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, name = "PacIcon" };
+            Color clear = new Color(0f, 0f, 0f, 0f);
+            for (int y = 0; y < n; y++)
+            {
+                for (int x = 0; x < n; x++)
+                {
+                    float dx = (x + 0.5f) / n * 2f - 1f;
+                    float dy = (y + 0.5f) / n * 2f - 1f;
+                    float d = Mathf.Sqrt(dx * dx + dy * dy);
+                    float edge = Mathf.Clamp01((0.96f - d) * n * 0.5f);
+                    bool mouth = dx > 0f && Mathf.Abs(dy) < dx * mouthSlope;
+                    Color c = mouth ? clear : new Color(Yellow.r, Yellow.g, Yellow.b, edge);
+                    texture.SetPixel(x, y, c);
+                }
+            }
+            texture.Apply();
+            return texture;
+        }
+    }
+}
