@@ -9,7 +9,7 @@ namespace Studio.Pacman
     /// </summary>
     public static class PacmanVfx
     {
-        private const float Glow = 2.6f;
+        private const float Glow = 1.15f;
 
         private static ParticleSystem sparks;
         private static ParticleSystem rings;
@@ -34,7 +34,8 @@ namespace Studio.Pacman
                 return;
             }
 
-            system.transform.position = position + Vector3.up * 0.3f;
+            // In front of the board plane (the camera looks along +Z).
+            system.transform.position = new Vector3(position.x, position.y, -1f);
             var emitParams = new ParticleSystem.EmitParams
             {
                 startColor = new Color(colour.r * Glow, colour.g * Glow, colour.b * Glow, 1f),
@@ -56,7 +57,7 @@ namespace Studio.Pacman
             main.gravityModifier = 0f;
 
             var shape = sparks.shape;
-            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.shapeType = ParticleSystemShapeType.Circle;
             shape.radius = 0.05f;
 
             var velocity = sparks.limitVelocityOverLifetime;
@@ -86,8 +87,6 @@ namespace Studio.Pacman
             var shape = rings.shape;
             shape.shapeType = ParticleSystemShapeType.Circle;
             shape.radius = 0.1f;
-            // Flat in the maze plane: the particle system's circle lies in XY, so lay it on the ground.
-            shape.rotation = new Vector3(90f, 0f, 0f);
 
             var size = rings.sizeOverLifetime;
             size.enabled = true;
@@ -118,6 +117,7 @@ namespace Studio.Pacman
             ParticleSystemRenderer rend = host.GetComponent<ParticleSystemRenderer>();
             rend.sharedMaterial = PacmanMaterials.Particle();
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rend.sortingOrder = 30;
             return system;
         }
     }

@@ -76,6 +76,11 @@ namespace Studio.Pacman
             grade.contrast.value = 14f;
             grade.saturation.value = 10f;
 
+            FilmGrain grain = profile.Add<FilmGrain>(true);
+            grain.type.value = FilmGrainLookup.Thin1;
+            grain.intensity.value = 0.18f;
+            grain.response.value = 0.7f;
+
             chromatic = profile.Add<ChromaticAberration>(true);
             chromatic.intensity.value = 0f;
         }
@@ -113,7 +118,7 @@ namespace Studio.Pacman
             {
                 shakeTime -= Time.unscaledDeltaTime;
                 float falloff = Mathf.Clamp01(shakeTime / shakeDuration);
-                offset = new Vector3(Random.Range(-1f, 1f), 0f, Random.Range(-1f, 1f)) * (shake * falloff);
+                offset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0f) * (shake * falloff);
                 if (shakeTime <= 0f)
                 {
                     shake = 0f;

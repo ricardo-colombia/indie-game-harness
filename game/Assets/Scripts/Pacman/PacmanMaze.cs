@@ -6,57 +6,51 @@ namespace Studio.Pacman
     /// Static maze data and grid helpers.
     /// Legend: '#' wall, '.' pellet, 'o' power pellet, ' ' empty floor, '-' ghost house gate,
     /// 'h' empty ghost house floor, 'G' ghost start inside the house, 'P' Pac-Man start.
-    /// The row TunnelRow wraps left/right. The house is a closed box with one two-tile gate on
-    /// top; only ghosts may use it.
+    /// The row TunnelRow wraps left/right. The house is a closed box with one gate on top; only
+    /// ghosts may use it.
+    /// Walls are one tile thick, the same as the corridors, so the board keeps natural proportions:
+    /// every wall is a line of tiles between corridors (the layout has no 2x2 blocks of wall).
     /// Tile (x, y): x grows to the right, y grows downward (row index).
     /// </summary>
     public static class PacmanMaze
     {
-        /// <summary>The classic 28 x 31 Pac-Man board, tile for tile (244 pellets, 4 of them power pellets).</summary>
-        public const int TunnelRow = 14;
+        /// <summary>The row that wraps left/right. It runs along the top of the ghost house.</summary>
+        public const int TunnelRow = 7;
 
         /// <summary>Tile above the gate. Ghosts leave the house to here, and eaten ghosts return here first.</summary>
-        public static readonly Vector2Int HouseExit = new Vector2Int(13, 11);
+        public static readonly Vector2Int HouseExit = new Vector2Int(10, 7);
 
         /// <summary>Middle of the house. Eaten ghosts drop in here and are revived.</summary>
-        public static readonly Vector2Int HouseCentre = new Vector2Int(13, 14);
+        public static readonly Vector2Int HouseCentre = new Vector2Int(10, 10);
 
         /// <summary>Where Blinky starts: outside the house, just above the gate.</summary>
-        public static readonly Vector2Int BlinkyStart = new Vector2Int(13, 11);
+        public static readonly Vector2Int BlinkyStart = new Vector2Int(10, 7);
 
         public static readonly string[] Rows =
         {
-            "############################",
-            "#............##............#",
-            "#.####.#####.##.#####.####.#",
-            "#o####.#####.##.#####.####o#",
-            "#.####.#####.##.#####.####.#",
-            "#..........................#",
-            "#.####.##.########.##.####.#",
-            "#.####.##.########.##.####.#",
-            "#......##....##....##......#",
-            "######.##### ## #####.######",
-            "######.##### ## #####.######",
-            "######.##          ##.######",
-            "######.## ###--### ##.######",
-            "######.## #hhhhhh# ##.######",
-            "      .   #GhGhGh#   .      ",
-            "######.## #hhhhhh# ##.######",
-            "######.## ######## ##.######",
-            "######.##          ##.######",
-            "######.## ######## ##.######",
-            "######.## ######## ##.######",
-            "#............##............#",
-            "#.####.#####.##.#####.####.#",
-            "#.####.#####.##.#####.####.#",
-            "#o..##.......P .......##..o#",
-            "###.##.##.########.##.##.###",
-            "###.##.##.########.##.##.###",
-            "#......##....##....##......#",
-            "#.##########.##.##########.#",
-            "#.##########.##.##########.#",
-            "#..........................#",
-            "############################"
+            "#####################",
+            "#.......#...#.......#",
+            "#.#####.#.#.#.#####.#",
+            "#o....#...#...#....o#",
+            "#.###.###.#.###.###.#",
+            "#...#...#...#...#...#",
+            "###.###.#####.###.###",
+            " ................... ",
+            "#.#####.##-##.#####.#",
+            "#.#...#.#hhh#.#...#.#",
+            "#.#.#.#.#GGG#.#.#.#.#",
+            "#.#.#.#.#hhh#.#.#.#.#",
+            "#.#.#.#.#####.#.#.#.#",
+            "#...#.....#.....#...#",
+            "#.#######.#.#######.#",
+            "#.....#...#...#.....#",
+            "#####.#.#####.#.#####",
+            "#...#.#...#...#.#...#",
+            "#.#.#.###.#.###.#.#.#",
+            "#o#.#...#.P.#...#.#o#",
+            "#.#.#.#.#####.#.#.#.#",
+            "#.....#.......#.....#",
+            "#####################"
         };
 
         public static int Width => Rows[0].Length;
@@ -92,6 +86,15 @@ namespace Studio.Pacman
             return Rows[t.y][t.x] == '#';
         }
 
+        /// <summary>
+        /// The four junctions (two beside the ghost house exit, two at the start pocket) where chasing or scattering
+        /// ghosts may not turn upward. The original has them so the ghosts' routes stay predictable.
+        /// </summary>
+        public static bool IsNoUpTile(Vector2Int t)
+        {
+            return (t.y == TunnelRow && (t.x == 7 || t.x == 13)) || (t.y == 18 && (t.x == 9 || t.x == 11));
+        }
+
         /// <summary>True for the ghost house interior and its gate. Pac-Man may not enter it.</summary>
         public static bool IsGhostHouse(Vector2Int t)
         {
@@ -106,7 +109,7 @@ namespace Studio.Pacman
 
         public static Vector3 ToWorld(Vector2Int t)
         {
-            return new Vector3(t.x, 0f, -t.y);
+            return new Vector3(t.x, -t.y, 0f);
         }
 
         /// <summary>Returns the first tile holding the given legend character, or (-1,-1).</summary>

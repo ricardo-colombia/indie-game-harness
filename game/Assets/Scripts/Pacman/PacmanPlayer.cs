@@ -3,16 +3,15 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Player-controlled Pac-Man. The body is a flat pie mesh built at runtime so the mouth can open
-    /// and close smoothly and always points along the movement direction.
+    /// Player-controlled Pac-Man. The body is a 2D sprite: a disc with a wedge cut out, swapped between
+    /// pre-rendered mouth angles so it chomps, and rotated to point along the movement direction.
     /// </summary>
     public class PacmanPlayer : PacmanActor
     {
-        private const int LonSegments = 40;
-        private const int LatSegments = 16;
-        private const float Radius = 0.42f;
         private const float MinMouth = 0.04f;
         private const float MaxMouth = 0.72f;
+
+        private static readonly Color Yellow = new Color(1f, 0.85f, 0.05f);
 
         [Tooltip("Mouth open/close cycles per second while moving.")]
         [SerializeField] private float chompRate = 3.2f;
@@ -20,11 +19,9 @@ namespace Studio.Pacman
         private PacmanGame game;
         private Vector2Int desired;
         private Transform body;
-        private Mesh mesh;
+        private SpriteRenderer sprite;
         private float phase;
         private float lastMouth = -1f;
-        private Transform eye;
-        private Vector2Int face = new Vector2Int(-1, 0);
         private bool dying;
         private float deathTimer;
         private float deathDuration = 1f;
@@ -41,76 +38,28 @@ namespace Studio.Pacman
             phase = Mathf.PI * 0.5f;
         }
 
-        protected override float ModelYawOffset => 0f;
-
-        public void Init(PacmanGame owner, Material material)
+        public void Init(PacmanGame owner)
         {
             game = owner;
 
             GameObject bodyObject = new GameObject("Body");
             bodyObject.transform.SetParent(transform, false);
             body = bodyObject.transform;
+            sprite = bodyObject.AddComponent<SpriteRenderer>();
+            sprite.color = Yellow;
+            sprite.sortingOrder = 5;
+            PacmanGlow.Attach(transform, Yellow, 3.2f, 0.22f);
 
-            mesh = new Mesh { name = "PacmanPie" };
-            mesh.MarkDynamic();
-            MeshFilter filter = bodyObject.AddComponent<MeshFilter>();
-            filter.sharedMesh = mesh;
-            MeshRenderer meshRenderer = bodyObject.AddComponent<MeshRenderer>();
-            // Submesh 0 is the yellow skin, submesh 1 the dark inside of the mouth.
-            Material inside = PacmanMaterials.Lit(new Color(0.45f, 0.08f, 0.02f), 0.1f);
-            meshRenderer.sharedMaterials = new[] { material, inside };
-
-            // Seen in profile, like the classic sprite: a single eye. PlaceEye keeps it on the upper side of
-            // the screen when moving left or right (and on the right side when moving up or down).
-            eye = AddEye(new Vector3(0.1f, 0.34f, 0.2f));
-
+            ResetFacing();
             SetMouth(0.5f);
-        }
-
-        private Transform AddEye(Vector3 localPosition)
-        {
-            GameObject eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            eye.name = "Eye";
-            eye.transform.SetParent(body, false);
-            eye.transform.localPosition = localPosition;
-            eye.transform.localScale = Vector3.one * 0.17f;
-            Destroy(eye.GetComponent<Collider>());
-            eye.GetComponent<Renderer>().sharedMaterial = PacmanMaterials.Lit(Color.white, 0.8f);
-
-            GameObject pupil = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            pupil.name = "Pupil";
-            pupil.transform.SetParent(eye.transform, false);
-            pupil.transform.localPosition = new Vector3(0.28f, 0.1f, 0f);
-            pupil.transform.localScale = Vector3.one * 0.55f;
-            Destroy(pupil.GetComponent<Collider>());
-            pupil.GetComponent<Renderer>().sharedMaterial = PacmanMaterials.Lit(new Color(0.03f, 0.03f, 0.05f), 0.9f);
-            return eye.transform;
-        }
-
-        private void PlaceEye()
-        {
-            if (eye == null)
-            {
-                return;
-            }
-            if (Dir != Vector2Int.zero)
-            {
-                face = Dir;
-            }
-            Vector3 side = face.x != 0 ? Vector3.forward : Vector3.right;
-            Vector3 lateral = body.InverseTransformDirection(side);
-            lateral.y = 0f;
-            eye.localPosition = new Vector3(0.1f, 0.34f, 0f) + lateral.normalized * 0.2f;
         }
 
         /// <summary>Turns Pac-Man to face left (the classic start) so he never starts looking up or down.</summary>
         public void ResetFacing()
         {
-            face = new Vector2Int(-1, 0);
             if (body != null)
             {
-                body.localRotation = Quaternion.Euler(0f, 180f + ModelYawOffset, 0f);
-                PlaceEye();
+                body.localRotation = Quaternion.Euler(0f, 0f, 180f);
             }
         }
 
@@ -126,10 +75,9 @@ namespace Studio.Pacman
         {
             Advance(tiles);
             FaceDirection(body);
-            PlaceEye();
         }
 
-        /// <summary>Starts the death animation: the mouth opens until the body collapses to a line.</summary>
+        /// <summary>Starts the death animation: the mouth opens until the body collapses to nothing.</summary>
         public void StartDeath(float duration)
         {
             dying = true;
@@ -154,11 +102,11 @@ namespace Studio.Pacman
 
             if (dying)
             {
-                // Ease the mouth open to a full collapse, so the body sinks to a line over the death time.
+                // Ease the mouth open to a full collapse, so the body shrinks away over the death time.
                 deathTimer += Time.deltaTime;
                 float t = Mathf.Clamp01(deathTimer / deathDuration);
                 float eased = t * t * (3f - 2f * t);
-                SetMouth(Mathf.Lerp(deathFrom, Mathf.PI - 0.01f, eased));
+                SetMouth(Mathf.Lerp(deathFrom, Mathf.PI, eased));
                 return;
             }
 
@@ -204,103 +152,13 @@ namespace Studio.Pacman
 
         private void SetMouth(float halfAngle)
         {
-            if (mesh == null || Mathf.Approximately(halfAngle, lastMouth))
+            if (sprite == null || Mathf.Approximately(halfAngle, lastMouth))
             {
                 return;
             }
             lastMouth = halfAngle;
             MouthAngle = halfAngle;
-            BuildPie(mesh, halfAngle);
-        }
-
-        /// <summary>
-        /// A ball with a wedge cut out. The open mouth points along +X; submesh 0 is the skin, submesh 1 the
-        /// two flat faces inside the mouth. Rebuilt whenever the mouth angle changes.
-        /// </summary>
-        private static void BuildPie(Mesh target, float halfMouth)
-        {
-            int rows = LatSegments + 1;
-            int cols = LonSegments + 1;
-            var vertices = new System.Collections.Generic.List<Vector3>(rows * cols + rows * 4);
-            var normals = new System.Collections.Generic.List<Vector3>(rows * cols + rows * 4);
-            var skin = new System.Collections.Generic.List<int>(LatSegments * LonSegments * 6);
-            var cut = new System.Collections.Generic.List<int>(LatSegments * 12);
-
-            float lonStart = halfMouth;
-            float lonEnd = 2f * Mathf.PI - halfMouth;
-            for (int r = 0; r < rows; r++)
-            {
-                float lat = Mathf.Lerp(-Mathf.PI * 0.5f, Mathf.PI * 0.5f, r / (float)LatSegments);
-                for (int c = 0; c < cols; c++)
-                {
-                    float lon = Mathf.Lerp(lonStart, lonEnd, c / (float)LonSegments);
-                    Vector3 n = new Vector3(Mathf.Cos(lat) * Mathf.Cos(lon), Mathf.Sin(lat), Mathf.Cos(lat) * Mathf.Sin(lon));
-                    vertices.Add(n * Radius);
-                    normals.Add(n);
-                }
-            }
-            for (int r = 0; r < LatSegments; r++)
-            {
-                for (int c = 0; c < LonSegments; c++)
-                {
-                    int a = r * cols + c;
-                    int b = a + 1;
-                    int d = a + cols;
-                    int e = d + 1;
-                    // Wound so the outside faces out.
-                    skin.Add(a); skin.Add(b); skin.Add(d);
-                    skin.Add(b); skin.Add(e); skin.Add(d);
-                }
-            }
-
-            // The two mouth faces: strips from the vertical axis out to the skin edge at each cut angle.
-            AddMouthFace(vertices, normals, cut, lonStart, true);
-            AddMouthFace(vertices, normals, cut, lonEnd, false);
-
-            target.Clear();
-            target.SetVertices(vertices);
-            target.SetNormals(normals);
-            target.subMeshCount = 2;
-            target.SetTriangles(skin, 0);
-            target.SetTriangles(cut, 1);
-            target.RecalculateBounds();
-        }
-
-        private static void AddMouthFace(System.Collections.Generic.List<Vector3> v, System.Collections.Generic.List<Vector3> n,
-            System.Collections.Generic.List<int> t, float lon, bool upperEdge)
-        {
-            // The face looks into the gap: toward smaller angles on the upper edge, larger on the lower one.
-            Vector3 radial = new Vector3(Mathf.Cos(lon), 0f, Mathf.Sin(lon));
-            Vector3 tangent = new Vector3(-Mathf.Sin(lon), 0f, Mathf.Cos(lon));
-            Vector3 normal = upperEdge ? -tangent : tangent;
-            int first = v.Count;
-            for (int r = 0; r <= LatSegments; r++)
-            {
-                float lat = Mathf.Lerp(-Mathf.PI * 0.5f, Mathf.PI * 0.5f, r / (float)LatSegments);
-                float y = Mathf.Sin(lat) * Radius;
-                float reach = Mathf.Cos(lat) * Radius;
-                v.Add(new Vector3(0f, y, 0f));
-                n.Add(normal);
-                v.Add(radial * reach + new Vector3(0f, y, 0f));
-                n.Add(normal);
-            }
-            for (int r = 0; r < LatSegments; r++)
-            {
-                int a = first + r * 2;
-                int b = a + 1;
-                int c = a + 2;
-                int d = a + 3;
-                if (upperEdge)
-                {
-                    t.Add(a); t.Add(c); t.Add(b);
-                    t.Add(b); t.Add(c); t.Add(d);
-                }
-                else
-                {
-                    t.Add(a); t.Add(b); t.Add(c);
-                    t.Add(b); t.Add(d); t.Add(c);
-                }
-            }
+            sprite.sprite = PacmanSprites.Pac(halfAngle);
         }
     }
 }

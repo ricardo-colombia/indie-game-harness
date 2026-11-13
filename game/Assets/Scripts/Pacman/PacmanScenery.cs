@@ -3,9 +3,9 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// The set dressing around the maze: glowing floor grid, drifting stars, tunnel portals and the neon wall
-    /// trim, which changes colour with the level and turns violet while the ghosts are frightened.
-    /// Purely visual: it reads game state and never writes it.
+    /// The set dressing around the maze, all 2D sprites: glowing floor grid, drifting stars, tunnel portals and
+    /// the neon wall outline, which changes colour with the level and turns violet while the ghosts are
+    /// frightened. Purely visual: it reads game state and never writes it.
     /// </summary>
     public class PacmanScenery : MonoBehaviour
     {
@@ -20,29 +20,27 @@ namespace Studio.Pacman
         };
 
         private static readonly Color AlertColour = new Color(0.55f, 0.25f, 1f);
+        private static readonly Color PortalColour = new Color(0.9f, 0.3f, 1f);
 
-        [Tooltip("HDR multiplier on the neon trim colour. Above 1 the bloom picks it up.")]
-        [SerializeField] private float trimIntensity = 2.6f;
-        [Tooltip("Seconds the trim takes to change colour.")]
+        [Tooltip("Seconds the outline takes to change colour.")]
         [SerializeField] private float colourBlend = 0.4f;
-        [Tooltip("Breathing of the trim glow, as a fraction of its brightness.")]
-        [SerializeField] private float breathe = 0.12f;
+        [Tooltip("Breathing of the outline glow, as a fraction of its brightness.")]
+        [SerializeField] private float breathe = 0.1f;
 
-        private Material trimMaterial;
-        private Material floorMaterial;
-        private Material portalMaterial;
+        private SpriteRenderer outline;
+        private SpriteRenderer[] portals;
         private Color themeColour = Themes[0];
         private Color currentColour = Themes[0];
         private bool alert;
         private bool flash;
 
-        /// <summary>Builds the scenery under a parent. The wall trim mesh comes from the maze builder.</summary>
-        public static PacmanScenery Build(Transform parent, Mesh trimMesh)
+        /// <summary>Builds the scenery under a parent, from the wall sprites made by <see cref="PacmanMazeArt"/>.</summary>
+        public static PacmanScenery Build(Transform parent)
         {
             GameObject root = new GameObject("Scenery");
             root.transform.SetParent(parent, false);
             PacmanScenery scenery = root.AddComponent<PacmanScenery>();
-            scenery.Construct(trimMesh);
+            scenery.Construct();
             return scenery;
         }
 
@@ -52,7 +50,7 @@ namespace Studio.Pacman
             themeColour = Themes[(Mathf.Max(1, level) - 1) % Themes.Length];
         }
 
-        /// <summary>Makes the trim blink white, for the end-of-level celebration.</summary>
+        /// <summary>Makes the outline blink white, for the end-of-level celebration.</summary>
         public void SetFlash(bool on)
         {
             flash = on;
@@ -64,66 +62,70 @@ namespace Studio.Pacman
             alert = on;
         }
 
-        private void Construct(Mesh trimMesh)
+        private void Construct()
         {
             float centreX = PacmanMaze.Width * 0.5f - 0.5f;
-            float centreZ = -(PacmanMaze.Height * 0.5f - 0.5f);
+            float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
+            Vector3 centre = new Vector3(centreX, centreY, 0f);
 
-            // Neon trim, just above the wall tops.
-            trimMaterial = PacmanMaterials.Neon(themeColour, trimIntensity);
-            GameObject trim = new GameObject("WallTrim");
-            trim.transform.SetParent(transform, false);
-            trim.AddComponent<MeshFilter>().sharedMesh = trimMesh;
-            MeshRenderer trimRenderer = trim.AddComponent<MeshRenderer>();
-            trimRenderer.sharedMaterial = trimMaterial;
-            trimRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-
-            // Floor: a big dark plane with a faint grid, one cell per tile.
-            floorMaterial = PacmanMaterials.Lit(Color.white, 0.05f);
-            Texture2D grid = MakeGridTexture();
-            floorMaterial.mainTexture = grid;
-            floorMaterial.SetTexture("_BaseMap", grid);
-            // One tile of margin around the maze, so the stars show in the void beyond the panel.
-            float width = PacmanMaze.Width + 2f;
-            float depth = PacmanMaze.Height + 2f;
-            floorMaterial.mainTextureScale = new Vector2(width, depth);
-            floorMaterial.SetTextureScale("_BaseMap", new Vector2(width, depth));
-            GameObject floor = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            floor.name = "Floor";
+            // Floor: the grid tile repeated across the board plus one tile of margin.
+            GameObject floor = new GameObject("Floor");
             floor.transform.SetParent(transform, false);
-            floor.transform.position = new Vector3(centreX, -0.45f, centreZ);
-            floor.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            floor.transform.localScale = new Vector3(width, depth, 1f);
-            Destroy(floor.GetComponent<Collider>());
-            floor.GetComponent<Renderer>().sharedMaterial = floorMaterial;
+            floor.transform.position = centre;
+            SpriteRenderer floorRenderer = floor.AddComponent<SpriteRenderer>();
+            floorRenderer.sprite = PacmanSprites.GridTile;
+            floorRenderer.drawMode = SpriteDrawMode.Tiled;
+            floorRenderer.size = new Vector2(PacmanMaze.Width + 2f, PacmanMaze.Height + 2f);
+            floorRenderer.sortingOrder = -10;
+
+            PacmanMazeArt.Get(out Sprite lineSprite, out Sprite fillSprite);
+
+            GameObject fill = new GameObject("WallFill");
+            fill.transform.SetParent(transform, false);
+            fill.transform.position = centre;
+            SpriteRenderer fillRenderer = fill.AddComponent<SpriteRenderer>();
+            fillRenderer.sprite = fillSprite;
+            fillRenderer.color = new Color(0.015f, 0.022f, 0.07f);
+            fillRenderer.sortingOrder = -5;
+
+            GameObject line = new GameObject("WallOutline");
+            line.transform.SetParent(transform, false);
+            line.transform.position = centre;
+            outline = line.AddComponent<SpriteRenderer>();
+            outline.sprite = lineSprite;
+            outline.color = themeColour;
+            outline.sortingOrder = -4;
 
             BuildPortals();
-            BuildStars(centreX, centreZ);
+            BuildStars(centre);
         }
 
+        /// <summary>A glowing bar on each side of the tunnel row, where actors leave and re-enter the board.</summary>
         private void BuildPortals()
         {
-            portalMaterial = PacmanMaterials.Neon(new Color(0.9f, 0.3f, 1f), 3f);
-            float z = -PacmanMaze.TunnelRow;
+            portals = new SpriteRenderer[2];
+            float y = -PacmanMaze.TunnelRow;
             for (int side = 0; side < 2; side++)
             {
                 float x = side == 0 ? -0.62f : PacmanMaze.Width - 1 + 0.62f;
-                GameObject post = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                post.name = "Portal";
+                GameObject post = new GameObject("Portal");
                 post.transform.SetParent(transform, false);
-                post.transform.position = new Vector3(x, 0.2f, z);
-                post.transform.localScale = new Vector3(0.08f, 0.4f, 1.0f);
-                Destroy(post.GetComponent<Collider>());
-                post.GetComponent<Renderer>().sharedMaterial = portalMaterial;
+                post.transform.position = new Vector3(x, y, 0f);
+                post.transform.localScale = new Vector3(0.08f, 1f, 1f);
+                SpriteRenderer renderer = post.AddComponent<SpriteRenderer>();
+                renderer.sprite = PacmanSprites.Square;
+                renderer.color = PortalColour;
+                renderer.sortingOrder = 2;
+                portals[side] = renderer;
             }
         }
 
-        private void BuildStars(float centreX, float centreZ)
+        private void BuildStars(Vector3 centre)
         {
             GameObject host = new GameObject("Stars");
             host.transform.SetParent(transform, false);
-            host.transform.position = new Vector3(centreX, -2f, centreZ);
-            host.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            // Behind the board plane, so the sprites always draw over the particles.
+            host.transform.position = centre + new Vector3(0f, 0f, 1f);
 
             ParticleSystem system = host.AddComponent<ParticleSystem>();
             system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -137,14 +139,14 @@ namespace Studio.Pacman
             main.maxParticles = 220;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.prewarm = true;
-            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.35f, 0.55f, 2.2f), new Color(2f, 0.5f, 1.4f));
+            main.startColor = new ParticleSystem.MinMaxGradient(new Color(0.35f, 0.55f, 1f), new Color(1f, 0.5f, 0.8f));
 
             var emission = system.emission;
             emission.rateOverTime = 14f;
 
             var shape = system.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
-            shape.scale = new Vector3(44f, 30f, 0.1f);
+            shape.scale = new Vector3(60f, 40f, 0.1f);
 
             var size = system.sizeOverLifetime;
             size.enabled = true;
@@ -156,6 +158,7 @@ namespace Studio.Pacman
             renderer.sharedMaterial = PacmanMaterials.Particle();
             renderer.renderMode = ParticleSystemRenderMode.Billboard;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.sortingOrder = -20;
             system.Play();
         }
 
@@ -169,46 +172,22 @@ namespace Studio.Pacman
             }
             currentColour = Color.Lerp(currentColour, target, 1f - Mathf.Exp(-Time.deltaTime / Mathf.Max(0.01f, colourBlend)));
             float pulse = 1f + breathe * Mathf.Sin(Time.time * (alert ? 9f : 1.6f));
-            if (trimMaterial != null)
+            if (outline != null)
             {
-                PacmanMaterials.SetColour(trimMaterial, currentColour * 0.1f);
-                PacmanMaterials.SetEmission(trimMaterial, currentColour * trimIntensity * pulse);
+                Color c = currentColour * pulse;
+                c.a = 1f;
+                outline.color = c;
             }
-            if (portalMaterial != null)
+            if (portals != null)
             {
                 float flicker = 0.8f + 0.2f * Mathf.Sin(Time.time * 5f);
-                PacmanMaterials.SetEmission(portalMaterial, new Color(0.9f, 0.3f, 1f) * 3f * flicker);
-            }
-        }
-
-        /// <summary>Tile-sized grid cell: dark navy with a faint line on two edges and a soft glow in the middle.</summary>
-        private static Texture2D MakeGridTexture()
-        {
-            const int n = 64;
-            Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, true)
-            {
-                wrapMode = TextureWrapMode.Repeat,
-                filterMode = FilterMode.Bilinear,
-                anisoLevel = 4,
-                name = "PacmanGrid",
-            };
-            Color baseColour = new Color(0.012f, 0.016f, 0.05f);
-            Color line = new Color(0.05f, 0.09f, 0.22f);
-            for (int y = 0; y < n; y++)
-            {
-                for (int x = 0; x < n; x++)
+                Color c = PortalColour * flicker;
+                c.a = 1f;
+                foreach (SpriteRenderer portal in portals)
                 {
-                    float dx = (x - n * 0.5f) / (n * 0.5f);
-                    float dy = (y - n * 0.5f) / (n * 0.5f);
-                    float glow = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy)) * 0.025f;
-                    bool onLine = x < 2 || y < 2;
-                    Color c = onLine ? line : baseColour + new Color(glow * 0.4f, glow * 0.6f, glow, 0f);
-                    c.a = 1f;
-                    texture.SetPixel(x, y, c);
+                    portal.color = c;
                 }
             }
-            texture.Apply(true);
-            return texture;
         }
     }
 }

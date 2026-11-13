@@ -17,7 +17,6 @@ namespace Studio.Pacman
         public static readonly Vector2Int HouseCentre = PacmanMaze.HouseCentre;
         public static readonly Vector2Int HouseExit = PacmanMaze.HouseExit;
 
-        [SerializeField] private Transform model;
 
         private PacmanGame game;
         private GhostKind kind;
@@ -37,12 +36,11 @@ namespace Studio.Pacman
         /// <summary>True while the ghost is blue and edible, including ghosts still inside the house.</summary>
         public bool IsScared => Mode == GhostMode.Frightened || (Mode == GhostMode.Exiting && scaredInHouse);
 
-        public void Init(PacmanGame owner, GhostKind ghostKind, Vector2Int corner, Transform ghostModel)
+        public void Init(PacmanGame owner, GhostKind ghostKind, Vector2Int corner)
         {
             game = owner;
             kind = ghostKind;
             scatterCorner = corner;
-            model = ghostModel;
             Mode = GhostMode.Scatter;
         }
 
@@ -101,13 +99,11 @@ namespace Studio.Pacman
             scaredInHouse = false;
             droppingIn = false;
             Place(start);
-            FaceDirection(model);
         }
 
         public void Tick(float tiles)
         {
             Advance(tiles);
-            FaceDirection(model);
         }
 
         protected override void OnTileReached(Vector2Int tile)
@@ -148,6 +144,12 @@ namespace Studio.Pacman
                 // Only ghosts that are leaving the house, or eyes going home, may use the gate.
                 bool mayEnterHouse = Mode == GhostMode.Eaten || Mode == GhostMode.Exiting;
                 if (!mayEnterHouse && PacmanMaze.IsGhostHouse(next))
+                {
+                    continue;
+                }
+                // Chasing and scattering ghosts may not turn up at the four classic no-up junctions.
+                if (d == PacmanMaze.Up && (Mode == GhostMode.Scatter || Mode == GhostMode.Chase)
+                    && PacmanMaze.IsNoUpTile(tile))
                 {
                     continue;
                 }

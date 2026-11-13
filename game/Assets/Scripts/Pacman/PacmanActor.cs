@@ -99,22 +99,15 @@ namespace Studio.Pacman
                 : Vector3.Lerp(from, PacmanMaze.ToWorld(Tile + Dir), Progress);
         }
 
-        [Tooltip("Extra yaw (degrees) that makes the imported model's front face its movement direction.")]
-        [SerializeField] private float modelYawOffset = 180f;
-
-        /// <summary>Extra yaw in degrees so the model's front faces its movement direction.</summary>
-        protected virtual float ModelYawOffset => modelYawOffset;
-
-        /// <summary>Turn the model so its front points along the current direction.</summary>
+        /// <summary>Rotates a 2D sprite whose front points along +X so that it faces the current direction.</summary>
         protected void FaceDirection(Transform model)
         {
             if (model == null || Dir == Vector2Int.zero)
             {
                 return;
             }
-            Vector3 forward = new Vector3(Dir.x, 0f, -Dir.y);
-            float yaw = Mathf.Atan2(forward.z, forward.x) * Mathf.Rad2Deg;
-            model.localRotation = Quaternion.Euler(0f, -yaw + ModelYawOffset, 0f);
+            float angle = Mathf.Atan2(-Dir.y, Dir.x) * Mathf.Rad2Deg;
+            model.localRotation = Quaternion.Euler(0f, 0f, angle);
         }
     }
 }
