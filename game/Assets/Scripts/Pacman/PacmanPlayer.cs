@@ -124,7 +124,8 @@ namespace Studio.Pacman
 
             if (Dir != Vector2Int.zero)
             {
-                phase += Time.deltaTime * chompRate * 2f * Mathf.PI;
+                // Keep cycling: the mouth opens and closes once per chompRate cycle while moving.
+                phase = Mathf.Repeat(phase + Time.deltaTime * chompRate * 2f * Mathf.PI, 2f * Mathf.PI);
                 float open = 0.5f + 0.5f * Mathf.Sin(phase);
                 SetMouth(Mathf.Lerp(MinMouth, MaxMouth, open * open));
             }
@@ -132,12 +133,6 @@ namespace Studio.Pacman
             {
                 phase = 0f;
                 SetMouth(Mathf.Lerp(MinMouth, 0.3f, 0.5f));
-            }
-
-            if (phase > Mathf.PI * 0.5f && Dir != Vector2Int.zero)
-            {
-                // Mouth wide open after gobbling: stay open until the phase drifts back.
-                phase = Mathf.Min(phase, Mathf.PI * 0.5f + 0.001f);
             }
         }
 

@@ -895,8 +895,13 @@ namespace Studio.Pacman
             cam.orthographicSize = 11f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = Color.black;
-            cam.transform.position = new Vector3(PacmanMaze.Width * 0.5f - 0.5f, 30f, -(PacmanMaze.Height * 0.5f - 0.5f));
-            cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            // Tilted, not straight down: from above the ghosts are just round domes, so the skirt and eyes show only at an angle.
+            const float tilt = 52f;
+            const float distance = 30f;
+            Vector3 target = new Vector3(PacmanMaze.Width * 0.5f - 0.5f, 0f, -(PacmanMaze.Height * 0.5f - 0.5f));
+            float radians = tilt * Mathf.Deg2Rad;
+            cam.transform.position = target + new Vector3(0f, Mathf.Sin(radians) * distance, -Mathf.Cos(radians) * distance);
+            cam.transform.rotation = Quaternion.Euler(tilt, 0f, 0f);
         }
 
         private static Material MakeMaterial(Color colour)

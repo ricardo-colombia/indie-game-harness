@@ -4,12 +4,14 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// Builds the whole maze wall as one mesh, like the arcade walls: outer corners are rounded and
-    /// inner corners get a filleted join. Cosmetic only; collision still uses the tile grid.
+    /// Builds the maze walls as one mesh of rounded blocks: each tile has rounded plan corners and
+    /// bevelled top edges, so the walls read as soft tubes rather than flat cubes. Cosmetic only;
+    /// collision still uses the tile grid.
     /// </summary>
     public static class PacmanWallMesh
     {
         private const float Height = 1f;
+        private const float Bevel = 0.2f;
         private const int ArcSegments = 6;
 
         /// <summary>Corner offsets in tile units, walked in order around each tile.</summary>
@@ -31,8 +33,7 @@ namespace Studio.Pacman
             {
                 Vector3 centre = PacmanMaze.ToWorld(tile);
                 centre.y = 0f;
-                AddPlate(tile, centre, radius, vertices, normals, triangles);
-                AddFillets(tile, centre, radius, vertices, normals, triangles);
+                AddBlock(tile, centre, radius, vertices, normals, triangles);
             }
 
             Mesh mesh = new Mesh { name = "PacmanWalls", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
@@ -44,10 +45,46 @@ namespace Studio.Pacman
         }
 
         /// <summary>
-        /// The tile's top and sides. A corner is rounded only when both neighbours beside it are open,
-        /// so walls that join up stay flush.
+        /// One tile as a rounded block. A plan corner is rounded only when both neighbours beside it are
+        /// open, so walls that join up stay flush. The top edge is bevelled all the way round.
         /// </summary>
-        private static void AddPlate(Vector2Int tile, Vector3 centre, float r, List<Vector3> v, List<Vector3> n, List<int> t)
+        private static void AddBlock(Vector2Int tile, Vector3 centre, float r, List<Vector3> v, List<Vector3> n, List<int> t)
+        {
+            var outline = BuildOutline(tile, r);
+            float shrink = 1f - Bevel / 0.5f;
+            float sideTop = Height - Bevel;
+            Vector3 up = Vector3.up;
+            Vector3 topCentre = centre + up * Height;
+
+            for (int i = 0; i < outline.Count; i++)
+            {
+                Vector2 a = outline[i];
+                Vector2 b = outline[(i + 1) % outline.Count];
+                Vector3 side = new Vector3((a.x + b.x) * 0.5f, 0f, -(a.y + b.y) * 0.5f).normalized;
+                Vector3 bevelNormal = (side + up).normalized;
+
+                Vector3 a0 = Point(centre, a, 0f);
+                Vector3 b0 = Point(centre, b, 0f);
+                Vector3 aSide = Point(centre, a, sideTop);
+                Vector3 bSide = Point(centre, b, sideTop);
+                Vector3 aTop = Point(centre, a * shrink, Height);
+                Vector3 bTop = Point(centre, b * shrink, Height);
+
+                // Vertical side from the ground up to the bevel.
+                AddTri(a0, b0, bSide, side, v, n, t);
+                AddTri(a0, bSide, aSide, side, v, n, t);
+
+                // Bevel from the side to the flat top.
+                AddTri(aSide, bSide, bTop, bevelNormal, v, n, t);
+                AddTri(aSide, bTop, aTop, bevelNormal, v, n, t);
+
+                // Flat top, fanned from the centre.
+                AddTri(topCentre, aTop, bTop, up, v, n, t);
+            }
+        }
+
+        /// <summary>Plan outline in tile units, rounded at corners that have no wall beside them.</summary>
+        private static List<Vector2> BuildOutline(Vector2Int tile, float r)
         {
             var outline = new List<Vector2>();
             foreach (Vector2Int corner in Corners)
@@ -74,77 +111,13 @@ namespace Studio.Pacman
                     outline.Add(arcCentre + r * new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
                 }
             }
-
-            Vector3 up = Vector3.up;
-            for (int i = 0; i < outline.Count; i++)
-            {
-                Vector2 a = outline[i];
-                Vector2 b = outline[(i + 1) % outline.Count];
-                Vector3 a0 = centre + new Vector3(a.x, 0f, -a.y);
-                Vector3 b0 = centre + new Vector3(b.x, 0f, -b.y);
-                Vector3 a1 = a0 + Vector3.up * Height;
-                Vector3 b1 = b0 + Vector3.up * Height;
-
-                AddTri(centre + Vector3.up * Height, a1, b1, up, v, n, t);
-
-                // Outward side normal: the outline surrounds the tile centre.
-                Vector3 side = new Vector3((a.x + b.x) * 0.5f, 0f, -(a.y + b.y) * 0.5f).normalized;
-                AddTri(a0, b0, b1, side, v, n, t);
-                AddTri(a0, b1, a1, side, v, n, t);
-            }
+            return outline;
         }
 
-        /// <summary>
-        /// Where two walls meet at a corner with an open diagonal, fill the concave gap with a fillet
-        /// so the join curves the way the original walls do.
-        /// </summary>
-        private static void AddFillets(Vector2Int tile, Vector3 centre, float r, List<Vector3> v, List<Vector3> n, List<int> t)
+        /// <summary>Maps a plan point in tile units to world space at a height. Tile y grows toward -z.</summary>
+        private static Vector3 Point(Vector3 centre, Vector2 plan, float y)
         {
-            foreach (Vector2Int corner in Corners)
-            {
-                int dx = corner.x;
-                int dy = corner.y;
-                bool bothSides = PacmanMaze.IsWall(tile + new Vector2Int(dx, 0))
-                    && PacmanMaze.IsWall(tile + new Vector2Int(0, dy));
-                if (!bothSides || PacmanMaze.IsWall(tile + new Vector2Int(dx, dy)))
-                {
-                    continue;
-                }
-
-                // Region = square at the corner minus a disc centred on M. It is star-shaped from C.
-                Vector2 c = new Vector2(dx * 0.5f, dy * 0.5f);
-                Vector2 m = c + new Vector2(dx * r, dy * r);
-                Vector2 pointA = c + new Vector2(dx * r, 0f);
-
-                float a0 = Mathf.Atan2(-dy, 0f) * Mathf.Rad2Deg;
-                float a1 = Mathf.Atan2(0f, -dx) * Mathf.Rad2Deg;
-                float sweep = Mathf.DeltaAngle(a0, a1) * Mathf.Deg2Rad;
-                float start = a0 * Mathf.Deg2Rad;
-
-                var arc = new List<Vector2>();
-                for (int i = 0; i <= ArcSegments; i++)
-                {
-                    float a = start + sweep * i / ArcSegments;
-                    arc.Add(m + r * new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
-                }
-
-                Vector3 up = Vector3.up;
-                Vector3 cw = centre + new Vector3(c.x, 0f, -c.y);
-                for (int i = 0; i < arc.Count - 1; i++)
-                {
-                    Vector3 p = centre + new Vector3(arc[i].x, 0f, -arc[i].y);
-                    Vector3 q = centre + new Vector3(arc[i + 1].x, 0f, -arc[i + 1].y);
-                    AddTri(cw + Vector3.up * Height, p + Vector3.up * Height, q + Vector3.up * Height, up, v, n, t);
-
-                    // The arc is the only exposed side; the straight edges touch walls.
-                    Vector2 mid = (arc[i] + arc[i + 1]) * 0.5f;
-                    Vector3 side = new Vector3(m.x - mid.x, 0f, -(m.y - mid.y)).normalized;
-                    Vector3 p1 = p + Vector3.up * Height;
-                    Vector3 q1 = q + Vector3.up * Height;
-                    AddTri(p, q, q1, side, v, n, t);
-                    AddTri(p, q1, p1, side, v, n, t);
-                }
-            }
+            return centre + new Vector3(plan.x, y, -plan.y);
         }
 
         /// <summary>
