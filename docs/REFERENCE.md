@@ -2,7 +2,7 @@
 
 How the harness works under the hood. For day-to-day use, see the [README](../README.md).
 
-A template for making small games with an AI team, built on Claude Code, Unity 6, Funplay MCP, Magnific, Tripo and Blender.
+A template for making small games with an AI team, built on Claude Code, Unity 6 (driven through the Unity CLI), Magnific, Tripo and Blender.
 **You are the creative director.** Agents write code, build, playtest, generate assets and cut marketing clips. Every call about how the game feels, how it looks or what's fun stays with you, enforced by `taste_review` cards, `pick` stages and `approved` flags.
 
 ```
@@ -25,7 +25,7 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
 | `.claude/agents/` | producer, gameplay-engineer, qa-playtester, code-reviewer (haiku), tech-artist, marketing-producer (haiku), build-release (haiku) |
 | `.claude/skills/` | new-game, write-card, run-card, playtest, art-asset, capture-shorts, steam-page, steam-release, taste-review |
 | `.claude/settings.json` + `harness/hooks/` | permissions (paid/irreversible actions require approval), C# guard hook |
-| `.mcp.json` | Funplay (Unity editor, HTTP :8765) and Blender MCP |
+| `.mcp.json` | empty by default; the editor is driven with `unity command`, no MCP needed |
 | `.claude-plugin/` | lets other game repos install the agents and skills as a plugin |
 | `harness/hx.py` | single CLI: `verify build test autotest capture card cards run report cost` |
 | `harness/runner.py` | the on-demand card runner |
@@ -68,12 +68,11 @@ The only requirement on a game is that it uses the Input System package, which i
 ## Validate the harness at $0: `hx selftest`
 | Level | Cost | What it proves |
 |---|---|---|
-| `hx selftest` | $0, no AI | 29 checks: runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, Blender cleanup (if installed), all config/agent/skill/plugin files |
-| `--mcp` | $0, no model call | Funplay answers MCP `tools/list` on :8765, the Blender addon socket on :9876 responds, `claude mcp list` health |
+| `hx selftest` | $0, no AI | 31 checks: runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, Blender cleanup (if installed), all config/agent/skill/plugin files |
 | `--unity` | $0 | temp sample project → package compiles → headless build → EditMode + PlayMode → autotest (input → movement → metrics → thresholds) → camera capture frames |
-| `--live` | plan quota only, **Haiku forced**, $0.05 caps | headless call on your login, project skills load, one real card through the runner, an agent reading Unity's version through Funplay |
+| `--live` | plan quota only, **Haiku forced**, $0.05 caps | headless call on your login, project skills load, one real card through the runner |
 
-Run it after bootstrap and after changing the harness. Everything runs in temp copies, so your checkout isn't touched.
+Run it after setup and after changing the harness. Everything runs in temp copies, so your checkout isn't touched.
 
 ## Trust model (what stops an unattended agent from grading its own work)
 The gates run code the agent wrote (Editor scripts during the build, tests, the player), so they are treated as hostile:
@@ -91,10 +90,9 @@ The gates run code the agent wrote (Editor scripts during the build, tests, the 
 - **Real isolation is still yours to switch on:** in-process checks can't stop deliberate, obfuscated code. Set
   `runner.sandbox.prefix` (a separate OS user, firejail, a container) so gate processes can't reach your home, credentials
   or main checkout. Secrets in `sandbox.scrub_env` are always removed from gate processes.
-- **Interactive sessions:** Funplay `execute_code`/`evaluate_expression`/`execute_menu_item` and Blender `execute_blender_code`
-  ask first; `hx run`, `hx merge`, `hx card ready` and `hx release --to-steam` ask, and refuse inside an agent session.
-  MCP servers are pinned (Funplay `#v0.7.6`, `blender-mcp@2.0.0`); bump them on purpose. Funplay listens on
-  `127.0.0.1:8765` without auth: stop its server when you're not using it.
+- **Interactive sessions:** `unity command script eval` (arbitrary C# in your editor) asks first; `hx setup`, `hx run`, `hx merge`,
+  `hx card ready` and `hx release --to-steam` ask, and `run`/`merge`/`card ready` refuse inside an agent session. The Pipeline
+  server listens on localhost only. No MCP server is configured by default (`.mcp.json` is empty).
 
 ## Keeping quota/cost down
 - Model by card `difficulty`: haiku for trivial cards and the review gate, sonnet by default, opus only for `hard` cards. `force_model` / `HX_FORCE_MODEL=haiku` pins everything to the cheapest model.

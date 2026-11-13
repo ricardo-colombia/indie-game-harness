@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Run the harness selftests on macOS/Linux. Money: $0 at every level.
 #   bash scripts/selftest.sh            # offline only (no AI, no Unity)
-#   bash scripts/selftest.sh mcp        # + MCP probes (open Unity/Blender with their MCP add-ons first)
 #   bash scripts/selftest.sh unity      # + Unity pipeline (editor found via the Unity CLI)
 #   bash scripts/selftest.sh live       # + real Claude on your PLAN quota, Haiku forced
 #   bash scripts/selftest.sh all
@@ -17,7 +16,7 @@ python -m pip install -q -r harness/requirements.txt
 
 ARGS=()
 case "${1:-}" in
-  mcp) ARGS=(--mcp) ;; unity) ARGS=(--unity) ;; live) ARGS=(--live) ;; all) ARGS=(--all) ;;
+  unity) ARGS=(--unity) ;; live) ARGS=(--live) ;; all) ARGS=(--all) ;;
   "") ;; *) echo "unknown level: $1"; exit 2 ;;
 esac
 

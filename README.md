@@ -3,12 +3,12 @@
 A template for making small Unity 6 games with an AI team in Claude Code.
 **You are the creative director:** agents write code, build, test, make assets and cut clips on demand; you decide what's fun and what ships.
 
-## 1. Set up (once per game)
-1. Create a repo from this template, then run `bash scripts/bootstrap.sh "My Game"` and follow its printout.
-2. Install the [Unity CLI](https://unity.com/install.sh) and a Unity 6 editor (`unity install lts`), plus `ffmpeg`, Blender, `uv` (and `xvfb` on headless Linux). The editor and Blender are found automatically. Log in to Claude Code with your plan: `claude` → `/login`.
-3. Turn off extra usage on your Claude account, then set `runner.plan_overage_disabled: true` in `harness/config.yaml`.
-4. Check everything works: `python harness/hx.py selftest --all` ([details](TESTING.md)).
-5. In Claude Code: *"use the new-game skill"* → pillars interview, style guide, first cards.
+## 1. Start
+1. Create a repo from this template and open the folder in Claude Code (the Code tab in Claude Desktop, or `claude` in a terminal).
+2. Tell it what game you want. Claude runs `hx doctor` and `hx setup` (Unity project, packages, config), interviews you for the pillars and style, and writes the first cards.
+
+By hand: `python3 harness/hx.py setup "My Game"`. Setup can't do these for you: install the Unity CLI (it prints the command), sign in to Unity and Claude (`/login`), and download the editor if you have none (several GB, it asks first). Optional: `ffmpeg` (shorts), Blender (art).
+Before your first `hx run`: turn off extra usage on your Claude account and set `runner.plan_overage_disabled: true` in `harness/config.yaml`.
 
 ## 2. Daily loop
 | When | You do | Command / skill |
@@ -26,6 +26,7 @@ Cards move `inbox → ready → done` (merged), `review` (needs you) or `failed`
 
 | Command | What |
 |---|---|
+| `hx setup ["Name"]` · `hx doctor` | one-time setup, check requirements |
 | `hx cards` · `hx card new "Title"` · `hx card ready <id>` | list, create, approve cards |
 | `hx run [--budget 10] [--dry-run]` | work through ready cards, on demand; $0 (plan quota) by default |
 | `hx merge <id>` | re-check a reviewed card on current main and merge it |

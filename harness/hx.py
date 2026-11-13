@@ -8,7 +8,9 @@
   hx release [--to-steam]            release build (no HARNESS) + scan for harness code; --to-steam stages it
   hx run [--budget 0] [--dry-run]    card runner, on demand ($0 = plan quota only)       (director only)
   hx merge C-0007 [--trusted]        re-gate a review/ card on current main, then merge   (director only)
-  hx selftest [--mcp --unity --live --all]   validate the harness at $0
+  hx setup ["Game Name"] [--yes]     one-time setup: deps, Unity project in game/, packages, config, git
+  hx doctor                          check what the harness needs
+  hx selftest [--unity --live --all] validate the harness at $0
   hx report                          latest report per card + spend
   hx cost [--days 7]
 """
@@ -22,6 +24,9 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+if sys.argv[1:2] in (['setup'], ['doctor']):  # stdlib only: must work before dependencies are installed
+    raise SystemExit(subprocess.call([sys.executable, str(Path(__file__).parent / 'setup.py'), *sys.argv[1:]]))
 
 sys.path.insert(0, str(Path(__file__).parent))
 import unity  # noqa: E402
