@@ -126,9 +126,18 @@ def run(cmd, cwd=None, env=None, unset=(), timeout=600, stdin=None):
 
 def clone_repo(tmp: Path) -> Path:
     dst = tmp / "repo"
-    shutil.copytree(REPO, dst, ignore=shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
-                                                             "__pycache__", "reports", "ledger.jsonl", ".venv",
-                                                             "selftest-results.txt"))
+    skip = shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
+                                  "__pycache__", "reports", "ledger.jsonl", ".venv", "selftest-results.txt")
+
+    def ignore(folder, names):
+        ignored = set(skip(folder, names))
+        # The game's own Unity project is not part of the harness template under test: the setup tests start
+        # from a repo without one, and its LFS files cannot be checked out into a scratch repo.
+        if Path(folder) == Path(REPO):
+            ignored.add("game")
+        return ignored
+
+    shutil.copytree(REPO, dst, ignore=ignore)
     for c in (["git", "init", "-q", "-b", "main"], ["git", "config", "user.name", "selftest"],
               ["git", "config", "user.email", "selftest@local"], ["git", "add", "-A"], ["git", "commit", "-qm", "init"]):
         run(c, cwd=dst)
