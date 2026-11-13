@@ -2,11 +2,10 @@
 
   hx selftest            offline: runner logic (fake Claude), billing/quota rules, gates, hook, queue,
                          shorts cutting (ffmpeg), art pipeline modes, config/agent/skill/plugin files
-  hx selftest --mcp      free probes: Funplay HTTP MCP (tools/list), Blender MCP addon socket, `claude mcp list`
   hx selftest --unity    free, finds the editor via the Unity CLI: temp sample project -> build, EditMode, PlayMode,
                          autotest (input->metrics->thresholds), camera capture -> short
   hx selftest --live     real Claude on PLAN QUOTA ONLY, Haiku forced, tiny caps: headless call, project
-                         skills load, one real card through the runner, an agent calling Funplay
+                         skills load, one real card through the runner
   hx selftest --all
 Everything runs in temp copies of the repo; your checkout is never modified.
 """
@@ -34,6 +33,24 @@ STEP_ACTIONS = {"press", "set", "replay", "wait", "screenshot", "send", "mark"} 
 NO_KEY = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
 from core import find_blender, find_unity  # noqa: E402
 BLENDER = find_blender()
+
+FAKE_UNITY = r'''#!/usr/bin/env python3
+import json, os, sys
+from pathlib import Path
+a = sys.argv[1:]
+open(os.environ["FAKE_UNITY_LOG"], "a").write(" ".join(a) + "\n")
+if a[:2] == ["editors", "--installed"]:
+    items = [] if os.environ.get("FAKE_UNITY_NO_EDITOR") else [{"version": "6000.3.1f1"}, {"version": "2022.3.1f1"}]
+    print(json.dumps({"success": True, "data": {"items": items}}))
+elif a[:2] == ["projects", "create"]:
+    p = Path(a[a.index("--path") + 1]) / a[2]
+    (p / "ProjectSettings").mkdir(parents=True); (p / "Packages").mkdir()
+    (p / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 6000.3.1f1\n")
+    (p / "Packages/manifest.json").write_text('{"dependencies": {}}')
+elif a[:2] == ["pipeline", "install"]:
+    f = Path(a[a.index("--project-path") + 1]) / "Packages/manifest.json"
+    m = json.loads(f.read_text()); m["dependencies"]["com.unity.pipeline"] = "0.9.0"; f.write_text(json.dumps(m))
+'''
 
 FAKE_CLAUDE = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
@@ -445,6 +462,43 @@ class Offline(unittest.TestCase):
         self.assertAlmostEqual(stats["size_m_xyz_blender"][2], 2.0, places=2)
         self.assertEqual(stats["parts"], 2)
 
+    def _fake_unity(self, **env):
+        shim = self.tmp / "unitybin"
+        shim.mkdir(exist_ok=True)
+        (shim / "fake_unity.py").write_text(FAKE_UNITY)
+        (shim / "unity").write_text(f'#!/bin/sh\nexec "{PY}" "$(dirname "$0")/fake_unity.py" "$@"\n')
+        (shim / "unity").chmod(0o755)
+        return {"PATH": f"{shim}{os.pathsep}{os.environ['PATH']}", "FAKE_UNITY_LOG": str(self.tmp / "unity.log"), **env}
+
+    @unittest.skipIf(os.name == "nt", "the fake unity shim is a shell script")
+    def test_setup_creates_project_wires_packages_and_is_idempotent(self):
+        env = self._fake_unity()
+        r = run([PY, "harness/hx.py", "setup", "My Game", "--yes"], cwd=self.repo, env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        m = json.loads((self.repo / "game/Packages/manifest.json").read_text())
+        for pkg in ("com.studio.harness", "com.unity.pipeline"):
+            self.assertIn(pkg, m["dependencies"])
+        self.assertIn("com.studio.harness", m["testables"])
+        cfg = (self.repo / "harness/config.yaml").read_text()
+        self.assertIn("name: My Game", cfg)
+        self.assertIn("Builds/Player/MyGame.exe", cfg)
+        log = (self.tmp / "unity.log").read_text()
+        self.assertIn("--editor-version 6000.3.1f1", log)   # newest installed Unity 6, not a new download
+        self.assertNotIn("--install-editor", log)
+        self.assertIn("--no-cloud", log)
+        self.assertEqual(run([PY, "harness/hx.py", "doctor"], cwd=self.repo, env=env).returncode, 0)
+        run([PY, "harness/hx.py", "setup", "--yes"], cwd=self.repo, env=env)
+        self.assertEqual((self.tmp / "unity.log").read_text().count("projects create"), 1)
+
+    @unittest.skipIf(os.name == "nt", "the fake unity shim is a shell script")
+    def test_setup_does_not_download_an_editor_without_consent(self):
+        env = self._fake_unity(FAKE_UNITY_NO_EDITOR="1")
+        r = run([PY, "harness/hx.py", "setup", "My Game"], cwd=self.repo, env=env)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertNotIn("projects create", (self.tmp / "unity.log").read_text())
+        run([PY, "harness/hx.py", "setup", "My Game", "--yes"], cwd=self.repo, env=env)
+        self.assertIn("--install-editor", (self.tmp / "unity.log").read_text())
+
     def test_static_files(self):
         import yaml
         for p in [*REPO.glob("*.json"), *REPO.glob(".claude/*.json"), *REPO.glob(".claude-plugin/*.json"),
@@ -477,42 +531,6 @@ class Offline(unittest.TestCase):
         for f in (REPO / "game").rglob("*.cs") if (REPO / "game").exists() else []:
             self.assertIsNone(re.search(r"^\s*using\s+Harness\b", f.read_text(errors="ignore"), re.M), f)
 
-
-# ------------------------------------------------------------------ mcp (free)
-def mcp_checks() -> list[tuple[str, bool, str]]:
-    res = []
-    try:
-        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
-            "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "hx-selftest", "version": "1"}}}).encode()
-        req = urllib.request.Request("http://127.0.0.1:8765/", body, {"Content-Type": "application/json",
-                                                                       "Accept": "application/json, text/event-stream"})
-        with urllib.request.urlopen(req, timeout=5) as r:
-            sid = r.headers.get("Mcp-Session-Id")
-            r.read()
-        h = {"Content-Type": "application/json", "Accept": "application/json, text/event-stream", **({"Mcp-Session-Id": sid} if sid else {})}
-        for msg in ({"jsonrpc": "2.0", "method": "notifications/initialized"},
-                    {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}):
-            with urllib.request.urlopen(urllib.request.Request("http://127.0.0.1:8765/", json.dumps(msg).encode(), h), timeout=10) as r:
-                last = r.read().decode(errors="replace")
-        n = last.count('"name"')
-        res.append(("funplay MCP (Unity editor :8765)", n > 0, f"~{n} tools listed"))
-    except Exception as e:
-        res.append(("funplay MCP (Unity editor :8765)", False, f"{e} — open Unity, Funplay → MCP Server → Start"))
-    try:
-        with socket.create_connection(("127.0.0.1", 9876), timeout=5) as s:
-            s.sendall(json.dumps({"type": "get_scene_info", "params": {}}).encode())
-            data = s.recv(65536).decode(errors="replace")
-        res.append(("blender MCP addon (:9876)", '"status"' in data, data[:120]))
-    except Exception as e:
-        res.append(("blender MCP addon (:9876)", False, f"{e} — Blender: BlenderMCP panel → Connect"))
-    if shutil.which("uvx"):
-        res.append(("uvx (runs blender-mcp server)", True, shutil.which("uvx")))
-    else:
-        res.append(("uvx (runs blender-mcp server)", False, "install uv"))
-    if shutil.which("claude"):
-        r = run(["claude", "mcp", "list"], cwd=REPO, unset=NO_KEY, timeout=120)
-        res.append(("claude mcp list (no model call)", r.returncode == 0, r.stdout.strip()[-400:] or r.stderr[-300:]))
-    return res
 
 
 # ------------------------------------------------------------------ unity (free)
@@ -594,13 +612,6 @@ def live_checks() -> list[tuple[str, bool, str]]:
         note = "runner refused: turn off extra usage on your account, then set runner.plan_overage_disabled: true"
     res.append(("real card through runner (haiku, $0 money)", merged, note))
 
-    if any(ok for name, ok, _ in mcp_checks() if name.startswith("funplay")):
-        d = call("Use the funplay MCP tools to read the running Unity editor's version (Application.unityVersion). "
-                 "Reply with just the version string.", turns=4,
-                 extra=["--mcp-config", str(REPO / ".mcp.json"), "--strict-mcp-config", "--allowedTools", "mcp__funplay"])
-        res.append(("agent drives Unity via Funplay (haiku)", "6000" in str(d.get("result", "")), str(d.get("result"))[:120]))
-    else:
-        res.append(("agent drives Unity via Funplay", False, "skipped — Funplay not reachable"))
     return res
 
 
@@ -613,14 +624,12 @@ def report(title, rows) -> bool:
 
 def main():
     ap = argparse.ArgumentParser()
-    for f in ("mcp", "unity", "live", "all"):
+    for f in ("unity", "live", "all"):
         ap.add_argument(f"--{f}", action="store_true")
     a = ap.parse_args()
     print("selftest: money $0 on every level" + (f"; live tests force model '{LIVE_MODEL}' on plan quota" if a.live or a.all else ""))
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(Offline)
     ok = unittest.TextTestRunner(verbosity=1).run(suite).wasSuccessful()
-    if a.mcp or a.all:
-        ok &= report("MCP", mcp_checks())
     if a.unity or a.all:
         ok &= report("Unity", unity_checks())
     if a.live or a.all:

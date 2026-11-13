@@ -8,7 +8,7 @@ Each asset in `art/manifest.yaml` moves through `stage`: `concept → pick → m
 2. **pick** (HUMAN): show the images; the director writes `picked: <file>` (and notes). Never pick for them.
 3. **model** (paid): `pipeline.py model <asset>` — Tripo image-to-model with `face_limit`; downloads the GLB immediately (URLs expire in minutes).
 4. **cleanup** (free): `pipeline.py cleanup <asset>` — Blender headless: apply transforms, merge by distance, decimate to budget, scale to `height_m`, origin bottom-center, optional split by loose parts/material, export FBX into the Unity project.
-5. **import**: verify in Unity via Funplay — bounds match `height_m`, materials URP Lit, colliders simple. Screenshot beside a 1.8 m capsule. Director approves → `done`.
+5. **import**: verify in the open editor (`unity command`) — bounds match `height_m`, materials URP Lit, colliders simple. Screenshot beside a 1.8 m capsule. Director approves → `done`.
 
 Textures/material maps: `pipeline.py texture <asset>` uses Magnific for tileable albedo + upscaling; derive normal/roughness in Blender/Unity rather than paying per map unless the manifest says otherwise.
 Costs land in `harness/ledger.jsonl` (`kind: art`). Check `hx cost` before big batches.

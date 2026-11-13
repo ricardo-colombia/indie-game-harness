@@ -1,6 +1,5 @@
 # Run the harness selftests on Windows (PowerShell). Money: $0 at every level.
 #   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1            # offline only
-#   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 mcp        # + MCP probes
 #   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 unity      # + Unity pipeline (editor found via the Unity CLI)
 #   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 live       # + real Claude on PLAN quota, Haiku forced
 #   powershell -ExecutionPolicy Bypass -File scripts\selftest.ps1 all
@@ -15,7 +14,7 @@ $vpy = ".\.venv\Scripts\python.exe"
 & $vpy -m pip install -q --upgrade pip | Out-Null
 & $vpy -m pip install -q -r harness\requirements.txt
 
-$map = @{ "" = @(); "mcp" = @("--mcp"); "unity" = @("--unity"); "live" = @("--live"); "all" = @("--all") }
+$map = @{ "" = @(); "unity" = @("--unity"); "live" = @("--live"); "all" = @("--all") }
 if (-not $map.ContainsKey($Level)) { Write-Host "unknown level: $Level"; exit 2 }
 
 $env:PYTHONIOENCODING = "utf-8"

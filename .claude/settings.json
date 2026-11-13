@@ -20,14 +20,16 @@
       "Bash(git worktree list:*)",
       "Bash(ffmpeg:*)",
       "Bash(ffprobe:*)",
-      "mcp__funplay",
-      "mcp__blender"
+      "Bash(python harness/hx.py doctor)",
+      "Bash(unity status:*)",
+      "Bash(unity open:*)",
+      "Bash(unity command:*)",
+      "Bash(unity editors:*)"
     ],
     "ask": [
-      "mcp__funplay__execute_code",
-      "mcp__funplay__evaluate_expression",
-      "mcp__funplay__execute_menu_item",
-      "mcp__blender__execute_blender_code",
+      "Bash(unity command script eval:*)",
+      "Bash(unity command script eval_file:*)",
+      "Bash(python harness/hx.py setup:*)",
       "Bash(python harness/hx.py run:*)",
       "Bash(python harness/hx.py merge:*)",
       "Bash(python harness/hx.py card ready:*)",
