@@ -1,4 +1,4 @@
-# Studio harness config. One file per game repo. Env vars like ${UNITY_PATH} are expanded.
+# Studio harness config. One file per game repo. Env vars like ${VAR} are expanded.
 game:
   name: MyGame
   unity_project: game                 # Unity project folder, relative to repo root
@@ -6,7 +6,7 @@ game:
   player_binary: Builds/Player/MyGame.exe   # relative to unity_project, produced by the build gate
 
 unity:
-  editor_path: ${UNITY_PATH}          # e.g. /opt/unity/6000.2.6f1/Editor/Unity or C:/Program Files/Unity/Hub/Editor/6000.x/Editor/Unity.exe
+  editor_path: ""                     # empty = found via the Unity CLI (`unity editors path <project version>`); set only to override
   build_timeout_min: 40
   test_timeout_min: 20
   autotest_timeout_min: 10
@@ -96,7 +96,7 @@ art:
     texture: true
     pbr: true
   blender:
-    path: blender
+    path: blender                      # PATH, then /Applications/Blender.app and Program Files are searched
   import_dir: Assets/Art/Models       # inside the Unity project
 
 marketing:

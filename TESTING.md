@@ -8,10 +8,10 @@ Each run also writes **`selftest-results.txt`**. If anything is red, paste that 
 |---|---|---|
 | Python 3.10+ and git | all | python.org / git-scm.com |
 | ffmpeg | offline (shorts test; skipped if missing), unity | `winget install ffmpeg` · `brew install ffmpeg` · `apt install ffmpeg` |
-| Blender 4.x on PATH | offline (cleanup test; skipped if missing) | blender.org |
+| Blender 4.x | offline (cleanup test; skipped if missing) | blender.org |
 | Claude Code, logged in **with your plan** | live, mcp | `npm i -g @anthropic-ai/claude-code`, then `claude` → `/login` |
 | uv (`uvx`) | mcp (Blender MCP server) | docs.astral.sh/uv |
-| Unity 6 + `UNITY_PATH` | unity, live (Funplay check) | Unity Hub; `UNITY_PATH` = path to `Unity.exe` / `Unity.app/Contents/MacOS/Unity` |
+| Unity CLI + Unity 6 editor | unity, live (Funplay check) | `curl -fsSL https://unity.com/install.sh \| bash`, then `unity install lts`; the editor is found automatically |
 | xvfb (headless Linux only) | unity | `apt install xvfb` |
 
 You don't need an API key. Leave `ANTHROPIC_API_KEY` unset, or keep it: the tests strip it from every AI call, so nothing is billed to it.

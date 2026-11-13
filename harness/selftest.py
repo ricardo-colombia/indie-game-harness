@@ -3,7 +3,7 @@
   hx selftest            offline: runner logic (fake Claude), billing/quota rules, gates, hook, queue,
                          shorts cutting (ffmpeg), art pipeline modes, config/agent/skill/plugin files
   hx selftest --mcp      free probes: Funplay HTTP MCP (tools/list), Blender MCP addon socket, `claude mcp list`
-  hx selftest --unity    free, needs UNITY_PATH: temp sample project -> build, EditMode, PlayMode,
+  hx selftest --unity    free, finds the editor via the Unity CLI: temp sample project -> build, EditMode, PlayMode,
                          autotest (input->metrics->thresholds), camera capture -> short
   hx selftest --live     real Claude on PLAN QUOTA ONLY, Haiku forced, tiny caps: headless call, project
                          skills load, one real card through the runner, an agent calling Funplay
@@ -32,6 +32,8 @@ PY = sys.executable
 LIVE_MODEL = "haiku"
 STEP_ACTIONS = {"press", "set", "replay", "wait", "screenshot", "send", "mark"}  # cheapest model; forced for every live test
 NO_KEY = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"]
+from core import find_blender, find_unity  # noqa: E402
+BLENDER = find_blender()
 
 FAKE_CLAUDE = r'''#!/usr/bin/env python3
 import json, os, pathlib, sys
@@ -436,14 +438,14 @@ class Offline(unittest.TestCase):
         r = run([PY, "harness/art/pipeline.py", "texture", "example_vehicle"], cwd=self.repo)
         self.assertIn("CC0", r.stderr + r.stdout)  # $0 default refuses paid texture gen
 
-    @unittest.skipUnless(shutil.which("blender"), "blender not installed")
+    @unittest.skipUnless(BLENDER, "blender not installed")
     def test_blender_cleanup(self):
         src, out = self.tmp / "in.glb", self.tmp / "out.fbx"
-        run(["blender", "-b", "--factory-startup", "--python-expr",
+        run([BLENDER, "-b", "--factory-startup", "--python-expr",
              "import bpy;bpy.ops.wm.read_factory_settings(use_empty=True);bpy.ops.mesh.primitive_uv_sphere_add(segments=64,ring_count=32);"
              "bpy.ops.mesh.primitive_cube_add(location=(3,0,0));"
              f"bpy.ops.export_scene.gltf(filepath=r'{src}')"])
-        r = run(["blender", "-b", "--factory-startup", "-P", str(self.repo / "harness/art/blender_cleanup.py"), "--",
+        r = run([BLENDER, "-b", "--factory-startup", "-P", str(self.repo / "harness/art/blender_cleanup.py"), "--",
                  "--in", str(src), "--out", str(out), "--height", "2", "--faces", "500", "--split", "loose"])
         stats = json.loads(next(l for l in r.stdout.splitlines() if l.startswith("HARNESS_STATS")).split(" ", 1)[1])
         self.assertTrue(out.exists())
@@ -525,9 +527,9 @@ def mcp_checks() -> list[tuple[str, bool, str]]:
 def unity_checks() -> list[tuple[str, bool, str]]:
     from core import load_config
     cfg = load_config()
-    exe = cfg["unity"]["editor_path"]
-    if not exe or "${" in exe:
-        return [("unity", False, "set UNITY_PATH")]
+    exe = find_unity(cfg, REPO / cfg["game"]["unity_project"])
+    if not exe:
+        return [("unity", False, "editor not found: install the Unity CLI + an editor (`unity install lts`), or set unity.editor_path")]
     tmp = Path(tempfile.mkdtemp(prefix="hx-unity-"))
     repo = clone_repo(tmp)
     proj = repo / cfg["game"]["unity_project"]

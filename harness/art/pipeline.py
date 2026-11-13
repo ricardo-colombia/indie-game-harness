@@ -23,7 +23,7 @@ import requests
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core import ROOT, ledger_add, load_config  # noqa: E402
+from core import ROOT, find_blender, ledger_add, load_config  # noqa: E402
 
 MANIFEST = ROOT / "art" / "manifest.yaml"
 STYLE = ROOT / "art" / "style.md"
@@ -203,7 +203,7 @@ def main():
         out = game / cfg["import_dir"] / a.asset / f"{a.asset}.fbx"
         raw = next((base / "models_raw" / f"{a.asset}{x}" for x in (".glb", ".fbx", ".obj")
                     if (base / "models_raw" / f"{a.asset}{x}").exists()), base / "models_raw" / f"{a.asset}.glb")
-        cmd = [cfg["blender"]["path"], "-b", "--factory-startup", "-P", str(Path(__file__).parent / "blender_cleanup.py"), "--",
+        cmd = [find_blender({"art": cfg}) or cfg["blender"]["path"], "-b", "--factory-startup", "-P", str(Path(__file__).parent / "blender_cleanup.py"), "--",
                "--in", str(raw), "--out", str(out), "--name", a.asset,
                "--height", str(A.get("height_m", 1.0)), "--faces", str(A.get("face_limit", 8000)),
                "--split", A.get("split", "none")]
