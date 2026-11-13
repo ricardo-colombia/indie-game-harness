@@ -104,9 +104,22 @@ namespace Studio.Pacman
         private bool extraLifeGiven;
         private readonly PacmanGhostRelease release = new PacmanGhostRelease();
         private int pelletTotal;
+        private PacmanUi ui;
+        private readonly PacmanSwipe swipe = new PacmanSwipe();
+        private int fittedWidth;
+        private int fittedHeight;
+        private float gameOverSince;
 
+#if UNITY_WEBGL
+        // A web page cannot quit, so the title has no Quit row there.
+        private static readonly string[] TitleItems = { "START", "SOUND" };
+#else
         private static readonly string[] TitleItems = { "START", "SOUND", "QUIT" };
+#endif
         private static readonly string[] PauseItems = { "RESUME", "SOUND", "QUIT TO TITLE" };
+
+        /// <summary>True while the player is using a touch screen: the UI shows touch hints and a pause button.</summary>
+        public bool TouchMode { get; private set; }
 
         /// <summary>Sound toggle probe for autotest scenarios.</summary>
         public bool SoundOn => soundOn;
@@ -180,7 +193,9 @@ namespace Studio.Pacman
             PacmanAudio music = new GameObject("Music").AddComponent<PacmanAudio>();
             music.transform.SetParent(transform, false);
             music.Init(this, new PacmanMusic());
-            gameObject.AddComponent<PacmanUi>().Init(this);
+            TouchMode = Application.isMobilePlatform;
+            ui = gameObject.AddComponent<PacmanUi>();
+            ui.Init(this);
             ShowTitle();
         }
 
@@ -236,6 +251,7 @@ namespace Studio.Pacman
 
         private void Update()
         {
+            FitCamera();
             ReadInput();
 
             switch (State)
@@ -262,6 +278,7 @@ namespace Studio.Pacman
                         if (Lives <= 0)
                         {
                             State = PacmanState.GameOver;
+                            gameOverSince = Time.unscaledTime;
                             SaveHighScore();
                             PacmanSfx.Play(audioSource, sfx?.GameOver, soundOn);
                         }
@@ -320,10 +337,17 @@ namespace Studio.Pacman
 
         private void ReadInput()
         {
+            ReadPointer();
+
             Keyboard keyboard = Keyboard.current;
             if (keyboard == null)
             {
                 return;
+            }
+
+            if (keyboard.anyKey.wasPressedThisFrame)
+            {
+                TouchMode = false;
             }
 
             ApplyMenuInput(new MenuInput
@@ -355,7 +379,121 @@ namespace Studio.Pacman
             {
                 player.Request(PacmanMaze.Right);
             }
+        }
 
+        /// <summary>
+        /// Touch and mouse: tap menu rows and the pause button, tap to leave game over, and drag anywhere on
+        /// the screen to steer Pac-Man.
+        /// </summary>
+        private void ReadPointer()
+        {
+            Pointer pointer = Pointer.current;
+            if (pointer == null)
+            {
+                return;
+            }
+
+            Vector2 position = pointer.position.ReadValue();
+            bool pressed = pointer.press.wasPressedThisFrame;
+            if (pressed && pointer is Touchscreen)
+            {
+                TouchMode = true;
+            }
+            swipe.Threshold = Mathf.Max(24f, 0.04f * Mathf.Min(Screen.width, Screen.height));
+
+            // The UI reports positions with y down, like IMGUI.
+            Vector2 gui = new Vector2(position.x, Screen.height - position.y);
+
+            if (State == PacmanState.Title || State == PacmanState.Paused)
+            {
+                if (pressed && ui != null)
+                {
+                    int row = ui.MenuRowAt(gui);
+                    if (row >= 0)
+                    {
+                        menuIndex = row;
+                        ApplyMenuInput(new MenuInput { Confirm = true });
+                    }
+                }
+                return;
+            }
+
+            if (State == PacmanState.GameOver)
+            {
+                if (pressed && Time.unscaledTime - gameOverSince > 0.8f)
+                {
+                    ApplyMenuInput(new MenuInput { Confirm = true });
+                }
+                return;
+            }
+
+            if (State != PacmanState.Playing && State != PacmanState.Ready)
+            {
+                swipe.End();
+                return;
+            }
+
+            if (pressed)
+            {
+                if (ui != null && ui.OnPauseButton(gui))
+                {
+                    swipe.End();
+                    ApplyMenuInput(new MenuInput { Back = true });
+                    return;
+                }
+                swipe.Begin(position);
+            }
+            else if (pointer.press.isPressed)
+            {
+                Vector2Int step = swipe.Move(position);
+                if (step != Vector2Int.zero)
+                {
+                    // Screen y grows upward, maze rows grow downward.
+                    player.Request(new Vector2Int(step.x, -step.y));
+                }
+            }
+            else
+            {
+                if (pointer.press.wasReleasedThisFrame)
+                {
+                    // A quick flick can start and end between two frames; count where the finger ended.
+                    Vector2Int step = swipe.Move(position);
+                    if (step != Vector2Int.zero)
+                    {
+                        player.Request(new Vector2Int(step.x, -step.y));
+                    }
+                }
+                swipe.End();
+            }
+        }
+
+        /// <summary>
+        /// Keeps the whole board in view on any screen shape: tall phones are limited by width, wide
+        /// monitors by height.
+        /// </summary>
+        private void FitCamera()
+        {
+            if (Screen.width == fittedWidth && Screen.height == fittedHeight)
+            {
+                return;
+            }
+            fittedWidth = Screen.width;
+            fittedHeight = Screen.height;
+
+            Camera cam = Camera.main;
+            if (cam == null || Screen.height <= 0)
+            {
+                return;
+            }
+            float aspect = (float)Screen.width / Screen.height;
+            float forHeight = PacmanMaze.Height * 0.5f + 3f;
+            float forWidth = (PacmanMaze.Width * 0.5f + 1.5f) / aspect;
+            float size = Mathf.Max(forHeight, forWidth);
+            cam.orthographicSize = size;
+            if (post != null)
+            {
+                post.SetBaseSize(size);
+            }
         }
 
         /// <summary>
@@ -937,7 +1075,7 @@ namespace Studio.Pacman
                 return;
             }
             cam.orthographic = true;
-            // Fit the whole board (31 rows) plus a margin for the HUD.
+            // Placeholder; FitCamera sizes the view to the actual screen shape on the first frame.
             cam.orthographicSize = PacmanMaze.Height * 0.5f + 3f;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.005f, 0.006f, 0.02f);
