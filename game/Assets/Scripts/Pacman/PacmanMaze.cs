@@ -4,33 +4,59 @@ namespace Studio.Pacman
 {
     /// <summary>
     /// Static maze data and grid helpers.
-    /// Legend: '#' wall, '.' pellet, 'o' power pellet, ' ' empty floor,
-    /// 'P' Pac-Man start, 'G' ghost house start. The row TunnelRow wraps left/right.
+    /// Legend: '#' wall, '.' pellet, 'o' power pellet, ' ' empty floor, '-' ghost house gate,
+    /// 'h' empty ghost house floor, 'G' ghost start inside the house, 'P' Pac-Man start.
+    /// The row TunnelRow wraps left/right. The house is a closed box with one two-tile gate on
+    /// top; only ghosts may use it.
     /// Tile (x, y): x grows to the right, y grows downward (row index).
     /// </summary>
     public static class PacmanMaze
     {
-        public const int TunnelRow = 8;
+        /// <summary>The classic 28 x 31 Pac-Man board, tile for tile (244 pellets, 4 of them power pellets).</summary>
+        public const int TunnelRow = 14;
+
+        /// <summary>Tile above the gate. Ghosts leave the house to here, and eaten ghosts return here first.</summary>
+        public static readonly Vector2Int HouseExit = new Vector2Int(13, 11);
+
+        /// <summary>Middle of the house. Eaten ghosts drop in here and are revived.</summary>
+        public static readonly Vector2Int HouseCentre = new Vector2Int(13, 14);
+
+        /// <summary>Where Blinky starts: outside the house, just above the gate.</summary>
+        public static readonly Vector2Int BlinkyStart = new Vector2Int(13, 11);
 
         public static readonly string[] Rows =
         {
-            "###################",
-            "#o.......#.......o#",
-            "#.###.##.#.##.###.#",
-            "#.#.....#.#.....#.#",
-            "#.#.###.#.#.###.#.#",
-            "#.................#",
-            "###.#.#.###.#.#.###",
-            "#.#...# GGG #...#.#",
-            ".........P.........",
-            "#.#...#     #...#.#",
-            "###.#.#.###.#.#.###",
-            "#.................#",
-            "#.#.###.#.#.###.#.#",
-            "#.#.....#.#.....#.#",
-            "#.###.##.#.##.###.#",
-            "#o.......#.......o#",
-            "###################",
+            "############################",
+            "#............##............#",
+            "#.####.#####.##.#####.####.#",
+            "#o####.#####.##.#####.####o#",
+            "#.####.#####.##.#####.####.#",
+            "#..........................#",
+            "#.####.##.########.##.####.#",
+            "#.####.##.########.##.####.#",
+            "#......##....##....##......#",
+            "######.##### ## #####.######",
+            "######.##### ## #####.######",
+            "######.##          ##.######",
+            "######.## ###--### ##.######",
+            "######.## #hhhhhh# ##.######",
+            "      .   #GhGhGh#   .      ",
+            "######.## #hhhhhh# ##.######",
+            "######.## ######## ##.######",
+            "######.##          ##.######",
+            "######.## ######## ##.######",
+            "######.## ######## ##.######",
+            "#............##............#",
+            "#.####.#####.##.#####.####.#",
+            "#.####.#####.##.#####.####.#",
+            "#o..##.......P .......##..o#",
+            "###.##.##.########.##.##.###",
+            "###.##.##.########.##.##.###",
+            "#......##....##....##......#",
+            "#.##########.##.##########.#",
+            "#.##########.##.##########.#",
+            "#..........................#",
+            "############################"
         };
 
         public static int Width => Rows[0].Length;
@@ -75,7 +101,7 @@ namespace Studio.Pacman
                 return false;
             }
             char c = Rows[t.y][t.x];
-            return c == ' ' || c == 'G';
+            return c == 'h' || c == 'G' || c == '-';
         }
 
         public static Vector3 ToWorld(Vector2Int t)

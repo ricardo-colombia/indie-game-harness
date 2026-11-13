@@ -58,7 +58,6 @@ namespace Studio.Pacman
         [SerializeField] private GameObject ghostModel;
         [SerializeField] private GameObject ghostEyesModel;
 
-        private static readonly Color WallColour = new Color(0.13f, 0.17f, 0.42f);
         private static readonly Color PelletColour = new Color(1f, 0.95f, 0.75f);
         private static readonly Color[] GhostColours =
         {
@@ -87,10 +86,10 @@ namespace Studio.Pacman
         public float PlayTime => playTime;
         private float modeTimer;
         private int modeIndex;
-        private GUIStyle hudStyle;
-        private GUIStyle bigStyle;
-        private GUIStyle menuStyle;
         private Material wallMaterial;
+        private PacmanScenery scenery;
+        private PacmanPost post;
+        private const string HighScoreKey = "studio.pacman.highscore";
         private AudioSource audioSource;
         private PacmanSfx sfx;
         private bool soundOn = true;
@@ -111,6 +110,19 @@ namespace Studio.Pacman
         public bool SoundOn => soundOn;
         /// <summary>Highlighted menu row. Probe for menu tests.</summary>
         public int MenuIndex => menuIndex;
+
+        /// <summary>Menu rows for the screen being shown (title or pause).</summary>
+        public string[] ActiveMenu => State == PacmanState.Title ? TitleItems : PauseItems;
+        /// <summary>Best score so far, kept between runs. Probe for UI tests.</summary>
+        public int HighScore { get; private set; }
+        /// <summary>True once the current run has beaten the saved high score.</summary>
+        public bool NewHighScore { get; private set; }
+        /// <summary>Seconds of frightened time left (0 when not frightened).</summary>
+        public float FrightenedRemaining => frightenedTimer;
+        /// <summary>Length of the frightened time the current level gives.</summary>
+        public float FrightenedDuration => Rule.FrightenedSeconds;
+        /// <summary>Pellets the level started with.</summary>
+        public int PelletTotal => pelletTotal;
 
         public int Score { get; private set; }
         public int Lives { get; private set; }
@@ -147,17 +159,35 @@ namespace Studio.Pacman
 
         private void Awake()
         {
+            HighScore = PlayerPrefs.GetInt(HighScoreKey, 0);
             BuildMaze();
             BuildActors();
             SetupCamera();
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
             sfx = new PacmanSfx();
+
+            PacmanAudio music = new GameObject("Music").AddComponent<PacmanAudio>();
+            music.transform.SetParent(transform, false);
+            music.Init(this, new PacmanMusic());
+            gameObject.AddComponent<PacmanUi>().Init(this);
             ShowTitle();
+        }
+
+        private void SaveHighScore()
+        {
+            PlayerPrefs.SetInt(HighScoreKey, HighScore);
+            PlayerPrefs.Save();
+        }
+
+        private void OnApplicationQuit()
+        {
+            SaveHighScore();
         }
 
         private void ShowTitle()
         {
+            SaveHighScore();
             State = PacmanState.Title;
             menuIndex = 0;
         }
@@ -166,6 +196,7 @@ namespace Studio.Pacman
         public void NewGame()
         {
             Score = 0;
+            NewHighScore = false;
             Lives = startingLives;
             level = 1;
             RestoreLevel();
@@ -219,10 +250,14 @@ namespace Studio.Pacman
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
+                        PacmanVfx.Pop(player.transform.position, new Color(1f, 0.82f, 0.05f), 40);
+                        post?.Shake(0.18f, 0.2f);
                         Lives--;
                         if (Lives <= 0)
                         {
                             State = PacmanState.GameOver;
+                            SaveHighScore();
+                            PacmanSfx.Play(audioSource, sfx?.GameOver, soundOn);
                         }
                         else
                         {
@@ -246,6 +281,18 @@ namespace Studio.Pacman
                         RestoreLevel();
                     }
                     break;
+            }
+
+            if (Score > HighScore)
+            {
+                HighScore = Score;
+                NewHighScore = true;
+            }
+
+            if (scenery != null)
+            {
+                scenery.SetAlert(State == PacmanState.Playing && FrightenedActive);
+                scenery.SetFlash(State == PacmanState.LevelClear);
             }
 
             AnimatePowerPellets();
@@ -313,6 +360,7 @@ namespace Studio.Pacman
                     {
                         State = PacmanState.Paused;
                         menuIndex = 0;
+                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
                     }
                     return;
 
@@ -320,6 +368,7 @@ namespace Studio.Pacman
                     if (input.Back)
                     {
                         State = PacmanState.Playing;
+                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
                         return;
                     }
                     break;
@@ -375,10 +424,8 @@ namespace Studio.Pacman
                     ShowTitle();
                     break;
             }
-            if (item != "SOUND")
-            {
-                PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
-            }
+            bool leaving = item == "RESUME" || item == "QUIT TO TITLE" || item == "QUIT";
+            PacmanSfx.Play(audioSource, leaving ? sfx?.Back : sfx?.Select, soundOn);
         }
 
         private void Simulate(float dt)
@@ -513,13 +560,18 @@ namespace Studio.Pacman
                     continue;
                 }
 
-                if (ghost.Mode == GhostMode.Frightened)
+                if (ghost.IsScared)
                 {
                     int points = ghostPoints << ghostChain;
+                    PacmanSfx.Play(audioSource, sfx?.GhostEatenFor(ghostChain), soundOn);
                     ghostChain++;
                     Score += points;
                     ghost.Eat();
-                    PacmanSfx.Play(audioSource, sfx?.GhostEaten, soundOn);
+                    Color ghostColour = GhostColours[(int)ghost.Kind];
+                    PacmanVfx.Pop(ghost.transform.position, ghostColour, 30);
+                    PacmanUi.Show(ghost.transform.position, points.ToString(), new Color(0.45f, 0.9f, 1f));
+                    post?.Punch(0.7f);
+                    post?.Shake(0.12f, 0.18f);
                 }
                 else if (ghost.Mode != GhostMode.Eaten)
                 {
@@ -527,6 +579,8 @@ namespace Studio.Pacman
                     stateTimer = deathDuration;
                     player.StartDeath(deathDuration);
                     PacmanSfx.Play(audioSource, sfx?.Death, soundOn);
+                    post?.Shake(0.3f, 0.35f);
+                    post?.Punch(0.4f);
                     return;
                 }
             }
@@ -555,6 +609,7 @@ namespace Studio.Pacman
                     }
                 }
                 PacmanSfx.Play(audioSource, sfx?.Power, soundOn);
+                post?.Punch(0.55f);
             }
             else
             {
@@ -585,7 +640,7 @@ namespace Studio.Pacman
             cherryObject.SetActive(true);
             cherryActive = true;
             cherryTimer = cherryDuration;
-            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.CherryAppear, soundOn);
         }
 
         private void HideCherry()
@@ -601,8 +656,9 @@ namespace Studio.Pacman
         private void EatCherry()
         {
             Score += cherryPoints;
-            PacmanVfx.Burst(cherryObject.transform.position, new Color(1f, 0.1f, 0.15f), 14);
-            PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn);
+            PacmanVfx.Pop(cherryObject.transform.position, new Color(1f, 0.15f, 0.2f), 24);
+            PacmanUi.Show(cherryObject.transform.position, cherryPoints.ToString(), new Color(1f, 0.45f, 0.5f));
+            PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn);
             HideCherry();
         }
 
@@ -662,6 +718,7 @@ namespace Studio.Pacman
         {
             foreach (PacmanGhost ghost in ghosts)
             {
+                ghost.CalmInHouse();
                 if (ghost.Mode == GhostMode.Frightened)
                 {
                     ghost.SetMode(ModeFor(ghost));
@@ -689,6 +746,7 @@ namespace Studio.Pacman
             }
 
             pelletTotal = pelletCount;
+            scenery?.SetLevel(level);
             cherrySpawnedThisLevel = false;
             HideCherry();
 
@@ -709,6 +767,7 @@ namespace Studio.Pacman
             playTime = 0f;
             player.CancelDeath();
             player.Place(playerStart);
+            player.ResetFacing();
             player.Request(Vector2Int.zero);
             for (int i = 0; i < ghosts.Count; i++)
             {
@@ -764,8 +823,9 @@ namespace Studio.Pacman
             int height = PacmanMaze.Height;
             pelletObjects = new GameObject[width * height];
             pelletLeft = new bool[width * height];
-            wallMaterial = MakeMaterial(WallColour);
-            Material pelletMaterial = MakeMaterial(PelletColour);
+            wallMaterial = PacmanMaterials.Lit(new Color(0.015f, 0.022f, 0.07f), 0f, 0f, new Color(0.008f, 0.014f, 0.05f));
+            Material pelletMaterial = PacmanMaterials.Lit(PelletColour, 0.7f, 0f, PelletColour * 0.9f);
+            Material powerMaterial = PacmanMaterials.Lit(new Color(1f, 0.85f, 0.45f), 0.8f, 0f, new Color(1f, 0.75f, 0.3f) * 2.4f);
 
             Transform mazeRoot = new GameObject("Maze").transform;
             mazeRoot.SetParent(transform, false);
@@ -795,7 +855,7 @@ namespace Studio.Pacman
                             float size = c == 'o' ? 0.32f : 0.12f;
                             pellet.transform.localScale = Vector3.one * size;
                             Destroy(pellet.GetComponent<Collider>());
-                            pellet.GetComponent<Renderer>().sharedMaterial = pelletMaterial;
+                            pellet.GetComponent<Renderer>().sharedMaterial = c == 'o' ? powerMaterial : pelletMaterial;
                             pelletObjects[index] = pellet;
                             if (c == 'o')
                             {
@@ -809,6 +869,9 @@ namespace Studio.Pacman
                         case 'G':
                             ghostSpawns.Add(tile);
                             break;
+                        case '-':
+                            CreateGate(mazeRoot, tile);
+                            break;
                     }
                 }
             }
@@ -817,13 +880,28 @@ namespace Studio.Pacman
             GameObject wallObject = new GameObject("Walls");
             wallObject.transform.SetParent(mazeRoot, false);
             wallObject.AddComponent<MeshFilter>().sharedMesh = PacmanWallMesh.Build(walls, wallCornerRadius);
-            wallObject.AddComponent<MeshRenderer>().sharedMaterial = wallMaterial;
+            MeshRenderer wallRenderer = wallObject.AddComponent<MeshRenderer>();
+            wallRenderer.sharedMaterial = wallMaterial;
+            wallRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            scenery = PacmanScenery.Build(mazeRoot, PacmanWallMesh.BuildTrim(walls, wallCornerRadius, 0.07f, 0.06f));
 
             cherryObject = BuildCherry(mazeRoot).gameObject;
             cherryObject.SetActive(false);
 
             ghostStarts = ghostSpawns.ToArray();
-            blinkyStart = new Vector2Int(9, 5);
+            blinkyStart = PacmanMaze.BlinkyStart;
+        }
+
+        /// <summary>The pink bar across the ghost house gate. Cosmetic: the maze grid decides who may pass.</summary>
+        private static void CreateGate(Transform parent, Vector2Int tile)
+        {
+            GameObject bar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            bar.name = "Gate";
+            bar.transform.SetParent(parent, false);
+            bar.transform.position = PacmanMaze.ToWorld(tile) + Vector3.up * 0.3f;
+            bar.transform.localScale = new Vector3(1f, 0.08f, 0.16f);
+            Destroy(bar.GetComponent<Collider>());
+            bar.GetComponent<Renderer>().sharedMaterial = PacmanMaterials.Neon(new Color(1f, 0.55f, 0.8f), 2.2f);
         }
 
         private void BuildActors()
@@ -831,7 +909,7 @@ namespace Studio.Pacman
             GameObject playerObject = new GameObject("Pacman");
             playerObject.transform.SetParent(transform, false);
             player = playerObject.AddComponent<PacmanPlayer>();
-            player.Init(this, MakeMaterial(new Color(1f, 0.82f, 0.05f)));
+            player.Init(this, PacmanMaterials.Lit(new Color(1f, 0.82f, 0.05f), 0.65f, 0f, new Color(1f, 0.7f, 0f) * 0.3f));
 
             // Scatter targets sit in the dead space above and below the maze, as in the original
             // (Blinky top-right, Pinky top-left, Inky bottom-right, Clyde bottom-left).
@@ -869,6 +947,7 @@ namespace Studio.Pacman
                 PacmanJuice.Attach(body, PacmanJuice.Kind.Bob, 0.05f, 2f, i * 0.25f);
                 PacmanGhost ghost = ghostObject.AddComponent<PacmanGhost>();
                 ghost.Init(this, kinds[i], corners[i], body);
+                body.GetComponent<PacmanGhostView>()?.Bind(ghost, this);
                 ghosts.Add(ghost);
             }
         }
@@ -880,7 +959,7 @@ namespace Studio.Pacman
             model.transform.SetParent(parent, false);
             model.transform.localScale = Vector3.one * scale;
             Destroy(model.GetComponent<Collider>());
-            model.GetComponent<Renderer>().sharedMaterial = MakeMaterial(colour);
+            model.GetComponent<Renderer>().sharedMaterial = PacmanMaterials.Lit(colour, 0.75f, 0f, colour * 0.35f);
             return model.transform;
         }
 
@@ -892,84 +971,18 @@ namespace Studio.Pacman
                 return;
             }
             cam.orthographic = true;
-            cam.orthographicSize = 11f;
+            // Fit the whole board (31 rows) plus a margin for the HUD.
+            cam.orthographicSize = PacmanMaze.Height * 0.5f + 3f;
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = Color.black;
+            cam.backgroundColor = new Color(0.005f, 0.006f, 0.02f);
             // Straight down, like the rest of the game: walls and floor share one angle.
             cam.transform.position = new Vector3(PacmanMaze.Width * 0.5f - 0.5f, 30f, -(PacmanMaze.Height * 0.5f - 0.5f));
             cam.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        }
-
-        private static Material MakeMaterial(Color colour)
-        {
-            Shader shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            Material material = new Material(shader);
-            material.SetColor("_BaseColor", colour);
-            material.SetColor("_Color", colour);
-            return material;
-        }
-
-        private void OnGUI()
-        {
-            if (hudStyle == null)
-            {
-                hudStyle = new GUIStyle(GUI.skin.label) { fontSize = 22, fontStyle = FontStyle.Bold };
-                bigStyle = new GUIStyle(GUI.skin.label) { fontSize = 40, fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
-                hudStyle.normal.textColor = Color.white;
-                bigStyle.normal.textColor = Color.yellow;
-            }
-
-            if (menuStyle == null)
-            {
-                menuStyle = new GUIStyle(hudStyle) { fontSize = 30, alignment = TextAnchor.MiddleCenter };
-            }
-
-            if (State == PacmanState.Title)
-            {
-                DrawMenu("PAC-MAN", TitleItems);
-                return;
-            }
-
-            GUI.Label(new Rect(16, 12, 300, 36), "SCORE " + Score, hudStyle);
-            GUI.Label(new Rect(Screen.width - 220, 12, 200, 36), "LIVES " + Lives, hudStyle);
-
-            if (State == PacmanState.Paused)
-            {
-                DrawMenu("PAUSED", PauseItems);
-                return;
-            }
-
-            string message = State switch
-            {
-                PacmanState.Ready => "READY!",
-                PacmanState.LevelClear => "LEVEL CLEAR",
-                PacmanState.GameOver => "GAME OVER - ENTER for title",
-                _ => string.Empty,
-            };
-            if (message.Length > 0)
-            {
-                GUI.Label(new Rect(0, Screen.height * 0.5f - 30, Screen.width, 60), message, bigStyle);
-            }
-        }
-
-        private void DrawMenu(string header, string[] items)
-        {
-            // Dark panel behind the menu so the text reads clearly over the maze.
-            Color previous = GUI.color;
-            GUI.color = new Color(0f, 0f, 0f, 0.7f);
-            GUI.DrawTexture(new Rect(Screen.width * 0.25f, Screen.height * 0.24f, Screen.width * 0.5f, Screen.height * 0.5f), Texture2D.whiteTexture);
-            GUI.color = previous;
-
-            GUI.Label(new Rect(0, Screen.height * 0.28f, Screen.width, 60), header, bigStyle);
-            float top = Screen.height * 0.5f;
-            for (int i = 0; i < items.Length; i++)
-            {
-                bool selected = i == menuIndex;
-                string label = items[i] == "SOUND" ? "SOUND: " + (soundOn ? "ON" : "OFF") : items[i];
-                string text = selected ? "> " + label + " <" : label;
-                menuStyle.normal.textColor = selected ? new Color(1f, 0.85f, 0.1f) : Color.white;
-                GUI.Label(new Rect(0, top + i * 48f, Screen.width, 44), text, menuStyle);
-            }
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+            RenderSettings.ambientLight = new Color(0.45f, 0.5f, 0.7f);
+            // No sky reflections: the default sky would wash the dark wall tops out to a flat blue.
+            RenderSettings.reflectionIntensity = 0f;
+            post = PacmanPost.Attach(cam);
         }
     }
 }

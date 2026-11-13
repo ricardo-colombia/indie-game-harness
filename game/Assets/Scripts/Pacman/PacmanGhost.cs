@@ -14,8 +14,8 @@ namespace Studio.Pacman
     public class PacmanGhost : PacmanActor
     {
         // Where an eaten ghost returns to, and where ghosts leave the house.
-        public static readonly Vector2Int HouseCentre = new Vector2Int(9, 7);
-        public static readonly Vector2Int HouseExit = new Vector2Int(7, 5);
+        public static readonly Vector2Int HouseCentre = PacmanMaze.HouseCentre;
+        public static readonly Vector2Int HouseExit = PacmanMaze.HouseExit;
 
         [SerializeField] private Transform model;
 
@@ -26,6 +26,16 @@ namespace Studio.Pacman
 
         public GhostKind Kind => kind;
         public GhostMode Mode { get; private set; }
+
+        // A ghost still inside the house when a power pellet is eaten turns blue too. It keeps leaving the
+        // house (Exiting) and becomes a normal frightened ghost the moment it steps out.
+        private bool scaredInHouse;
+
+        // An eaten ghost first runs to the tile above the gate, then drops through it to the house centre.
+        private bool droppingIn;
+
+        /// <summary>True while the ghost is blue and edible, including ghosts still inside the house.</summary>
+        public bool IsScared => Mode == GhostMode.Frightened || (Mode == GhostMode.Exiting && scaredInHouse);
 
         public void Init(PacmanGame owner, GhostKind ghostKind, Vector2Int corner, Transform ghostModel)
         {
@@ -53,6 +63,7 @@ namespace Studio.Pacman
             Mode = mode;
         }
 
+        /// <summary>Turns the ghost blue. Eaten ghosts (eyes on their way home) are not affected.</summary>
         public void Frighten()
         {
             if (IsGlobalMode(Mode))
@@ -60,6 +71,16 @@ namespace Studio.Pacman
                 Reverse();
                 Mode = GhostMode.Frightened;
             }
+            else if (Mode == GhostMode.Exiting)
+            {
+                scaredInHouse = true;
+            }
+        }
+
+        /// <summary>Ends the blue state of a ghost that is still leaving the house.</summary>
+        public void CalmInHouse()
+        {
+            scaredInHouse = false;
         }
 
         private static bool IsGlobalMode(GhostMode mode)
@@ -70,11 +91,15 @@ namespace Studio.Pacman
         public void Eat()
         {
             Mode = GhostMode.Eaten;
+            scaredInHouse = false;
+            droppingIn = false;
         }
 
         public void ResetTo(Vector2Int start, GhostMode mode)
         {
             Mode = mode;
+            scaredInHouse = false;
+            droppingIn = false;
             Place(start);
             FaceDirection(model);
         }
@@ -87,13 +112,21 @@ namespace Studio.Pacman
 
         protected override void OnTileReached(Vector2Int tile)
         {
-            if (Mode == GhostMode.Eaten && tile == HouseCentre)
+            if (Mode == GhostMode.Eaten && tile == HouseExit)
+            {
+                droppingIn = true;
+            }
+            else if (Mode == GhostMode.Eaten && tile == HouseCentre)
             {
                 Mode = GhostMode.Exiting;
+                droppingIn = false;
             }
             else if (Mode == GhostMode.Exiting && tile == HouseExit)
             {
-                Mode = game != null ? game.GlobalMode : GhostMode.Scatter;
+                // A ghost that was blue when it left the house stays blue while fright lasts.
+                bool stillScared = scaredInHouse && game != null && game.FrightenedActive;
+                Mode = stillScared ? GhostMode.Frightened : (game != null ? game.GlobalMode : GhostMode.Scatter);
+                scaredInHouse = false;
             }
         }
 
@@ -107,10 +140,18 @@ namespace Studio.Pacman
                 {
                     continue;
                 }
-                if (!PacmanMaze.IsWall(tile + d))
+                Vector2Int next = tile + d;
+                if (PacmanMaze.IsWall(next))
                 {
-                    options.Add(d);
+                    continue;
                 }
+                // Only ghosts that are leaving the house, or eyes going home, may use the gate.
+                bool mayEnterHouse = Mode == GhostMode.Eaten || Mode == GhostMode.Exiting;
+                if (!mayEnterHouse && PacmanMaze.IsGhostHouse(next))
+                {
+                    continue;
+                }
+                options.Add(d);
             }
 
             if (options.Count == 0)
@@ -154,7 +195,7 @@ namespace Studio.Pacman
             switch (Mode)
             {
                 case GhostMode.Eaten:
-                    return HouseCentre;
+                    return droppingIn ? HouseCentre : HouseExit;
                 case GhostMode.Exiting:
                     return HouseExit;
                 case GhostMode.Chase:

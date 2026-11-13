@@ -19,11 +19,13 @@ namespace Studio.Pacman.Tests
         [Test]
         public void Layout_IsMirrorSymmetric()
         {
+            // The start markers (P, G) sit on single tiles, so they are ignored here.
             foreach (string row in PacmanMaze.Rows)
             {
-                char[] reversed = row.ToCharArray();
+                string plain = row.Replace('P', ' ').Replace('G', 'h');
+                char[] reversed = plain.ToCharArray();
                 System.Array.Reverse(reversed);
-                Assert.AreEqual(row, new string(reversed));
+                Assert.AreEqual(plain, new string(reversed));
             }
         }
 
@@ -41,6 +43,64 @@ namespace Studio.Pacman.Tests
             }
             Assert.AreEqual(1, players);
             Assert.AreEqual(3, ghosts);
+        }
+
+        [Test]
+        public void Layout_IsTheClassicBoard()
+        {
+            // 28 x 31 with 240 pellets and 4 power pellets: the arcade original, tile for tile.
+            Assert.AreEqual(28, PacmanMaze.Width);
+            Assert.AreEqual(31, PacmanMaze.Height);
+            int pellets = 0, power = 0;
+            foreach (string row in PacmanMaze.Rows)
+            {
+                foreach (char c in row)
+                {
+                    if (c == '.') pellets++;
+                    if (c == 'o') power++;
+                }
+            }
+            Assert.AreEqual(240, pellets);
+            Assert.AreEqual(4, power);
+        }
+
+        [Test]
+        public void GhostHouse_IsClosedExceptForTheGate()
+        {
+            // Every walkable cell next to a house cell must be another house cell or the tile above the gate.
+            Vector2Int[] dirs = { PacmanMaze.Up, PacmanMaze.Down, PacmanMaze.Left, PacmanMaze.Right };
+            for (int y = 0; y < PacmanMaze.Height; y++)
+            {
+                for (int x = 0; x < PacmanMaze.Width; x++)
+                {
+                    Vector2Int tile = new Vector2Int(x, y);
+                    if (!PacmanMaze.IsGhostHouse(tile))
+                    {
+                        continue;
+                    }
+                    foreach (Vector2Int d in dirs)
+                    {
+                        Vector2Int n = tile + d;
+                        bool leak = !PacmanMaze.IsWall(n) && !PacmanMaze.IsGhostHouse(n);
+                        if (leak)
+                        {
+                            Assert.AreEqual('-', PacmanMaze.Cell(x, y), $"House cell ({x},{y}) opens onto ({n.x},{n.y}) but is not the gate");
+                            Assert.AreEqual(PacmanMaze.Up, d, "The gate may only open upward");
+                        }
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void GhostMarkers_AreWhereTheGameExpects()
+        {
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(PacmanMaze.HouseCentre));
+            Assert.IsFalse(PacmanMaze.IsGhostHouse(PacmanMaze.HouseExit));
+            Assert.IsFalse(PacmanMaze.IsWall(PacmanMaze.HouseExit));
+            Assert.IsFalse(PacmanMaze.IsWall(PacmanMaze.BlinkyStart));
+            Assert.AreEqual(PacmanMaze.TunnelRow, 14);
+            Assert.AreEqual('P', PacmanMaze.Cell(PacmanMaze.Find('P').x, PacmanMaze.Find('P').y));
         }
 
         [Test]
@@ -74,7 +134,7 @@ namespace Studio.Pacman.Tests
                 foreach (Vector2Int d in dirs)
                 {
                     Vector2Int next = PacmanMaze.Wrap(current + d);
-                    if (PacmanMaze.IsWall(next) || seen.Contains(next))
+                    if (PacmanMaze.IsWall(next) || PacmanMaze.IsGhostHouse(next) || seen.Contains(next))
                     {
                         continue;
                     }
@@ -107,9 +167,9 @@ namespace Studio.Pacman.Tests
         [Test]
         public void IsGhostHouse_CoversHouseInteriorNotCorridors()
         {
-            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(9, 7)));
-            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(9, 9)));
-            Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(9, 5)));
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(13, 14)));
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(13, 12)), "the gate belongs to the house");
+            Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(13, 11)));
             Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(9, PacmanMaze.TunnelRow)));
             Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(1, 7)));
         }

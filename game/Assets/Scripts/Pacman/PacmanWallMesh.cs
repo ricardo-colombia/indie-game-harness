@@ -43,6 +43,89 @@ namespace Studio.Pacman
             return mesh;
         }
 
+        /// <summary>
+        /// A thin glowing strip that follows every exposed wall edge on top of the walls, drawn as one mesh.
+        /// Edges shared with a neighbouring wall are skipped, so the trim traces the outline of the maze.
+        /// </summary>
+        public static Mesh BuildTrim(IList<Vector2Int> walls, float radius, float width, float inset)
+        {
+            var vertices = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var triangles = new List<int>();
+
+            foreach (Vector2Int tile in walls)
+            {
+                Vector3 centre = PacmanMaze.ToWorld(tile);
+                centre.y = 0f;
+                var outline = new List<Vector2>();
+                var cornerOf = new List<int>();
+                BuildOutline(tile, radius, outline, cornerOf);
+
+                for (int i = 0; i < outline.Count; i++)
+                {
+                    int j = (i + 1) % outline.Count;
+                    bool exposed;
+                    if (cornerOf[i] == cornerOf[j])
+                    {
+                        // Inside a rounded corner: always exposed.
+                        exposed = true;
+                    }
+                    else
+                    {
+                        // A straight side. Side k runs from corner k to corner k+1.
+                        Vector2Int side = SideOf(cornerOf[i]);
+                        exposed = !PacmanMaze.IsWall(tile + side);
+                    }
+                    if (!exposed)
+                    {
+                        continue;
+                    }
+
+                    Vector2 a = outline[i];
+                    Vector2 b = outline[j];
+                    Vector2 along = (b - a).normalized;
+                    // In plan the tile centre is the origin, so inward is toward it.
+                    Vector2 mid = (a + b) * 0.5f;
+                    Vector2 inward = -new Vector2(mid.x, mid.y).normalized;
+                    if (cornerOf[i] != cornerOf[j])
+                    {
+                        // On a straight side the inward direction is perpendicular to the edge.
+                        inward = new Vector2(-along.y, along.x);
+                        if (Vector2.Dot(inward, -mid) < 0f)
+                        {
+                            inward = -inward;
+                        }
+                    }
+                    Vector2 outerA = a - inward * (inset - width * 0.5f);
+                    Vector2 outerB = b - inward * (inset - width * 0.5f);
+                    Vector2 innerA = a - inward * (inset + width * 0.5f);
+                    Vector2 innerB = b - inward * (inset + width * 0.5f);
+                    float y = Height + 0.004f;
+                    AddTri(Point(centre, outerA, y), Point(centre, outerB, y), Point(centre, innerB, y), Vector3.up, vertices, normals, triangles);
+                    AddTri(Point(centre, outerA, y), Point(centre, innerB, y), Point(centre, innerA, y), Vector3.up, vertices, normals, triangles);
+                }
+            }
+
+            Mesh mesh = new Mesh { name = "PacmanWallTrim", indexFormat = UnityEngine.Rendering.IndexFormat.UInt32 };
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        /// <summary>The neighbour direction across the straight side that starts at the given corner.</summary>
+        private static Vector2Int SideOf(int corner)
+        {
+            switch (corner)
+            {
+                case 0: return new Vector2Int(0, 1);
+                case 1: return new Vector2Int(-1, 0);
+                case 2: return new Vector2Int(0, -1);
+                default: return new Vector2Int(1, 0);
+            }
+        }
+
         /// <summary>One tile as a block: flat top, vertical sides, rounded exposed plan corners.</summary>
         private static void AddBlock(Vector2Int tile, Vector3 centre, float r, List<Vector3> v, List<Vector3> n, List<int> t)
         {
@@ -71,15 +154,23 @@ namespace Studio.Pacman
         private static List<Vector2> BuildOutline(Vector2Int tile, float r)
         {
             var outline = new List<Vector2>();
-            foreach (Vector2Int corner in Corners)
+            BuildOutline(tile, r, outline, new List<int>());
+            return outline;
+        }
+
+        /// <summary>Same outline, also recording which of the four corners each point belongs to.</summary>
+        private static void BuildOutline(Vector2Int tile, float r, List<Vector2> outline, List<int> cornerOf)
+        {
+            for (int corner = 0; corner < Corners.Length; corner++)
             {
-                int dx = corner.x;
-                int dy = corner.y;
+                int dx = Corners[corner].x;
+                int dy = Corners[corner].y;
                 bool wallBeside = PacmanMaze.IsWall(tile + new Vector2Int(dx, 0))
                     || PacmanMaze.IsWall(tile + new Vector2Int(0, dy));
                 if (wallBeside)
                 {
                     outline.Add(new Vector2(dx * 0.5f, dy * 0.5f));
+                    cornerOf.Add(corner);
                     continue;
                 }
 
@@ -98,9 +189,9 @@ namespace Studio.Pacman
                 {
                     float a = start + sweep * i / ArcSegments;
                     outline.Add(arcCentre + r * new Vector2(Mathf.Cos(a), Mathf.Sin(a)));
+                    cornerOf.Add(corner);
                 }
             }
-            return outline;
         }
 
         /// <summary>Maps a plan point in tile units to world space at a height. Tile y grows toward -z.</summary>
