@@ -202,6 +202,15 @@ namespace Studio.Pacman
             AnimatePowerPellets();
         }
 
+        /// <summary>One frame of menu-relevant input. Built from the keyboard, or set directly by tests.</summary>
+        public struct MenuInput
+        {
+            public bool Up;
+            public bool Down;
+            public bool Confirm;
+            public bool Back;
+        }
+
         private void ReadInput()
         {
             Keyboard keyboard = Keyboard.current;
@@ -210,16 +219,16 @@ namespace Studio.Pacman
                 return;
             }
 
-            if (State == PacmanState.Playing && keyboard.escapeKey.wasPressedThisFrame)
+            ApplyMenuInput(new MenuInput
             {
-                State = PacmanState.Paused;
-                menuIndex = 0;
-                return;
-            }
+                Up = keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame,
+                Down = keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame,
+                Confirm = keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame,
+                Back = keyboard.escapeKey.wasPressedThisFrame,
+            });
 
-            if (State == PacmanState.Title || State == PacmanState.Paused || State == PacmanState.GameOver)
+            if (State != PacmanState.Playing && State != PacmanState.Ready)
             {
-                HandleMenuInput(keyboard);
                 return;
             }
 
@@ -242,43 +251,59 @@ namespace Studio.Pacman
 
         }
 
-        private void HandleMenuInput(Keyboard keyboard)
+        /// <summary>
+        /// Applies one frame of menu input. Escape pauses play and resumes from pause; Up/Down move the
+        /// highlight; Confirm activates it. Game over waits for Confirm to return to the title.
+        /// </summary>
+        public void ApplyMenuInput(MenuInput input)
         {
-            if (State == PacmanState.GameOver)
+            switch (State)
             {
-                if (ConfirmPressed(keyboard))
-                {
-                    ShowTitle();
-                }
-                return;
-            }
+                case PacmanState.Playing:
+                    if (input.Back)
+                    {
+                        State = PacmanState.Paused;
+                        menuIndex = 0;
+                    }
+                    return;
 
-            if (State == PacmanState.Paused && keyboard.escapeKey.wasPressedThisFrame)
-            {
-                State = PacmanState.Playing;
-                return;
+                case PacmanState.Paused:
+                    if (input.Back)
+                    {
+                        State = PacmanState.Playing;
+                        return;
+                    }
+                    break;
+
+                case PacmanState.Title:
+                    break;
+
+                case PacmanState.GameOver:
+                    if (input.Confirm)
+                    {
+                        ShowTitle();
+                    }
+                    return;
+
+                default:
+                    return;
             }
 
             string[] items = State == PacmanState.Title ? TitleItems : PauseItems;
-            if (keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame)
+            if (input.Down)
             {
                 menuIndex = (menuIndex + 1) % items.Length;
                 PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
             }
-            else if (keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame)
+            else if (input.Up)
             {
                 menuIndex = (menuIndex + items.Length - 1) % items.Length;
                 PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
             }
-            else if (ConfirmPressed(keyboard))
+            else if (input.Confirm)
             {
                 Activate(items[menuIndex]);
             }
-        }
-
-        private static bool ConfirmPressed(Keyboard keyboard)
-        {
-            return keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame;
         }
 
         private void Activate(string item)
@@ -493,8 +518,23 @@ namespace Studio.Pacman
             for (int i = 0; i < ghosts.Count; i++)
             {
                 Vector2Int start = i == 0 ? blinkyStart : ghostStarts[i - 1];
-                ghosts[i].ResetTo(start, GlobalMode);
+                // Blinky starts outside and scatters at once. The others start inside the house and
+                // head for the house exit first, as in the original, before joining the global mode.
+                ghosts[i].ResetTo(start, i == 0 ? GlobalMode : GhostMode.Exiting);
             }
+        }
+
+        /// <summary>Current tile of the named ghost. Used by Inky's targeting.</summary>
+        public Vector2Int GhostTile(GhostKind kind)
+        {
+            foreach (PacmanGhost ghost in ghosts)
+            {
+                if (ghost.Kind == kind)
+                {
+                    return ghost.Tile;
+                }
+            }
+            return Vector2Int.zero;
         }
 
         private bool IsPowerPellet(int index)

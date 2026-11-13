@@ -115,6 +115,15 @@ namespace Studio.Pacman.Tests
         }
 
         [Test]
+        public void InkyTarget_DoublesTheVectorFromBlinkyThroughTheTwoTileAheadPoint()
+        {
+            // Pac-Man at (5,5) moving right: pivot (7,5). Blinky at (3,5): vector (4,0), target (11,5).
+            Assert.AreEqual(new Vector2Int(11, 5), PacmanGhost.InkyTarget(new Vector2Int(5, 5), PacmanMaze.Right, new Vector2Int(3, 5)));
+            // Blinky sitting on the pivot: target is the pivot itself.
+            Assert.AreEqual(new Vector2Int(7, 5), PacmanGhost.InkyTarget(new Vector2Int(5, 5), PacmanMaze.Right, new Vector2Int(7, 5)));
+        }
+
+        [Test]
         public void IsWall_TreatsOutOfBoundsAsWallOffTunnel()
         {
             Assert.IsTrue(PacmanMaze.IsWall(new Vector2Int(-1, 3)));

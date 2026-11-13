@@ -150,6 +150,16 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>
+        /// Inky's target: a point two tiles ahead of Pac-Man, reflected through Blinky so the
+        /// vector from Blinky to that point is doubled.
+        /// </summary>
+        public static Vector2Int InkyTarget(Vector2Int pac, Vector2Int pacDir, Vector2Int blinky)
+        {
+            Vector2Int pivot = pac + pacDir * 2;
+            return pivot + (pivot - blinky);
+        }
+
         private Vector2Int ChaseTarget()
         {
             if (game == null)
@@ -164,7 +174,7 @@ namespace Studio.Pacman
                 case GhostKind.Pinky:
                     return pac + pacDir * 4;
                 case GhostKind.Inky:
-                    return pac + pacDir * 2;
+                    return InkyTarget(pac, pacDir, game.GhostTile(GhostKind.Blinky));
                 case GhostKind.Clyde:
                     Vector2Int d = pac - Tile;
                     // Clyde chases while far away and retreats to his corner when close.
