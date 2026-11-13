@@ -26,6 +26,6 @@ esac
   echo "os=$(uname -sr) python=$(python --version 2>&1)"
   for t in git ffmpeg unity claude uvx xvfb-run; do printf '%s=%s\n' "$t" "$(command -v $t || echo MISSING)"; done
   python -c "import sys; sys.path.insert(0, 'harness'); from core import *; c = load_config(); print('blender=' + str(find_blender(c) or 'MISSING')); print('unity_editor=' + str(find_unity(c, ROOT / c['game']['unity_project']) or 'MISSING'))"
-  python harness/selftest.py "${ARGS[@]}"
+  python harness/selftest.py ${ARGS[@]+"${ARGS[@]}"}  # bash 3.2 (macOS): empty array + set -u
   echo "exit=$?"
 } 2>&1 | tee selftest-results.txt
