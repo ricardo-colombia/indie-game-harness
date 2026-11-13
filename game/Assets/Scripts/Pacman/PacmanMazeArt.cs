@@ -12,7 +12,7 @@ namespace Studio.Pacman
     public static class PacmanMazeArt
     {
         /// <summary>Pixels per tile in the generated textures.</summary>
-        private const int PixelsPerTile = 24;
+        private const int PixelsPerTile = 32;
 
         /// <summary>Tiles of empty margin around the board.</summary>
         private const int Pad = 1;
@@ -93,55 +93,74 @@ namespace Studio.Pacman
             fillSprite = ToSprite("PacmanWallFill", fillColours, pw, ph, s);
         }
 
-        private static readonly Color Slope = new Color(0.2f, 0.46f, 0.17f);
-        private static readonly Color Summit = new Color(0.12f, 0.33f, 0.13f);
-        private static readonly Color Terrace = new Color(0.06f, 0.2f, 0.08f);
-        private static readonly Color BushDark = new Color(0.06f, 0.36f, 0.09f);
-        private static readonly Color BushLight = new Color(0.4f, 0.82f, 0.28f);
-        private static readonly Color Cherry = new Color(0.95f, 0.15f, 0.12f);
+        private static readonly Color Soil = new Color(0.3f, 0.18f, 0.09f);
+        private static readonly Color Grass = new Color(0.4f, 0.58f, 0.2f);
+        private static readonly Color LeafDark = new Color(0.03f, 0.2f, 0.07f);
+        private static readonly Color LeafMid = new Color(0.1f, 0.5f, 0.14f);
+        private static readonly Color LeafLight = new Color(0.5f, 0.85f, 0.3f);
+        private static readonly Color Cherry = new Color(0.92f, 0.12f, 0.12f);
+
+        private static float Hash(int x, int y)
+        {
+            return (((x * 73856093) ^ (y * 19349663)) & 255) / 255f;
+        }
 
         /// <summary>
-        /// Colour of the hillside at one pixel. signed is the distance in pixels inside the wall edge: slopes
-        /// darken towards the middle, terrace lines run parallel to the edge, and staggered rows of round
-        /// coffee bushes sit between them, a few carrying a red cherry.
+        /// Colour of the coffee plantation at one pixel. signed is the distance in pixels inside the wall edge.
+        /// The ground is earth with grass tufts. Planted on it, in tight straight rows like a real finca seen from
+        /// above, are coffee bushes: each a rosette of glossy, pointed leaves, darker at the heart and lit from the
+        /// top left, with a few clusters of red cherries on the outer leaves.
         /// </summary>
         private static Color32 Terrain(int px, int py, float signed, int pixelsPerTile)
         {
+            float k = pixelsPerTile / 24f;
             float tiles = signed / pixelsPerTile;
-            Color c = Color.Lerp(Slope, Summit, Mathf.Clamp01(tiles / 0.7f));
 
-            // Terrace lines: thin dark contours every quarter tile from the edge.
-            float contour = Mathf.Repeat(signed, 0.25f * pixelsPerTile);
-            if (tiles > 0.05f && contour < 1.4f)
-            {
-                c = Color.Lerp(c, Terrace, 0.8f);
-            }
+            // Earth and grass between the rows.
+            float noise = Hash(px, py);
+            Color c = Color.Lerp(Soil, Grass, Mathf.Clamp01((noise - 0.45f) * 2.2f) * 0.8f);
 
-            // Bushes on a staggered grid, kept off the very edge.
-            float cell = 0.34f * pixelsPerTile;
+            // Bushes on a square grid: rows run straight, as on a terraced hillside.
+            float cell = 0.36f * pixelsPerTile;
+            int col = Mathf.FloorToInt(px / cell);
             int row = Mathf.FloorToInt(py / cell);
-            float shift = (row & 1) * cell * 0.5f;
-            int col = Mathf.FloorToInt((px + shift) / cell);
-            float cx = (col + 0.5f) * cell - shift;
+            float cx = (col + 0.5f) * cell;
             float cy = (row + 0.5f) * cell;
             float dx = px - cx;
             float dy = py - cy;
             float d = Mathf.Sqrt(dx * dx + dy * dy);
-            float radius = cell * 0.42f;
-            if (tiles > 0.16f && d < radius)
+            float seed = Hash(col * 7 + 3, row * 11 + 5);
+            float radius = cell * (0.5f + 0.06f * seed);
+            if (tiles > 0.1f && d < radius)
             {
-                // Lit from the top left: the highlight slides to that side of each bush.
-                float light = Mathf.Clamp01(0.5f + (-dx + dy) / (radius * 1.8f));
-                Color bush = Color.Lerp(BushDark, BushLight, light * light);
-                c = Color.Lerp(c, bush, Mathf.Clamp01((radius - d) * 1.2f));
-                int hash = (col * 73856093 ^ row * 19349663) & 15;
-                if (hash < 4)
+                float r = d / radius;
+                float angle = Mathf.Atan2(dy, dx);
+                // Pointed leaves: a swirl of ridges that spiral out from the heart of the plant.
+                float ridge = 0.5f + 0.5f * Mathf.Cos(angle * 5f + seed * 6.283f + r * 2.2f);
+                ridge = Mathf.SmoothStep(0f, 1f, ridge * 1.15f);
+                Color leaf = Color.Lerp(LeafDark, LeafMid, ridge * Mathf.Clamp01(0.35f + r));
+                // Sun from the top left: the upper-left leaves catch the light.
+                float sun = Mathf.Clamp01(0.5f + (-dx + dy) / (radius * 1.7f));
+                leaf = Color.Lerp(leaf, LeafLight, sun * sun * ridge * 0.9f);
+                // Dark rim under each plant so the rows stay readable.
+                leaf = Color.Lerp(leaf, LeafDark, Mathf.Clamp01((r - 0.78f) * 3f));
+                c = Color.Lerp(c, leaf, Mathf.Clamp01((radius - d) * 1.2f));
+
+                // A cluster of red cherries tucked on the rim of some plants.
+                if (seed < 0.16f)
                 {
-                    float cherryX = dx - radius * 0.25f;
-                    float cherryY = dy + radius * 0.2f;
-                    if (cherryX * cherryX + cherryY * cherryY < 2.6f * 2.6f)
+                    float phi = seed * 15.7f;
+                    float ox = Mathf.Cos(phi) * radius * 0.5f;
+                    float oy = Mathf.Sin(phi) * radius * 0.5f;
+                    float cherry = 1.25f * k;
+                    for (int i = 0; i < 3; i++)
                     {
-                        c = Cherry;
+                        float ex = dx - (ox + (i - 1) * 2.1f * k);
+                        float ey = dy - (oy + ((i & 1) == 0 ? 0.9f : -0.9f) * k);
+                        if (ex * ex + ey * ey < cherry * cherry)
+                        {
+                            c = ex + ey < -0.4f * k ? new Color(1f, 0.4f, 0.3f) : Cherry;
+                        }
                     }
                 }
             }
