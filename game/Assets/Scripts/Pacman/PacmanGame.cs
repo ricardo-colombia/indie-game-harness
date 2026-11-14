@@ -139,11 +139,17 @@ namespace Studio.Pacman
 
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "STORY", "THEME", "VIEW", "SOUND", "SHOES" };
+        private static readonly string[] TitleItems = { "START", "STORY", "OPTIONS" };
 #else
-        private static readonly string[] TitleItems = { "START", "STORY", "THEME", "VIEW", "SOUND", "SHOES", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "STORY", "OPTIONS", "QUIT" };
 #endif
-        private static readonly string[] PauseItems = { "RESUME", "VIEW", "SOUND", "SHOES", "QUIT TO TITLE" };
+        private static readonly string[] PauseItems = { "RESUME", "OPTIONS", "QUIT TO TITLE" };
+
+        // Everything the player can tune lives here. THEME is a development switch for trying the art styles:
+        // the game will keep one of them eventually.
+        private static readonly string[] OptionsItems = { "VIEW", "SOUND", "SHOES", "THEME", "BACK" };
+
+        private bool inOptions;
 
         /// <summary>True while the player is using a touch screen: the UI shows touch hints and a pause button.</summary>
         public bool TouchMode { get; private set; }
@@ -176,7 +182,10 @@ namespace Studio.Pacman
         public int MenuIndex => menuIndex;
 
         /// <summary>Menu rows for the screen being shown (title or pause).</summary>
-        public string[] ActiveMenu => State == PacmanState.Title ? TitleItems : PauseItems;
+        public string[] ActiveMenu => inOptions ? OptionsItems : (State == PacmanState.Title ? TitleItems : PauseItems);
+
+        /// <summary>True while the options submenu is shown (from the title or the pause menu).</summary>
+        public bool InOptions => inOptions;
         /// <summary>Best score so far, kept between runs. Probe for UI tests.</summary>
         public int HighScore { get; private set; }
         /// <summary>True once the current run has beaten the saved high score.</summary>
@@ -267,6 +276,7 @@ namespace Studio.Pacman
             SaveHighScore();
             State = PacmanState.Title;
             menuIndex = 0;
+            inOptions = false;
         }
 
         /// <summary>Starts the prologue comic. A replay returns to the title when it ends; the first showing starts the game.</summary>
@@ -686,11 +696,17 @@ namespace Studio.Pacman
                     {
                         State = PacmanState.Paused;
                         menuIndex = 0;
+                        inOptions = false;
                         PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
                     }
                     return;
 
                 case PacmanState.Paused:
+                    if (input.Back && inOptions)
+                    {
+                        CloseOptions();
+                        return;
+                    }
                     if (input.Back)
                     {
                         State = PacmanState.Playing;
@@ -700,6 +716,11 @@ namespace Studio.Pacman
                     break;
 
                 case PacmanState.Title:
+                    if (input.Back && inOptions)
+                    {
+                        CloseOptions();
+                        return;
+                    }
                     break;
 
                 case PacmanState.GameOver:
@@ -732,7 +753,7 @@ namespace Studio.Pacman
                     return;
             }
 
-            string[] items = State == PacmanState.Title ? TitleItems : PauseItems;
+            string[] items = ActiveMenu;
             if (input.Down)
             {
                 menuIndex = (menuIndex + 1) % items.Length;
@@ -747,6 +768,14 @@ namespace Studio.Pacman
             {
                 Activate(items[menuIndex]);
             }
+        }
+
+        /// <summary>Leaves the options submenu with the cursor back on the OPTIONS row that opened it.</summary>
+        private void CloseOptions()
+        {
+            inOptions = false;
+            menuIndex = System.Array.IndexOf(ActiveMenu, "OPTIONS");
+            PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
         }
 
         private void Activate(string item)
@@ -770,6 +799,13 @@ namespace Studio.Pacman
                 case "RESUME":
                     State = PacmanState.Playing;
                     break;
+                case "OPTIONS":
+                    inOptions = true;
+                    menuIndex = 0;
+                    break;
+                case "BACK":
+                    CloseOptions();
+                    return;
                 case "SOUND":
                     soundOn = !soundOn;
                     break;
