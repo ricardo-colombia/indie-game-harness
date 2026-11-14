@@ -24,6 +24,8 @@ namespace Studio.Pacman
         private static Sprite frightFace;
         private static Sprite gridTile;
         private static Sprite mountain;
+        private static Sprite mountainVintage;
+        private static Sprite gridTileVintage;
         private static readonly Sprite[] PacSprites = new Sprite[PacFrames + 1];
 
         /// <summary>A soft-edged disc filling its one-unit square. Used for pellets, eyes and fruit.</summary>
@@ -111,15 +113,39 @@ namespace Studio.Pacman
         {
             get
             {
-                if (mountain == null)
+                bool vintage = PacmanToon.IsVintage;
+                Sprite cached = vintage ? mountainVintage : mountain;
+                if (cached == null)
                 {
-                    mountain = Make("PacMountain", 128, (x, y) =>
+                    Func<float, float> ridgeAt = x => -0.5f + Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(x) * 2f), 0.85f) + 0.025f * Mathf.Sin(x * 37f);
+                    Func<float, float, float> inside = (x, y) => Mathf.Min((ridgeAt(x) - y) * 0.7f, y + 0.5f);
+                    if (vintage)
                     {
-                        float ridge = -0.5f + Mathf.Pow(Mathf.Clamp01(1f - Mathf.Abs(x) * 2f), 0.85f) + 0.025f * Mathf.Sin(x * 37f);
-                        return Mathf.Min((ridge - y) * 0.7f, y + 0.5f);
-                    });
+                        // Engraved slopes: slanted hatching that thickens toward the base, an ink line along the ridge and paper grain.
+                        cached = Make("PacMountainV", 128, inside, (x, y, px, py) =>
+                        {
+                            float below = ridgeAt(x) - y;
+                            float shade = 0.92f + (PacmanToon.Hash(px, py) - 0.5f) * 0.1f;
+                            float depth = Mathf.Clamp01(below * 1.6f);
+                            if (Mathf.Repeat(px * 0.6f + py, 5f) < 0.8f + depth * 1.6f)
+                            {
+                                shade *= 0.72f;
+                            }
+                            if (below < 0.012f)
+                            {
+                                shade *= 0.55f;
+                            }
+                            return shade;
+                        });
+                        mountainVintage = cached;
+                    }
+                    else
+                    {
+                        cached = Make("PacMountain", 128, inside);
+                        mountain = cached;
+                    }
                 }
-                return mountain;
+                return cached;
             }
         }
 
@@ -149,7 +175,8 @@ namespace Studio.Pacman
         {
             get
             {
-                if (gridTile == null)
+                bool vintage = PacmanToon.IsVintage;
+                if ((vintage ? gridTileVintage : gridTile) == null)
                 {
                     const int n = 64;
                     Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, false)
@@ -175,11 +202,34 @@ namespace Studio.Pacman
                             texture.SetPixel(x, y, c);
                         }
                     }
+                    if (vintage)
+                    {
+                        // Etched earth: short slanted ink ticks scattered over the tile (wrapping, so the tiling stays seamless).
+                        Color tick = new Color(0.2f, 0.125f, 0.075f);
+                        for (int k = 0; k < 26; k++)
+                        {
+                            int tx = Mathf.FloorToInt(PacmanToon.Hash(k, 11) * n);
+                            int ty = Mathf.FloorToInt(PacmanToon.Hash(k, 29) * n);
+                            int len = 3 + Mathf.FloorToInt(PacmanToon.Hash(k, 47) * 4f);
+                            for (int t = 0; t < len; t++)
+                            {
+                                texture.SetPixel((tx + t) % n, (ty + t) % n, tick);
+                            }
+                        }
+                    }
                     texture.Apply(false);
-                    gridTile = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n, 0, SpriteMeshType.FullRect);
-                    gridTile.hideFlags = HideFlags.DontSave;
+                    Sprite made = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n, 0, SpriteMeshType.FullRect);
+                    made.hideFlags = HideFlags.DontSave;
+                    if (vintage)
+                    {
+                        gridTileVintage = made;
+                    }
+                    else
+                    {
+                        gridTile = made;
+                    }
                 }
-                return gridTile;
+                return vintage ? gridTileVintage : gridTile;
             }
         }
 
@@ -195,7 +245,7 @@ namespace Studio.Pacman
         /// Rasterises a signed-distance function (positive inside, in tile units, origin at the sprite centre)
         /// into a white sprite whose alpha is the antialiased coverage.
         /// </summary>
-        private static Sprite Make(string name, int size, Func<float, float, float> inside)
+        private static Sprite Make(string name, int size, Func<float, float, float> inside, Func<float, float, int, int, float> shade = null)
         {
             Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
             {
@@ -212,7 +262,8 @@ namespace Studio.Pacman
                     float x = (px + 0.5f) / size - 0.5f;
                     float y = (py + 0.5f) / size - 0.5f;
                     float coverage = Mathf.Clamp01(0.5f + inside(x, y) * size);
-                    pixels[py * size + px] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(coverage * 255f));
+                    byte grey = shade == null ? (byte)255 : (byte)Mathf.RoundToInt(Mathf.Clamp01(shade(x, y, px, py)) * 255f);
+                    pixels[py * size + px] = new Color32(grey, grey, grey, (byte)Mathf.RoundToInt(coverage * 255f));
                 }
             }
             texture.SetPixels32(pixels);
