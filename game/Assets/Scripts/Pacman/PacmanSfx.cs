@@ -7,8 +7,8 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanSfx
     {
-        public AudioClip WakaA { get; private set; }
-        public AudioClip WakaB { get; private set; }
+        public AudioClip StepA { get; private set; }
+        public AudioClip StepB { get; private set; }
         public AudioClip Pellet { get; private set; }
         public AudioClip Power { get; private set; }
         public AudioClip GhostEaten { get; private set; }
@@ -25,8 +25,8 @@ namespace Studio.Pacman
 
         public PacmanSfx()
         {
-            WakaA = Waka("waka_a", 52f, 64f);
-            WakaB = Waka("waka_b", 64f, 52f);
+            StepA = Step("step_a", 1, 50f);
+            StepB = Step("step_b", 2, 47f);
             Pellet = Pickup("pellet", 83f, 88f, 0.05f, 0.14f);
             Power = BuildPower();
             Death = BuildDeath();
@@ -61,11 +61,15 @@ namespace Studio.Pacman
             }
         }
 
-        private static AudioClip Waka(string name, float fromMidi, float toMidi)
+        /// <summary>
+        /// A soft footfall on packed earth: a dull low thump plus a short, dark rustle of dry leaves. The two feet
+        /// differ a little in pitch and texture so the walk does not sound like a machine.
+        /// </summary>
+        private static AudioClip Step(string name, int seed, float thumpMidi)
         {
-            float[] buf = PacmanSynth.Buffer(0.12f);
-            PacmanSynth.Tone(buf, 0f, 0.1f, PacmanSynth.Hz(fromMidi), PacmanSynth.Hz(toMidi), Wave.Pulse25, 0.22f, 6f, 0.003f, 0.03f);
-            PacmanSynth.Tone(buf, 0f, 0.1f, PacmanSynth.Hz(fromMidi - 12f), PacmanSynth.Hz(toMidi - 12f), Wave.Triangle, 0.18f, 6f, 0.003f, 0.03f);
+            float[] buf = PacmanSynth.Buffer(0.14f);
+            PacmanSynth.Tone(buf, 0f, 0.08f, PacmanSynth.Hz(thumpMidi), PacmanSynth.Hz(thumpMidi - 9f), Wave.Sine, 0.2f, 38f, 0.002f, 0.02f);
+            PacmanSynth.Noise(buf, 0f, 0.1f, 0.2f, 42f, 0.14f, seed);
             return PacmanSynth.ToClip(name, buf);
         }
 

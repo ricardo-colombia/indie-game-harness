@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace Studio.Pacman
 {
@@ -54,8 +55,9 @@ namespace Studio.Pacman
         [Tooltip("How many past levels' fruits the row under the maze shows.")]
         [SerializeField] private int fruitRowLength = 7;
 
-        [Tooltip("Seconds between waka sounds while Pac-Man is moving.")]
-        [SerializeField] private float wakaInterval = 0.18f;
+        [Tooltip("Seconds between footstep sounds while the farmer is moving.")]
+        [FormerlySerializedAs("stepInterval")]
+        [SerializeField] private float stepInterval = 0.18f;
 
         private const float PelletSize = 0.46f;
         private const float PowerPelletSize = 0.95f;
@@ -100,8 +102,8 @@ namespace Studio.Pacman
         private PacmanSfx sfx;
         private bool soundOn = true;
         private int menuIndex;
-        private float wakaTimer;
-        private bool wakaFlip;
+        private float stepTimer;
+        private bool stepFlip;
         private GameObject fruitObject;
         private Transform fruitRow;
         private bool fruitActive;
@@ -606,17 +608,17 @@ namespace Studio.Pacman
 
             if (player.Dir != Vector2Int.zero)
             {
-                wakaTimer -= dt;
-                if (wakaTimer <= 0f)
+                stepTimer -= dt;
+                if (stepTimer <= 0f)
                 {
-                    wakaTimer = wakaInterval;
-                    wakaFlip = !wakaFlip;
-                    PacmanSfx.Play(audioSource, wakaFlip ? sfx?.WakaA : sfx?.WakaB, soundOn);
+                    stepTimer = stepInterval;
+                    stepFlip = !stepFlip;
+                    PacmanSfx.Play(audioSource, stepFlip ? sfx?.StepA : sfx?.StepB, soundOn);
                 }
             }
             else
             {
-                wakaTimer = 0f;
+                stepTimer = 0f;
             }
 
             if (frightenedTimer > 0f)
