@@ -46,6 +46,7 @@ namespace Studio.Pacman
 
         private PacmanRays rays;
         private PacmanFarmhouse[] farmhouses;
+        private PacmanRain rain;
         private SpriteRenderer horizon;
         private SpriteRenderer[] mountains;
         private Color[] mountainBase;
@@ -75,6 +76,8 @@ namespace Studio.Pacman
         {
             themeColour = Themes[(Mathf.Max(1, level) - 1) % Themes.Length];
             skyIndex = (Mathf.Max(1, level) - 1) % Skies.Length;
+            // The dusk levels (3, 7, ...) are drizzly afternoons.
+            rain?.SetAmount(skyIndex == 2 ? 1f : 0f);
         }
 
         /// <summary>Makes the rim blink white, for the end-of-level celebration.</summary>
@@ -135,6 +138,7 @@ namespace Studio.Pacman
             rays = PacmanRays.Build(transform);
             PacmanMist.Build(transform);
             PacmanLeaves.Build(transform);
+            rain = PacmanRain.Build(transform);
             PacmanButterflies.Build(transform);
             PacmanDew.Build(transform);
             BuildMountains();
