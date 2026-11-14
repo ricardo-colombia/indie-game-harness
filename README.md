@@ -30,9 +30,11 @@ Keep going by talking. When you want polish done in parallel, or you want the ga
 | `./hx doctor` · `./hx setup "Name"` | check requirements · fix them and create the Unity project |
 | `./hx web [--serve]` | browser build in `game/Builds/Web`; `--serve` plays it at localhost:8000 |
 | `bash scripts/publish_web.sh` | publish that build to GitHub Pages (Claude asks you first) |
-| `./hx verify` · `./hx build` · `./hx autotest smoke` | run the checks by hand (close the Unity editor first: it locks the project) |
+| `./hx verify [--only editmode build]` · `./hx build` · `./hx autotest smoke` | run the checks by hand (close the Unity editor first: it locks the project). A passing step prints one line; failures print the error excerpt; `--metrics` adds the numbers |
 | `./hx cards` · `./hx card new "Title"` · `./hx card ready <id>` | list, create, approve cards |
 | `./hx run [--dry-run] [--budget 10]` · `./hx merge <id>` · `./hx report` · `./hx cost` | work through approved cards, merge, results, spend |
+
+**Keeping it cheap:** with the editor open, Claude iterates with `unity test --mode EditMode` and one screenshot per change, and runs `./hx verify` once before calling something done. The rules are in `CLAUDE.md` → "Cost discipline"; `./hx run` cards are capped at 50 turns / $2 / 30 min (`runner.defaults` in `harness/config.yaml`).
 
 Also: skills `playtest`, `web-release`, `art-asset`, `capture-shorts`, `steam-page`, `steam-release`. Internals: [docs/REFERENCE.md](docs/REFERENCE.md). Checking the harness itself: [TESTING.md](TESTING.md).
 
