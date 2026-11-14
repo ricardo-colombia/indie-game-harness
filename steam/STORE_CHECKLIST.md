@@ -16,7 +16,7 @@
 - [ ] Short description ≤ 300 chars
 - [ ] Long description + feature bullets + GIFs
 - [ ] Tags (up to 20, most specific first), genre, languages, system requirements
-- [ ] AI-generated content disclosure (content survey) — accurate and complete
+- [ ] AI-generated content disclosure (content survey) — accurate and complete. In the coffee theme, the Vintage sprites (cherry pellet, power-up mug, 7 bonus fruits in `game/Assets/Resources/Themes/Vintage/`) were generated with Gemini (see `art/ai_sprite_prompts.md`); everything else is procedural code art. Declare pre-generated in-game art.
 
 ## Release
 - [ ] Coming Soon page live ≥ 2 weeks before launch (wishlists)
