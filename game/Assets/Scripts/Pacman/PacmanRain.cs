@@ -18,7 +18,12 @@ namespace Studio.Pacman
         [Tooltip("Seconds the rain takes to fade in or out.")]
         [SerializeField] private float fadeSeconds = 3f;
 
+        private const int Ripples = 44;
+
         private static Sprite streakSprite;
+        private static Sprite rippleSprite;
+        private Transform[] ripples;
+        private SpriteRenderer[] rippleRenderers;
 
         private Transform[] streaks;
         private SpriteRenderer[] renderers;
@@ -57,6 +62,20 @@ namespace Studio.Pacman
                 self.seedY[i] = PacmanToon.Hash(i, 503);
                 self.speed[i] = Mathf.Lerp(0.9f, 1.5f, PacmanToon.Hash(i, 505));
             }
+            self.ripples = new Transform[Ripples];
+            self.rippleRenderers = new SpriteRenderer[Ripples];
+            for (int i = 0; i < Ripples; i++)
+            {
+                GameObject go = new GameObject("Ripple");
+                go.transform.SetParent(root.transform, false);
+                SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = rippleSprite;
+                sr.sortingOrder = -2; // on the ground, under bushes and walkers
+                sr.color = new Color(0.85f, 0.93f, 1f, 0f);
+                go.SetActive(false);
+                self.ripples[i] = go.transform;
+                self.rippleRenderers[i] = sr;
+            }
             return self;
         }
 
@@ -82,6 +101,10 @@ namespace Studio.Pacman
                     {
                         t.gameObject.SetActive(false);
                     }
+                    foreach (Transform t in ripples)
+                    {
+                        t.gameObject.SetActive(false);
+                    }
                 }
                 return;
             }
@@ -91,6 +114,7 @@ namespace Studio.Pacman
             Vector3 centre = cam.transform.position;
             float length = height * 0.11f;
             float thickness = height * 0.0045f * 16f; // the sprite is 2 px wide at 32 px per unit
+            UpdateRipples(height, width, centre);
             int visible = Mathf.CeilToInt(Streaks * amount);
             for (int i = 0; i < Streaks; i++)
             {
@@ -114,8 +138,60 @@ namespace Studio.Pacman
             }
         }
 
+        // Rings that spread on the wet ground and fade, each reborn somewhere new in the view when it ends.
+        private void UpdateRipples(float height, float width, Vector3 centre)
+        {
+            int visible = Mathf.CeilToInt(Ripples * amount);
+            for (int i = 0; i < Ripples; i++)
+            {
+                bool active = i < visible;
+                if (ripples[i].gameObject.activeSelf != active)
+                {
+                    ripples[i].gameObject.SetActive(active);
+                }
+                if (!active)
+                {
+                    continue;
+                }
+                float life = 0.9f + 0.6f * PacmanToon.Hash(i, 521);
+                float t = Time.time / life + PacmanToon.Hash(i, 523) * 10f;
+                int cycle = Mathf.FloorToInt(t);
+                float age = t - cycle;
+                float px = PacmanToon.Hash(i * 31 + cycle, 527) * 2f - 1f;
+                float py = PacmanToon.Hash(i * 31 + cycle, 529) * 2f - 1f;
+                ripples[i].position = new Vector3(centre.x + px * width * 0.95f, centre.y + py * height * 0.95f, 0f);
+                float size = height * (0.02f + 0.075f * age);
+                ripples[i].localScale = new Vector3(size, size * 0.5f, 1f);
+                float a = Mathf.Clamp01(age * 10f) * (1f - age) * (1f - age);
+                rippleRenderers[i].color = new Color(0.85f, 0.93f, 1f, 0.9f * amount * a);
+            }
+        }
+
         private static void EnsureSprite()
         {
+            if (rippleSprite == null)
+            {
+                // A thin ring, 1 unit wide, squashed vertically by the caller to read as lying on the ground.
+                const int n = 32;
+                Color[] rp = new Color[n * n];
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        float dx = (x + 0.5f) / n * 2f - 1f;
+                        float dy = (y + 0.5f) / n * 2f - 1f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy);
+                        float a = Mathf.Clamp01(1f - Mathf.Abs(d - 0.8f) / 0.14f);
+                        rp[y * n + x] = new Color(1f, 1f, 1f, a);
+                    }
+                }
+                Texture2D rt = new Texture2D(n, n, TextureFormat.RGBA32, false);
+                rt.filterMode = FilterMode.Bilinear;
+                rt.wrapMode = TextureWrapMode.Clamp;
+                rt.SetPixels(rp);
+                rt.Apply();
+                rippleSprite = Sprite.Create(rt, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n);
+            }
             if (streakSprite != null)
             {
                 return;
