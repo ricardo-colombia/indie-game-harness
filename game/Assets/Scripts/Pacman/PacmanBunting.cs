@@ -45,7 +45,7 @@ namespace Studio.Pacman
                 float x1 = Mathf.Min(x0 + self.span, right);
                 float len = x1 - x0;
                 // The rope: a parabola sagging in the middle, drawn as short stretched segments.
-                const int steps = 14;
+                const int steps = 6;
                 Vector2 prev = Curve(x0, ropeY, len, self.sag, 0f);
                 for (int s = 1; s <= steps; s++)
                 {
