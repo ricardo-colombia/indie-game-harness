@@ -84,6 +84,7 @@ namespace Studio.Pacman
         private int pelletCount;
         private int ghostChain;
         private float stateTimer;
+        private float celebrationTimer;
         private float frightenedTimer;
         private float pacPauseTimer;
         private float playTime;
@@ -331,6 +332,15 @@ namespace Studio.Pacman
 
                 case PacmanState.LevelClear:
                     stateTimer -= Time.deltaTime;
+                    // A harvest celebration: coloured bursts pop over random spots of the farm while the banner shows.
+                    celebrationTimer -= Time.deltaTime;
+                    if (celebrationTimer <= 0f)
+                    {
+                        celebrationTimer = 0.12f;
+                        Color[] festive = { new Color(1f, 0.82f, 0.25f), new Color(0.9f, 0.2f, 0.2f), new Color(0.3f, 0.6f, 0.9f), new Color(0.4f, 0.8f, 0.3f) };
+                        Vector3 spot = new Vector3(Random.Range(1f, PacmanMaze.Width - 2f), -Random.Range(1f, PacmanMaze.Height - 2f), 0f);
+                        PacmanVfx.Pop(spot, festive[Random.Range(0, festive.Length)], 60);
+                    }
                     if (stateTimer <= 0f)
                     {
                         level++;
