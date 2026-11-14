@@ -45,6 +45,7 @@ namespace Studio.Pacman
         };
 
         private PacmanRays rays;
+        private PacmanFarmhouse[] farmhouses;
         private SpriteRenderer horizon;
         private SpriteRenderer[] mountains;
         private Color[] mountainBase;
@@ -136,6 +137,11 @@ namespace Studio.Pacman
             PacmanButterflies.Build(transform);
             PacmanDew.Build(transform);
             BuildMountains();
+            farmhouses = new[]
+            {
+                PacmanFarmhouse.Build(transform, new Vector2(-6.2f, -28.6f), false, 0.1f),
+                PacmanFarmhouse.Build(transform, new Vector2(PacmanMaze.Width - 1f + 8.6f, -29.2f), true, 0.55f),
+            };
             BuildPortals();
             BuildStars(centre);
             BuildHorizon(centre);
@@ -270,6 +276,13 @@ namespace Studio.Pacman
                 Color c = skyNow.Horizon;
                 c.a = 0.85f;
                 horizon.color = c;
+            }
+            if (farmhouses != null)
+            {
+                foreach (PacmanFarmhouse house in farmhouses)
+                {
+                    house.SetSky(skyNow.Tint);
+                }
             }
             if (mountains != null)
             {
