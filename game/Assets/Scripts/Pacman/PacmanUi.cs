@@ -389,7 +389,9 @@ namespace Studio.Pacman
             for (int i = 0; i < items.Length; i++)
             {
                 bool selected = i == game.MenuIndex;
-                string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO") : MenuLabel(items[i]);
+                string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO")
+                    : items[i] == "SHOES" ? "ZAPATOS:  " + PacmanShoes.Label(game.CurrentShoe)
+                    : MenuLabel(items[i]);
                 float width = Mathf.Min(520f * s, Screen.width * 0.9f);
                 Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
                 menuRows.Add(new Rect(row.x, row.y - 4f * s, row.width, rowHeight));
