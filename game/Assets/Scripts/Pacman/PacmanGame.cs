@@ -4,7 +4,7 @@ using UnityEngine.InputSystem;
 
 namespace Studio.Pacman
 {
-    public enum PacmanState { Title, Ready, Playing, Paused, Dying, LevelClear, GameOver }
+    public enum PacmanState { Title, Ready, Playing, Paused, Dying, LevelClear, GameOver, Story }
 
     /// <summary>
     /// Game bootstrap and rules: builds the maze, owns scoring, lives, ghost mode timing and state flow.
@@ -123,11 +123,20 @@ namespace Studio.Pacman
         private const string CloseViewKey = "pacman.closeview";
         private float gameOverSince;
 
+        // The prologue comic: shown before the first harvest, replayable from the title.
+        private const string StorySeenKey = "pacman.storyseen";
+        private PacmanStoryPlayer story;
+        private bool storyReplay;
+        private float storyHold;
+
+        /// <summary>The comic being shown while <see cref="State"/> is Story, otherwise null.</summary>
+        public PacmanStoryPlayer Story => State == PacmanState.Story ? story : null;
+
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "THEME", "VIEW", "SOUND" };
+        private static readonly string[] TitleItems = { "START", "STORY", "THEME", "VIEW", "SOUND" };
 #else
-        private static readonly string[] TitleItems = { "START", "THEME", "VIEW", "SOUND", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "STORY", "THEME", "VIEW", "SOUND", "QUIT" };
 #endif
         private static readonly string[] PauseItems = { "RESUME", "VIEW", "SOUND", "QUIT TO TITLE" };
 
@@ -250,6 +259,31 @@ namespace Studio.Pacman
             menuIndex = 0;
         }
 
+        /// <summary>Starts the prologue comic. A replay returns to the title when it ends; the first showing starts the game.</summary>
+        public void BeginStory(bool replay)
+        {
+            story = new PacmanStoryPlayer(PacmanStoryData.Panels);
+            storyReplay = replay;
+            storyHold = 0f;
+            State = PacmanState.Story;
+            menuIndex = 0;
+        }
+
+        private void FinishStory()
+        {
+            PlayerPrefs.SetInt(StorySeenKey, 1);
+            PlayerPrefs.Save();
+            story = null;
+            if (storyReplay)
+            {
+                ShowTitle();
+            }
+            else
+            {
+                NewGame();
+            }
+        }
+
         /// <summary>Restart from scratch: score, lives and every pellet.</summary>
         public void NewGame()
         {
@@ -328,6 +362,14 @@ namespace Studio.Pacman
                 case PacmanState.Title:
                 case PacmanState.Paused:
                 case PacmanState.GameOver:
+                    break;
+
+                case PacmanState.Story:
+                    story.Tick(Time.unscaledDeltaTime);
+                    if (story.Done)
+                    {
+                        FinishStory();
+                    }
                     break;
 
                 case PacmanState.LevelClear:
@@ -466,6 +508,26 @@ namespace Studio.Pacman
                 return;
             }
 
+            if (State == PacmanState.Story)
+            {
+                if (pressed && ui != null && ui.OnSkipButton(gui))
+                {
+                    FinishStory();
+                    return;
+                }
+                if (pressed)
+                {
+                    ApplyMenuInput(new MenuInput { Confirm = true });
+                }
+                // Holding a finger or the button down also skips.
+                storyHold = pointer.press.isPressed ? storyHold + Time.unscaledDeltaTime : 0f;
+                if (storyHold > 0.9f && State == PacmanState.Story)
+                {
+                    FinishStory();
+                }
+                return;
+            }
+
             if (State == PacmanState.GameOver)
             {
                 if (pressed && Time.unscaledTime - gameOverSince > 0.8f)
@@ -564,7 +626,7 @@ namespace Studio.Pacman
             float aspect = (float)Screen.width / Screen.height;
             float centreX = PacmanMaze.Width * 0.5f - 0.5f;
             float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
-            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && player != null;
+            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && player != null;
             float targetSize = close ? Mathf.Min(fullSize, Mathf.Max(6f, 5.4f / aspect)) : fullSize;
             Vector2 target = new Vector2(centreX, centreY);
             if (close)
@@ -630,6 +692,25 @@ namespace Studio.Pacman
                     }
                     return;
 
+                case PacmanState.Story:
+                    if (input.Back)
+                    {
+                        FinishStory();
+                    }
+                    else if (input.Confirm || input.Down)
+                    {
+                        story.Advance();
+                        if (story.Done)
+                        {
+                            FinishStory();
+                        }
+                        else
+                        {
+                            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+                        }
+                    }
+                    return;
+
                 default:
                     return;
             }
@@ -656,7 +737,18 @@ namespace Studio.Pacman
             switch (item)
             {
                 case "START":
-                    NewGame();
+                    // The first harvest opens with the comic (never in batch mode, where scenarios drive the game).
+                    if (PlayerPrefs.GetInt(StorySeenKey, 0) == 0 && !Application.isBatchMode)
+                    {
+                        BeginStory(false);
+                    }
+                    else
+                    {
+                        NewGame();
+                    }
+                    break;
+                case "STORY":
+                    BeginStory(true);
                     break;
                 case "RESUME":
                     State = PacmanState.Playing;

@@ -41,6 +41,8 @@ namespace Studio.Pacman
         private float fade;
         private PacmanState lastState = PacmanState.Title;
         private PacmanTitleParade parade;
+        private PacmanStoryView storyView;
+        private Rect skipButton = new Rect(-1000f, -1000f, 0f, 0f);
         private float stateAge;
         private readonly List<Rect> menuRows = new List<Rect>();
         private Rect pauseButton;
@@ -85,6 +87,12 @@ namespace Studio.Pacman
                 }
             }
             return -1;
+        }
+
+        /// <summary>True when a position (y down) is on the "skip" button of the story comic.</summary>
+        public bool OnSkipButton(Vector2 gui)
+        {
+            return game != null && game.State == PacmanState.Story && skipButton.Contains(gui);
         }
 
         /// <summary>True when a position (y down) is on the on-screen pause button, which only shows for touch play.</summary>
@@ -172,10 +180,26 @@ namespace Studio.Pacman
             menuRows.Clear();
             pauseButton = new Rect(-1000f, -1000f, 0f, 0f);
             zoomButton = new Rect(-1000f, -1000f, 0f, 0f);
+            skipButton = new Rect(-1000f, -1000f, 0f, 0f);
+
+            if (game.State != PacmanState.Story && storyView != null)
+            {
+                Destroy(storyView.gameObject);
+                storyView = null;
+            }
 
             if (game.State == PacmanState.Title)
             {
                 DrawTitle(s);
+            }
+            else if (game.State == PacmanState.Story)
+            {
+                if (parade != null)
+                {
+                    Destroy(parade.gameObject);
+                    parade = null;
+                }
+                DrawStory(s);
             }
             else
             {
@@ -258,12 +282,12 @@ namespace Studio.Pacman
             {
                 // Tall screens put the menu over the maze, so give it a backing panel to stay readable.
                 float panelWidth = Mathf.Min(580f * s, Screen.width * 0.94f);
-                float panelHeight = game.ActiveMenu.Length * 64f * s + 24f * s;
-                Rect backing = new Rect((Screen.width - panelWidth) * 0.5f, Screen.height * 0.52f - 16f * s, panelWidth, panelHeight);
+                float panelHeight = game.ActiveMenu.Length * RowHeight(game.ActiveMenu.Length) * s + 24f * s;
+                Rect backing = new Rect((Screen.width - panelWidth) * 0.5f, Screen.height * (game.ActiveMenu.Length >= 5 ? 0.49f : 0.52f) - 16f * s, panelWidth, panelHeight);
                 Fill(new Rect(backing.x - 3f * s, backing.y - 3f * s, backing.width + 6f * s, backing.height + 6f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.4f), 20f * s);
                 Fill(backing, Panel, 16f * s);
             }
-            DrawMenuItems(s, Screen.height * 0.52f);
+            DrawMenuItems(s, Screen.height * (game.ActiveMenu.Length >= 5 ? 0.49f : 0.52f));
 
             if (game.HighScore > 0)
             {
@@ -287,6 +311,96 @@ namespace Studio.Pacman
             {
                 GUI.DrawTexture(strip, parade.Texture, ScaleMode.StretchToFill, true);
             }
+        }
+
+        // ---------------------------------------------------------------- story comic
+
+        /// <summary>Draws text word-wrapped inside its rectangle.</summary>
+        private void TextWrapped(Rect rect, string text, float size, Color colour, TextAnchor anchor, Vector2? shadow = null)
+        {
+            label.wordWrap = true;
+            Text(rect, text, size, colour, anchor, shadow);
+            label.wordWrap = false;
+        }
+
+        private void DrawStory(float s)
+        {
+            PacmanStoryPlayer story = game.Story;
+            if (story == null)
+            {
+                return;
+            }
+            if (storyView == null)
+            {
+                storyView = PacmanStoryView.Create();
+            }
+
+            float W = Screen.width;
+            float H = Screen.height;
+            float aspect = W / Mathf.Max(1f, H);
+            // Text is larger on tall screens, where the UI scale follows the narrow width.
+            float cs = s * Mathf.Lerp(1.6f, 1f, Mathf.InverseLerp(0.6f, 1.2f, aspect));
+            StoryPanel panel = story.Current;
+
+            Fill(new Rect(0f, 0f, W, H), new Color(0.07f, 0.045f, 0.025f, 1f));
+
+            float margin = 20f * s;
+            float pictureWidth = Mathf.Min(W - 2f * margin, (H * 0.58f) * 1.6f);
+            float pictureHeight = pictureWidth / 1.6f;
+            Rect picture = new Rect((W - pictureWidth) * 0.5f, 56f * s + margin * 0.3f, pictureWidth, pictureHeight);
+            float border = 6f * s;
+            Fill(new Rect(picture.x - border - 3f * s, picture.y - border - 3f * s, picture.width + 2f * (border + 3f * s), picture.height + 2f * (border + 3f * s)), new Color(0.97f, 0.9f, 0.7f, 1f), 6f * s);
+            Fill(new Rect(picture.x - border, picture.y - border, picture.width + 2f * border, picture.height + 2f * border), new Color(0.12f, 0.07f, 0.03f, 1f), 4f * s);
+
+            storyView.Show(panel.Scene, story.Time, story.Progress);
+            if (storyView.Texture != null)
+            {
+                GUI.DrawTexture(picture, storyView.Texture, ScaleMode.StretchToFill, false);
+            }
+            // Each panel "pops" in from darkness, like turning a page.
+            float pop = 1f - Mathf.Clamp01(story.Time / 0.35f);
+            if (pop > 0f)
+            {
+                Fill(picture, new Color(0.07f, 0.045f, 0.025f, pop));
+            }
+
+            // Page badge on the picture corner.
+            Rect badge = new Rect(picture.x + 10f * s, picture.y + 10f * s, 92f * s, 40f * s);
+            Fill(badge, new Color(0.97f, 0.9f, 0.7f, 0.95f), 20f * s);
+            Text(badge, (story.Index + 1) + " / " + story.Count, 24f * s, new Color(0.2f, 0.1f, 0.04f), TextAnchor.MiddleCenter);
+
+            // Caption box: title, story, and what the character wants.
+            float captionTop = picture.yMax + border + 18f * s;
+            Rect caption = new Rect(picture.x, captionTop, picture.width, H - captionTop - 78f * s);
+            Fill(caption, new Color(0.97f, 0.9f, 0.7f, 0.96f), 10f * s);
+            float pad = 16f * cs;
+            Color ink = new Color(0.18f, 0.09f, 0.04f);
+            float y = caption.y + pad * 0.6f;
+            Text(new Rect(caption.x + pad, y, caption.width - 2f * pad, 52f * cs), panel.Title, 40f * cs, new Color(0.62f, 0.14f, 0.1f), TextAnchor.MiddleLeft);
+            y += 52f * cs;
+            float motiveHeight = string.IsNullOrEmpty(panel.Motive) ? 0f : 46f * cs;
+            TextWrapped(new Rect(caption.x + pad, y, caption.width - 2f * pad, caption.yMax - y - motiveHeight - pad * 0.5f), panel.Text, 29f * cs, ink, TextAnchor.UpperLeft);
+            if (motiveHeight > 0f)
+            {
+                Text(new Rect(caption.x + pad, caption.yMax - motiveHeight - pad * 0.4f, caption.width - 2f * pad, motiveHeight), panel.Motive, 27f * cs, new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
+            }
+
+            // Progress dots and the control hint.
+            float dot = 12f * s;
+            float dotsWidth = story.Count * dot * 2f;
+            float dotsY = H - 62f * s;
+            for (int i = 0; i < story.Count; i++)
+            {
+                Rect d = new Rect(W * 0.5f - dotsWidth * 0.5f + i * dot * 2f + dot * 0.5f, dotsY, dot, dot);
+                Fill(d, i == story.Index ? Gold : (i < story.Index ? new Color(Gold.r, Gold.g, Gold.b, 0.5f) : new Color(1f, 1f, 1f, 0.2f)), dot * 0.5f);
+            }
+            string hint = game.TouchMode ? "TOCA  PARA  SEGUIR" : "ENTER  SEGUIR      ESC  SALTAR";
+            Text(new Rect(0f, H - 46f * s, W, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
+
+            // Skip button, always available.
+            skipButton = new Rect(W - 190f * s - margin, 10f * s, 190f * s, 44f * s);
+            Fill(skipButton, new Color(0f, 0f, 0f, 0.45f), 22f * s);
+            Text(skipButton, "SALTAR  »", 26f * s, Gold, TextAnchor.MiddleCenter);
         }
 
         private void DrawHud(float s)
@@ -444,6 +558,7 @@ namespace Studio.Pacman
             switch (item)
             {
                 case "START": return "A COSECHAR";
+                case "STORY": return "HISTORIA";
                 case "RESUME": return "SEGUIR";
                 case "QUIT": return "SALIR";
                 case "QUIT TO TITLE": return "VOLVER AL INICIO";
@@ -451,10 +566,16 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>Menus with five or more rows are packed a little tighter so they still fit above the title's chase strip.</summary>
+        private static float RowHeight(int count)
+        {
+            return count >= 5 ? 52f : 64f;
+        }
+
         private void DrawMenuItems(float s, float top)
         {
             string[] items = game.ActiveMenu;
-            float rowHeight = 64f * s;
+            float rowHeight = RowHeight(items.Length) * s;
             for (int i = 0; i < items.Length; i++)
             {
                 bool selected = i == game.MenuIndex;
@@ -472,7 +593,7 @@ namespace Studio.Pacman
                     Fill(new Rect(row.x, row.y, 6f * s, row.height), Gold, 3f * s);
                     GUI.DrawTexture(new Rect(row.x + 18f * s, row.y + row.height * 0.5f - 16f * s, 36f * s, 36f * s), hatIcon, ScaleMode.StretchToFill, true);
                 }
-                Text(row, text, 38f * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
+                Text(row, text, (items.Length >= 5 ? 34f : 38f) * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
             }
         }
 

@@ -234,9 +234,9 @@ namespace Studio.Pacman
         }
 
         /// <summary>The title-screen chase: the picker walks on the spot facing this way (+1 right, -1 left), with no maze or game.</summary>
-        public void ShowParade(float facingSign)
+        public void ShowParade(float facingSign, bool walking = true)
         {
-            parade = true;
+            parade = walking;
             facing = facingSign < 0f ? -1f : 1f;
             SetView(View.Side);
             views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);

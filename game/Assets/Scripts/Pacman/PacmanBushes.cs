@@ -116,6 +116,13 @@ namespace Studio.Pacman
 
         // ---------------------------------------------------------------- painting
 
+        /// <summary>One of the painted coffee-plant sprites, for scenes outside the board (the story comic).</summary>
+        public static Sprite Variant(int index)
+        {
+            EnsureSprites();
+            return sprites[((index % Variants) + Variants) % Variants];
+        }
+
         private static void EnsureSprites()
         {
             if (sprites != null && sprites[0] != null)

@@ -92,6 +92,7 @@ namespace Studio.Pacman
             switch (state)
             {
                 case PacmanState.Title:
+                case PacmanState.Story:
                     return Track.Title;
                 case PacmanState.Ready:
                     return Track.Intro;
