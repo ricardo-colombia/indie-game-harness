@@ -1,5 +1,5 @@
 ---
-name: steam-release
+name: gamedev-steam-release
 description: Build a release player and upload it to a Steam beta branch with steamcmd. Use for "upload build", "push to Steam beta", "release candidate".
 ---
 1. Clean main, `./hx verify` green on HEAD.

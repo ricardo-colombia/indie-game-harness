@@ -5,7 +5,7 @@ This repo is one indie game built with an AI team. The human is the **creative d
 `./hx` = `python3 harness/hx.py` (Windows: `hx`). It switches itself to `.venv` after setup.
 
 ## First session
-Run `./hx doctor`. If a required item is red, tell the director what `./hx setup` will do and run `./hx setup "<Game Name>"` (it creates the Unity project in `game/`, wires the packages, makes `.venv`). If no Unity 6 editor is installed it downloads one (several GB): ask first, then add `--yes`. Then use the `new-game` skill: **the goal of session one is a playable game, not a plan.**
+Run `./hx doctor`. If a required item is red, tell the director what `./hx setup` will do and run `./hx setup "<Game Name>"` (it creates the Unity project in `game/`, wires the packages, makes `.venv`). If no Unity 6 editor is installed it downloads one (several GB): ask first, then add `--yes`. Then use the `gamedev-new-game` skill: **the goal of session one is a playable game, not a plan.**
 
 ## Driving the editor
 Open it with `unity open game`, wait with `unity status --until-ready --project-path game`, then use `unity command` (find commands with `unity command --query <term>`; arbitrary C# via `unity command script eval`). No MCP server is needed.
@@ -31,9 +31,9 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 
 ## Lessons from the first game (Pac-Man)
 - **Playable first.** The first game got good by iterating live in one session (code → play → screenshot → adjust), not by queueing cards. Use cards and `hx run` once a core loop exists and you want polish done in parallel.
-- **Procedural before assets.** Primitives, runtime-generated sprites/materials and synthesized sound/music got a finished look with zero imports. The Blender/FBX route was tried and dropped. Reach for the `art-asset` pipeline only when the director asks for a specific model.
+- **Procedural before assets.** Primitives, runtime-generated sprites/materials and synthesized sound/music got a finished look with zero imports. The Blender/FBX route was tried and dropped. Reach for the `gamedev-art-asset` pipeline only when the director asks for a specific model.
 - **Copying a known game? Get the reference first** (image or spec), put the map/tables in data, and assert them in tests. An invented layout had to be thrown away; the rules (speeds, targeting, level tables) came from the published reference and were pinned by tests.
-- **Ship a web build early** (`./hx web --serve`, then the `web-release` skill): it is the fastest way for the director to feel it on a phone. WebGL gotchas: no OS fonts (use `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` under `#if UNITY_WEBGL`), no Quit button, fit camera and UI to any aspect ratio, cap the pixel ratio on phones.
+- **Ship a web build early** (`./hx web --serve`, then the `gamedev-web-release` skill): it is the fastest way for the director to feel it on a phone. WebGL gotchas: no OS fonts (use `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` under `#if UNITY_WEBGL`), no Quit button, fit camera and UI to any aspect ratio, cap the pixel ratio on phones.
 - **Check state before claiming it works.** After a rewrite run the EditMode tests (`unity test --mode EditMode`) and look at a screenshot; compile errors in the editor console are the usual first failure.
 
 ## Verify before claiming done

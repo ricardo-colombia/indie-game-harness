@@ -1,5 +1,5 @@
 ---
-name: capture-shorts
+name: gamedev-capture-shorts
 description: Film scripted camera takes inside the built game, cut them into vertical shorts, and queue them for posting after approval. Use for shorts, trailers, GIFs and devlog clips.
 ---
 1. **Takes**: write/extend `marketing/takes/<set>.json` (see `launch.json`): orbit/dolly/follow/static shots, each with optional gameplay `steps` so the game plays itself while filmed. Target GameObjects by name.

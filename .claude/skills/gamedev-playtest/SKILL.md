@@ -1,5 +1,5 @@
 ---
-name: playtest
+name: gamedev-playtest
 description: Play the game in the open Unity editor via `unity command` — enter play mode, drive inputs, sample values, screenshot — and report measured feel. Use for "try it", "how does it handle", "show me", or tuning sessions with the director.
 ---
 Open the editor with `unity open game`, then `unity status --until-ready --project-path game`. Drive it with `unity command` (find commands with `unity command --query <term>`; run C# with `unity command script eval`). If it can't be reached, fall back to `hx autotest`.

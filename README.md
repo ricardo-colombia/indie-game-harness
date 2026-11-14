@@ -36,7 +36,7 @@ Keep going by talking. When you want polish done in parallel, or you want the ga
 
 **Keeping it cheap:** with the editor open, Claude iterates with `unity test --mode EditMode` and one screenshot per change, and runs `./hx verify` once before calling something done. The rules are in `CLAUDE.md` → "Cost discipline"; `./hx run` cards are capped at 50 turns / $2 / 30 min (`runner.defaults` in `harness/config.yaml`).
 
-Also: skills `playtest`, `web-release`, `art-asset`, `capture-shorts`, `steam-page`, `steam-release`. Internals: [docs/REFERENCE.md](docs/REFERENCE.md). Checking the harness itself: [TESTING.md](TESTING.md).
+Also: skills `gamedev-playtest`, `gamedev-web-release`, `gamedev-art-asset`, `gamedev-capture-shorts`, `gamedev-steam-page`, `gamedev-steam-release`. Internals: [docs/REFERENCE.md](docs/REFERENCE.md). Checking the harness itself: [TESTING.md](TESTING.md).
 
 The only requirement on the game: use Unity's **Input System** (the Unity 6 default).
 The first game made with this template was a Pac-Man clone (branch `pacman-game`); what it taught is in `CLAUDE.md` → "Lessons".

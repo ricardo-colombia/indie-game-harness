@@ -47,7 +47,7 @@ Expected: every line `PASS`. The last line shows where the captured frames were 
 ### Live (≈2–5 min, plan quota, Haiku)
 Expected PASS lines:
 1. `headless claude on plan login (haiku)`: the model replies PONG.
-2. `project skills load`: it sees `run-card`, `write-card`, ...
+2. `project skills load`: it sees the `gamedev-*` skills
 3. `real card through runner`: Haiku writes `docs/selftest.md`, the review gate passes, and the card merges, all in a temp clone.
 
 ## 2. If something fails

@@ -656,7 +656,7 @@ def live_checks() -> list[tuple[str, bool, str]]:
         res.append(("hint", False, "run `claude` once and /login with your Pro/Max account; API keys are stripped on purpose"))
         return res
     d = call("Without using tools, list the names of the project skills available to you, comma-separated.")
-    found = [s for s in ("run-card", "write-card", "playtest") if s in str(d.get("result", ""))]
+    found = [s for s in ("gamedev-run-card", "gamedev-write-card", "gamedev-playtest") if s in str(d.get("result", ""))]
     res.append(("project skills load", len(found) >= 2, f"saw {found}"))
 
     tmp = Path(tempfile.mkdtemp(prefix="hx-live-"))

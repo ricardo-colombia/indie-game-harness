@@ -1,5 +1,5 @@
 ---
-name: run-card
+name: gamedev-run-card
 description: Protocol for implementing one backlog card unattended inside a runner worktree. Used by harness/runner.py; also usable interactively ("run card C-0012").
 ---
 You are alone, on a budget, on branch `card/<id>`. Nobody will answer questions. Optimise for a change that passes the independent gates on the first try.

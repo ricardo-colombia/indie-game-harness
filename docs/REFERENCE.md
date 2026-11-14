@@ -15,7 +15,7 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
           · autotest (nonce + plausibility) · review · post-gate tamper check
   → 1 fix pass on failure (resumed session) → merge │ backlog/review (taste / BLOCKED / needs you) │ backlog/failed
                          ▼
-  after a run: "taste-review" skill → you decide → `hx merge <id>` (re-gated on today's main) / feedback card
+  after a run: `gamedev-taste-review` skill → you decide → `hx merge <id>` (re-gated on today's main) / feedback card
 ```
 
 ## What's in it
@@ -23,7 +23,7 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
 |---|---|
 | `CLAUDE.md` | Studio rules: the code contract, verification, cost discipline, hard "nevers" |
 | `.claude/agents/` | producer, gameplay-engineer, qa-playtester, code-reviewer (haiku), tech-artist, marketing-producer (haiku), build-release (haiku) |
-| `.claude/skills/` | new-game, playtest, web-release, write-card, run-card, taste-review, art-asset, capture-shorts, steam-page, steam-release |
+| `.claude/skills/` | gamedev-new-game, gamedev-playtest, gamedev-web-release, gamedev-write-card, gamedev-run-card, gamedev-taste-review, gamedev-art-asset, gamedev-capture-shorts, gamedev-steam-page, gamedev-steam-release |
 | `.claude/settings.json` + `harness/hooks/` | permissions (paid/irreversible actions require approval), C# guard hook |
 | `.mcp.json` | empty by default; the editor is driven with `unity command`, no MCP needed |
 | `.claude-plugin/` | lets other game repos install the agents and skills as a plugin |

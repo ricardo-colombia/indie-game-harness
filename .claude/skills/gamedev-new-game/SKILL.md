@@ -1,5 +1,5 @@
 ---
-name: new-game
+name: gamedev-new-game
 description: Bootstrap a new game from this template and get to a playable first version in one session — setup, a short pillars interview, a code-built prototype, a browser build. Use once at the start of a project ("start a new game", "quiero hacer un juego de …").
 ---
 Goal of this session: **the director plays something by the end of it.** Plans and cards come after.
@@ -10,6 +10,6 @@ Goal of this session: **the director plays something by the end of it.** Plans a
 4. **Build the first playable, live** (CLAUDE.md code contract applies):
    - Rules in plain C# classes + EditMode tests; a small bootstrap MonoBehaviour that builds the scene from code. Input System actions with keyboard and touch (swipe/tap) from the start.
    - Procedural look and synthesized sound; no asset imports.
-   - Play it with the `playtest` skill: enter play mode, drive input, screenshot, fix what is visibly wrong before showing it.
-5. **Make it shareable.** `./hx web --serve` (editor closed) and tell the director the localhost link. Use `web-release` only when they say to publish.
-6. **Hand over.** Show screenshots + the link, ask for taste feedback, log decisions in `design/TASTE_LOG.md`. Only now turn feedback into cards (`write-card`) and, if they want polish in parallel, explain `./hx card ready` + `./hx run`.
+   - Play it with the `gamedev-playtest` skill: enter play mode, drive input, screenshot, fix what is visibly wrong before showing it.
+5. **Make it shareable.** `./hx web --serve` (editor closed) and tell the director the localhost link. Use `gamedev-web-release` only when they say to publish.
+6. **Hand over.** Show screenshots + the link, ask for taste feedback, log decisions in `design/TASTE_LOG.md`. Only now turn feedback into cards (`gamedev-write-card`) and, if they want polish in parallel, explain `./hx card ready` + `./hx run`.

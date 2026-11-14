@@ -1,5 +1,5 @@
 ---
-name: taste-review
+name: gamedev-taste-review
 description: Prepare the director's review — summarise runner results and present backlog/review branches with screenshots and metric deltas so they can make fast taste calls. Use for "what happened in the last run", "review queue".
 ---
 1. `./hx report` and `hx cards`.

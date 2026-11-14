@@ -357,10 +357,10 @@ def process(card: Card, cfg, billing: Billing) -> tuple[str, float]:
     turns, tmin = int(card.get("max_turns", cfg)), float(card.get("timeout_min", cfg))
     attempts, gates, used, money = [], {}, 0.0, 0.0
     prompt = (f"You are running UNATTENDED on backlog card {card.id} in an isolated git worktree. "
-              f"Follow the `run-card` skill exactly. The card:\n\n{card.text()}")
+              f"Follow the `gamedev-run-card` skill exactly. The card:\n\n{card.text()}")
     if resumed and session:
         prompt = ("You were paused by a plan-quota stop. Continue the same card from where you left off "
-                  "(your earlier commits are on this branch), following the `run-card` skill.")
+                  "(your earlier commits are on this branch), following the `gamedev-run-card` skill.")
     plan = [(model, paid)] * int(card.meta.get("attempts", 2))
     esc = billing.escalation
     forced = os.environ.get("HX_FORCE_MODEL") or cfg["runner"].get("force_model")

@@ -1,5 +1,5 @@
 ---
-name: web-release
+name: gamedev-web-release
 description: Build the game for the browser (WebGL), test it locally, and publish it to GitHub Pages as a shareable link. Use for "play it on my phone", "share a link", "put it on the web", "publish to GitHub Pages".
 ---
 1. **Build.** Close the editor if it has `game/` open (`unity close game`), then `./hx web`. Output: `game/Builds/Web` (release build, no harness, uncompressed so any static host serves it). First build takes several minutes.
