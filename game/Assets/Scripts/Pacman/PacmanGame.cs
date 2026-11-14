@@ -117,15 +117,17 @@ namespace Studio.Pacman
 
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "SOUND" };
+        private static readonly string[] TitleItems = { "START", "THEME", "SOUND" };
 #else
-        private static readonly string[] TitleItems = { "START", "SOUND", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "THEME", "SOUND", "QUIT" };
 #endif
         private static readonly string[] PauseItems = { "RESUME", "SOUND", "QUIT TO TITLE" };
 
         /// <summary>True while the player is using a touch screen: the UI shows touch hints and a pause button.</summary>
         public bool TouchMode { get; private set; }
 
+        /// <summary>Id of the art theme that the next game will use. Probe for menu tests.</summary>
+        public string ThemeId => PacmanTheme.Current;
         /// <summary>Sound toggle probe for autotest scenarios.</summary>
         public bool SoundOn => soundOn;
         /// <summary>Highlighted menu row. Probe for menu tests.</summary>
@@ -570,6 +572,11 @@ namespace Studio.Pacman
                     break;
                 case "SOUND":
                     soundOn = !soundOn;
+                    break;
+                case "THEME":
+                    // Everything is painted once at startup, so reloading the scene is what applies the new look.
+                    PacmanTheme.Current = PacmanTheme.Current == PacmanTheme.Vintage ? PacmanTheme.Procedural : PacmanTheme.Vintage;
+                    UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
                     break;
                 case "QUIT":
                     Application.Quit();

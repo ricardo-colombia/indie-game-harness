@@ -25,8 +25,6 @@ namespace Studio.Pacman
         private static Sprite gridTile;
         private static Sprite mountain;
         private static readonly Sprite[] PacSprites = new Sprite[PacFrames + 1];
-        private static readonly Sprite[] PersonSprites = new Sprite[2];
-        private static readonly Sprite[] SnakeSprites = new Sprite[2];
 
         /// <summary>A soft-edged disc filling its one-unit square. Used for pellets, eyes and fruit.</summary>
         public static Sprite Disc
@@ -88,67 +86,6 @@ namespace Studio.Pacman
                 });
             }
             return PacSprites[index];
-        }
-
-        /// <summary>
-        /// A little cartoon person (head, torso, two arms, two legs) that walks between two frames. Used by the
-        /// DIAN agent, the guerrilla fighter and the narco; clothes and props are separate tinted parts.
-        /// </summary>
-        public static Sprite Person(int frame)
-        {
-            frame &= 1;
-            if (PersonSprites[frame] == null)
-            {
-                float swing = frame == 0 ? 1f : -1f;
-                PersonSprites[frame] = Make("PestPerson" + frame, FrameSize, (x, y) =>
-                {
-                    float head = 0.2f - Mathf.Sqrt(x * x + (y - 0.22f) * (y - 0.22f));
-                    float best = head;
-                    best = Mathf.Max(best, RoundBox(x, y + 0.1f, 0.27f, 0.2f, 0.09f));
-                    for (int side = -1; side <= 1; side += 2)
-                    {
-                        float s = side * swing;
-                        best = Mathf.Max(best, 0.055f - SegmentDistance(x, y, new Vector2(side * 0.1f, -0.26f), new Vector2(side * 0.1f + s * 0.07f, -0.46f)));
-                        best = Mathf.Max(best, 0.05f - SegmentDistance(x, y, new Vector2(side * 0.27f, 0.0f), new Vector2(side * 0.33f - s * 0.04f, -0.22f)));
-                    }
-                    return best;
-                });
-            }
-            return PersonSprites[frame];
-        }
-
-        /// <summary>A snake seen from above, head up, whose body wriggles between two phases. Used for the serpiente.</summary>
-        public static Sprite Snake(int frame)
-        {
-            frame &= 1;
-            if (SnakeSprites[frame] == null)
-            {
-                float phase = frame == 0 ? 0f : 2.6f;
-                const int samples = 26;
-                var centres = new Vector2[samples];
-                var radii = new float[samples];
-                for (int i = 0; i < samples; i++)
-                {
-                    float t = i / (samples - 1f);
-                    float y = Mathf.Lerp(0.12f, -0.46f, t);
-                    float amplitude = 0.16f * Mathf.Min(1f, t * 5f) * (1f - t * 0.35f);
-                    centres[i] = new Vector2(amplitude * Mathf.Sin(t * 13f + phase), y);
-                    radii[i] = Mathf.Lerp(0.115f, 0.03f, Mathf.Pow(t, 1.3f));
-                }
-                SnakeSprites[frame] = Make("PestSnake" + frame, FrameSize, (x, y) =>
-                {
-                    float best = 1f - Mathf.Sqrt((x * x) / (0.19f * 0.19f) + ((y - 0.27f) * (y - 0.27f)) / (0.17f * 0.17f));
-                    best *= 0.17f;
-                    for (int i = 0; i < samples; i++)
-                    {
-                        float dx = x - centres[i].x;
-                        float dy = y - centres[i].y;
-                        best = Mathf.Max(best, radii[i] - Mathf.Sqrt(dx * dx + dy * dy));
-                    }
-                    return best;
-                });
-            }
-            return SnakeSprites[frame];
         }
 
         /// <summary>Positive inside a rounded box centred on the origin of its own frame.</summary>
