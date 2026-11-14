@@ -130,6 +130,7 @@ namespace Studio.Pacman
             PacmanBushes.Build(transform);
             rays = PacmanRays.Build(transform);
             PacmanMist.Build(transform);
+            PacmanLeaves.Build(transform);
             PacmanDew.Build(transform);
             BuildMountains();
             BuildPortals();
