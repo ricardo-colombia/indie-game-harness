@@ -1278,6 +1278,7 @@ namespace Studio.Pacman
                 renderer.color = (h >> 20) % 7 == 0
                     ? new Color(1f, 0.95f, 0.55f)
                     : new Color(1f, 0.82f + 0.18f * ripe, 0.8f + 0.2f * ripe);
+                AddPelletShadow(pellet.transform);
                 return pellet;
             }
             if (!power)
@@ -1288,6 +1289,7 @@ namespace Studio.Pacman
                 renderer.color = light ? PelletUnripeColour : PelletColour;
                 pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
                 AddPelletPart(pellet.transform, new Color(0.22f, 0.1f, 0.04f), new Vector2(0f, 0f), new Vector3(0.1f, 0.74f, 1f), 0f, 2, PacmanSprites.Square);
+                AddPelletShadow(pellet.transform);
                 return pellet;
             }
 
@@ -1315,6 +1317,20 @@ namespace Studio.Pacman
             AddPelletPart(t, steam, new Vector2(-0.08f, 0.46f), new Vector3(0.06f, 0.3f, 1f), -14f, 6);
             AddPelletPart(t, steam, new Vector2(0.06f, 0.4f), new Vector3(0.06f, 0.24f, 1f), 14f, 6);
             return pellet;
+        }
+
+        /// <summary>A contact shadow, the bean's own silhouette nudged below-right, so it lies on the earth and not painted on it.</summary>
+        private static void AddPelletShadow(Transform pellet)
+        {
+            GameObject shadow = new GameObject("Shadow");
+            shadow.transform.SetParent(pellet, false);
+            shadow.transform.position = pellet.position + new Vector3(0.045f, -0.07f, 0f);
+            shadow.transform.localRotation = Quaternion.identity;
+            shadow.transform.localScale = Vector3.one * 1.08f;
+            SpriteRenderer renderer = shadow.AddComponent<SpriteRenderer>();
+            renderer.sprite = PacmanSprites.Bean;
+            renderer.color = new Color(0.04f, 0.02f, 0.008f, 0.6f);
+            renderer.sortingOrder = 0;
         }
 
         private static void AddPelletPart(Transform parent, Color colour, Vector2 position, Vector3 scale, float angle, int order, Sprite sprite = null)
