@@ -1,5 +1,5 @@
 ---
-name: art-asset
+name: gamedev-art-asset
 description: Concept → pick → 3D model → Blender cleanup → Unity import, driven by art/manifest.yaml. Use for creating or replacing any 3D asset, texture or material set.
 ---
 Each asset in `art/manifest.yaml` moves through `stage`: `concept → pick → model → cleanup → import → done`. Run one stage for one batch, then stop at human gates.

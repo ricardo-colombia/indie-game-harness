@@ -48,12 +48,14 @@ def manifest() -> dict | None:
     return json.loads(f.read_text()) if f.exists() else None
 
 
+VENV = ROOT / ".venv"
+VENV_PY = VENV / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+
+
 def deps_ok() -> bool:
-    try:
-        import requests, yaml  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    """Python dependencies importable by the interpreter `hx` will use (.venv if it exists, else this one)."""
+    py = str(VENV_PY) if VENV_PY.exists() else sys.executable
+    return subprocess.run([py, "-c", "import requests, yaml"], capture_output=True).returncode == 0
 
 
 def checks() -> list[tuple[str, bool, bool, str]]:
@@ -87,7 +89,7 @@ def doctor() -> int:
     for name, ok, required, fix in checks():
         print(f"  {'ok  ' if ok else ('FAIL' if required else 'skip')}  {name}" + ("" if ok else f"  ->  {fix}"))
         bad += (not ok) and required
-    print("ready" if not bad else f"{bad} required item(s) missing: run `python harness/hx.py setup`")
+    print("ready" if not bad else f"{bad} required item(s) missing: run `./hx setup`")
     return 1 if bad else 0
 
 
@@ -101,8 +103,10 @@ def run(cmd: list[str], dry: bool, cwd: Path = ROOT) -> None:
 
 def setup(name: str | None, yes: bool, dry: bool) -> int:
     # 1. Python dependencies
-    if not deps_ok():
-        run([sys.executable, "-m", "pip", "install", "-q", "-r", "harness/requirements.txt"], dry)
+    if not deps_ok():   # into .venv: macOS/Linux system Pythons refuse `pip install` (PEP 668)
+        if not VENV_PY.exists():
+            run([sys.executable, "-m", "venv", str(VENV)], dry)
+        run([str(VENV_PY), "-m", "pip", "install", "-q", "-r", "harness/requirements.txt"], dry)
 
     # 2. Unity CLI (the one thing we do not install behind your back)
     if not shutil.which("unity"):
@@ -140,16 +144,23 @@ def setup(name: str | None, yes: bool, dry: bool) -> int:
     if "com.unity.pipeline" not in ((manifest() or {}).get("dependencies") or {}):
         run(["unity", "pipeline", "install", "--project-path", str(game)], dry)
 
-    # 5. Config: game name and player binary
+    # 5. Tidy the new project: drop Unity's tutorial scaffolding, add the browser (WebGL) page template
+    if not dry:
+        for junk in ("Assets/TutorialInfo", "Assets/TutorialInfo.meta", "Assets/Readme.asset", "Assets/Readme.asset.meta"):
+            p = game / junk
+            shutil.rmtree(p, ignore_errors=True) if p.is_dir() else p.unlink(missing_ok=True)
+        tpl, dest = ROOT / "packages/com.studio.harness/WebGLTemplates~/Harness", game / "Assets/WebGLTemplates/Harness"
+        if tpl.is_dir() and game.exists() and not dest.exists():
+            shutil.copytree(tpl, dest)   # Unity writes the .meta files on first import
+
+    # 6. Config: game name (build target and binary name follow it, see core.load_config)
     if name:
         cfg = ROOT / "harness/config.yaml"
-        s = cfg.read_text()
-        s = re.sub(r"(?m)^  name: .*", f"  name: {name}", s)
-        s = re.sub(r"player_binary: Builds/Player/\S+", f"player_binary: Builds/Player/{re.sub(r'[^A-Za-z0-9]', '', name)}.exe", s)
+        s = re.sub(r"(?m)^  name: .*", lambda _: f"  name: {name}", cfg.read_text())
         if not dry:
             cfg.write_text(s)
 
-    # 6. Git
+    # 7. Git
     if not (ROOT / ".git").exists():
         run(["git", "init", "-q", "-b", "main"], dry)
     if shutil.which("git-lfs") and not dry:

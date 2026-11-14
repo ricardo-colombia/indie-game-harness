@@ -10,7 +10,7 @@ read -r APP DEPOT BRANCH < <(python -c "import sys;sys.path.insert(0,'harness');
 # Only a release build made by `hx release --to-steam` from this exact, clean commit may be uploaded.
 [ -z "$(git status --porcelain)" ] || { echo "Working tree is dirty; commit first."; exit 1; }
 MARK=steam/build_out/release_ok.json
-[ -f "$MARK" ] || { echo "No $MARK — run: python harness/hx.py release --to-steam"; exit 1; }
+[ -f "$MARK" ] || { echo "No $MARK — run: ./hx release --to-steam"; exit 1; }
 python - "$MARK" <<'PY' || exit 1
 import json, subprocess, sys
 sys.path.insert(0, "harness")

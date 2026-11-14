@@ -28,6 +28,8 @@ namespace Studio.Pacman
 
         [Header("Timers (seconds)")]
         [SerializeField] private float readyDuration = 2f;
+        [Tooltip("Seconds the whole farm is shown at the start of a new game before the camera zooms in on the farmer (close view only).")]
+        [SerializeField] private float introSeconds = 2.2f;
         [SerializeField] private float deathDuration = 1.5f;
         [SerializeField] private float levelClearDuration = 2.5f;
 
@@ -175,10 +177,14 @@ namespace Studio.Pacman
         /// <summary>True when the camera follows the player up close instead of showing the whole board.</summary>
         public bool CloseView => closeView;
 
+        // Counts down while a new game shows the whole farm; the camera then eases in on the farmer.
+        private float introTimer;
+
         /// <summary>Switches between the whole-board view and the close follow view. Remembered between runs.</summary>
         public void ToggleView()
         {
             closeView = !closeView;
+            introTimer = 0f;
             try
             {
                 PlayerPrefs.SetInt(CloseViewKey, closeView ? 1 : 0);
@@ -391,6 +397,7 @@ namespace Studio.Pacman
             Lives = startingLives;
             extraLifeGiven = false;
             level = 1;
+            introTimer = closeView ? introSeconds : 0f;
             RestoreLevel();
         }
 
@@ -418,7 +425,8 @@ namespace Studio.Pacman
         private void Update()
         {
             FitCamera();
-            UpdateView(1f - Mathf.Exp(-7f * Time.unscaledDeltaTime));
+            // The opening zoom is slower than the usual follow so it reads as a camera move.
+            UpdateView(1f - Mathf.Exp(-(State == PacmanState.Ready ? 2.6f : 7f) * Time.unscaledDeltaTime));
             post?.SetPower(FrightenedActive && State == PacmanState.Playing ? 1f : 0f);
             post?.SetGloom(State == PacmanState.Dying || State == PacmanState.GameOver ? 1f : 0f);
             ReadInput();
@@ -427,6 +435,7 @@ namespace Studio.Pacman
             switch (State)
             {
                 case PacmanState.Ready:
+                    introTimer = Mathf.Max(0f, introTimer - Time.deltaTime);
                     stateTimer -= Time.deltaTime;
                     if (stateTimer <= 0f)
                     {
@@ -747,7 +756,7 @@ namespace Studio.Pacman
             float aspect = (float)Screen.width / Screen.height;
             float centreX = PacmanMaze.Width * 0.5f - 0.5f;
             float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
-            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && State != PacmanState.Cast && player != null;
+            bool close = closeView && introTimer <= 0f && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && State != PacmanState.Cast && player != null;
             float targetSize = close ? Mathf.Min(fullSize, Mathf.Max(6f, 5.4f / aspect)) : fullSize;
             Vector2 target = new Vector2(centreX, centreY);
             if (close)
@@ -1278,7 +1287,7 @@ namespace Studio.Pacman
             modeTimer = Rule.ModeSchedule[0];
             ResetActors(false);
             State = PacmanState.Ready;
-            stateTimer = readyDuration;
+            stateTimer = readyDuration + introTimer;
         }
 
         private void ResetActors(bool afterDeath)

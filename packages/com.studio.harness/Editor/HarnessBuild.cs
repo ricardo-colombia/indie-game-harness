@@ -24,6 +24,15 @@ namespace Harness.Editor
             if (scenes.Length == 0) Fail("No enabled scenes in Build Settings.");
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
 
+            if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.WebGL)
+            {
+                // GitHub Pages and most static hosts don't send the Content-Encoding header that .br/.gz builds need,
+                // so ship uncompressed files. `hx setup` copies the full-window, touch-safe page to Assets/WebGLTemplates/Harness.
+                PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+                PlayerSettings.WebGL.decompressionFallback = false;
+                if (Directory.Exists("Assets/WebGLTemplates/Harness")) PlayerSettings.WebGL.template = "PROJECT:Harness";
+            }
+
             var opts = new BuildPlayerOptions
             {
                 scenes = scenes,

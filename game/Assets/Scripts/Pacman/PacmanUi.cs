@@ -259,8 +259,8 @@ namespace Studio.Pacman
             float t = Time.unscaledTime;
 
             // Logo: shifting gold-to-cherry colour with a soft echo behind it.
-            string logo = "PAC-CAFÉ";
-            float size = 150f * s;
+            string logo = "COFFEE-MAN";
+            float size = Mathf.Min(150f * s, Screen.width * 0.92f / (logo.Length * 0.62f));   // 10 letters: keep it inside narrow phone screens
             Color glow = Color.Lerp(Gold, CherryRed, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
             float bob = Mathf.Sin(t * 2f) * 6f * s;
             Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
@@ -553,8 +553,12 @@ namespace Studio.Pacman
 
             // Level, bottom left; a hint while frightened, bottom centre.
             // A dark pill behind it: in the close view the label sits on the reddish ground strip below the farm.
-            Fill(new Rect(margin - 14f * s, Screen.height - 64f * s, 190f * s, 54f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
-            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "FINCA  " + game.Level, 30f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
+            // The farm has a proper name; the level number is a quieter second line so the progress is still readable.
+            string farm = PacmanFarms.NameFor(game.Level);
+            float pillWidth = Mathf.Min(Screen.width - 2f * (margin - 14f * s), (farm.Length * 15.5f + 44f) * s);
+            Fill(new Rect(margin - 14f * s, Screen.height - 92f * s, pillWidth, 82f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
+            Text(new Rect(margin, Screen.height - 86f * s, pillWidth, 38f * s), farm, 28f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
+            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 34f * s), "COSECHA  " + game.Level, 24f * s, Gold, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
             if (game.FrightenedActive)
             {
                 float remaining = game.FrightenedRemaining;

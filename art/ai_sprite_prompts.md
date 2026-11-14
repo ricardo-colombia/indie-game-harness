@@ -1,4 +1,4 @@
-# PAC-CAFÉ — hoja de prompts para sprites (ChatGPT / Gemini)
+# COFFEE-MAN — hoja de prompts para sprites (ChatGPT / Gemini)
 
 Flujo: pega el **prefijo de estilo** + el prompt del sprite en la app, descarga el PNG y guárdalo en
 `art/incoming/<nombre>.png` (el nombre exacto de la lista). Yo recorto el fondo, ajusto el tamaño e

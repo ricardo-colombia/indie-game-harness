@@ -1,5 +1,5 @@
 ---
-name: steam-page
+name: gamedev-steam-page
 description: Prepare Steam store page assets and copy — capsules, screenshots, trailer, description, tags, AI disclosure — as a checklist-driven package for the director to upload. Use for "Steam page", "store assets", "capsule art".
 ---
 Work from `steam/STORE_CHECKLIST.md`; tick items as files land in `steam/store/`.
