@@ -800,7 +800,7 @@ namespace Studio.Pacman
             {
                 Destroy(fruitObject.transform.GetChild(i).gameObject);
             }
-            Transform art = PacmanFruitArt.Build(fruitObject.transform, fruitKind, 1.1f);
+            Transform art = PacmanFruitArt.Build(fruitObject.transform, fruitKind, 0.95f);
             PacmanJuice.Attach(art, PacmanJuice.Kind.Bob, 0.04f, 1.2f, 0f);
             fruitObject.transform.position = FruitPosition;
             fruitObject.SetActive(true);

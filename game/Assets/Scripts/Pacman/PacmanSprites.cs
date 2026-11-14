@@ -22,6 +22,7 @@ namespace Studio.Pacman
         private static Sprite bean;
         private static Sprite square;
         private static Sprite frightFace;
+        private static Sprite frightFaceVintage;
         private static Sprite gridTile;
         private static Sprite mountain;
         private static Sprite mountainVintage;
@@ -154,19 +155,35 @@ namespace Studio.Pacman
         {
             get
             {
-                if (frightFace == null)
+                bool vintage = PacmanToon.IsVintage;
+                Sprite cached = vintage ? frightFaceVintage : frightFace;
+                if (cached == null)
                 {
-                    frightFace = Make("GhostFrightFace", FrameSize, (x, y) =>
+                    // Vintage: round, slightly uneven eyes with a pupil gap and a hand-inked zigzag, with grainy ink.
+                    Func<float, float, float> inside = (x, y) =>
                     {
-                        float eyes = -BoxDistance(Mathf.Abs(x) - 0.15f, y - 0.1f, 0.055f, 0.055f);
+                        float eyes = vintage
+                            ? Mathf.Min(0.06f - Mathf.Sqrt((Mathf.Abs(x) - 0.15f) * (Mathf.Abs(x) - 0.15f) + (y - 0.1f) * (y - 0.1f)),
+                                Mathf.Sqrt((Mathf.Abs(x) - 0.15f) * (Mathf.Abs(x) - 0.15f) + (y - 0.1f) * (y - 0.1f)) - 0.022f)
+                            : -BoxDistance(Mathf.Abs(x) - 0.15f, y - 0.1f, 0.055f, 0.055f);
                         float u = x / 0.1f;
                         float tri = Mathf.Abs(Mathf.Repeat(u, 2f) - 1f) * 2f - 1f;
                         float centre = -0.14f + 0.06f * tri;
-                        float mouth = Mathf.Min(0.3f - Mathf.Abs(x), 0.028f - Mathf.Abs(y - centre));
+                        float mouth = Mathf.Min(0.3f - Mathf.Abs(x), (vintage ? 0.022f : 0.028f) - Mathf.Abs(y - centre));
                         return Mathf.Max(eyes, mouth);
-                    });
+                    };
+                    if (vintage)
+                    {
+                        cached = Make("GhostFrightFaceV", FrameSize, inside, (x, y, px, py) => 0.82f + PacmanToon.Hash(px, py) * 0.18f);
+                        frightFaceVintage = cached;
+                    }
+                    else
+                    {
+                        cached = Make("GhostFrightFace", FrameSize, inside);
+                        frightFace = cached;
+                    }
                 }
-                return frightFace;
+                return cached;
             }
         }
 
