@@ -225,11 +225,19 @@ namespace Studio.Pacman
             Color glow = Color.Lerp(Gold, CherryRed, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
             float bob = Mathf.Sin(t * 2f) * 6f * s;
             Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
-            for (int i = 4; i >= 1; i--)
+            // A soft glow, then a dark engraved edge made of the word drawn in a ring around it (clean outline, no
+            // smear), a drop shadow, and the gold letters on top.
+            Text(logoRect, logo, size, new Color(glow.r, glow.g, glow.b, 0.10f), TextAnchor.MiddleCenter, null, 9f * s);
+            Color edge = new Color(0.2f, 0.08f, 0.02f, 1f);
+            Rect drop = new Rect(logoRect.x, logoRect.y + 9f * s, logoRect.width, logoRect.height);
+            Text(drop, logo, size, new Color(0.1f, 0.04f, 0.01f, 0.8f), TextAnchor.MiddleCenter);
+            for (int k = 0; k < 8; k++)
             {
-                Text(logoRect, logo, size, new Color(glow.r, glow.g, glow.b, 0.09f), TextAnchor.MiddleCenter, new Vector2(0f, 0f), i * 5f * s);
+                float a = k * Mathf.PI * 0.25f;
+                Rect ring = new Rect(logoRect.x + Mathf.Cos(a) * 3.5f * s, logoRect.y + Mathf.Sin(a) * 3.5f * s, logoRect.width, logoRect.height);
+                Text(ring, logo, size, edge, TextAnchor.MiddleCenter);
             }
-            Text(logoRect, logo, size, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s), 0f, new Color(0.3f, 0.12f, 0.03f, 0.9f));
+            Text(logoRect, logo, size, Gold, TextAnchor.MiddleCenter);
 
             // Colombian flag stripe under the logo: yellow (half), blue and red (a quarter each).
             float flagW = 520f * s;
