@@ -44,6 +44,7 @@ namespace Studio.Pacman
             new Sky { Top = new Color(0.03f, 0.07f, 0.04f), Horizon = new Color(0.05f, 0.16f, 0.13f), Tint = new Color(1f, 1f, 1f) },         // night
         };
 
+        private PacmanRays rays;
         private SpriteRenderer horizon;
         private SpriteRenderer[] mountains;
         private Color[] mountainBase;
@@ -127,6 +128,7 @@ namespace Studio.Pacman
 
             PacmanFence.Build(transform);
             PacmanBushes.Build(transform);
+            rays = PacmanRays.Build(transform);
             PacmanMist.Build(transform);
             PacmanDew.Build(transform);
             BuildMountains();
@@ -243,6 +245,13 @@ namespace Studio.Pacman
             if (skyCamera != null)
             {
                 skyCamera.backgroundColor = skyNow.Top;
+            }
+            if (rays != null)
+            {
+                // Light is the horizon colour brightened toward white; strongest at dawn and dusk, faint at night.
+                Color light = Color.Lerp(skyNow.Horizon, Color.white, 0.55f);
+                light.a = Mathf.Clamp01(skyNow.Tint.r - 0.7f);
+                rays.SetTint(light);
             }
             if (horizon != null)
             {
