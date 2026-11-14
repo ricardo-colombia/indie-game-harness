@@ -42,6 +42,8 @@ namespace Studio.Pacman
         private PacmanState lastState = PacmanState.Title;
         private PacmanTitleParade parade;
         private PacmanStoryView storyView;
+        private float castTime;
+        private int castShown = -1;
         private Rect skipButton = new Rect(-1000f, -1000f, 0f, 0f);
         private float stateAge;
         private readonly List<Rect> menuRows = new List<Rect>();
@@ -92,7 +94,7 @@ namespace Studio.Pacman
         /// <summary>True when a position (y down) is on the "skip" button of the story comic.</summary>
         public bool OnSkipButton(Vector2 gui)
         {
-            return game != null && game.State == PacmanState.Story && skipButton.Contains(gui);
+            return game != null && (game.State == PacmanState.Story || game.State == PacmanState.Cast) && skipButton.Contains(gui);
         }
 
         /// <summary>True when a position (y down) is on the on-screen pause button, which only shows for touch play.</summary>
@@ -182,7 +184,7 @@ namespace Studio.Pacman
             zoomButton = new Rect(-1000f, -1000f, 0f, 0f);
             skipButton = new Rect(-1000f, -1000f, 0f, 0f);
 
-            if (game.State != PacmanState.Story && storyView != null)
+            if (game.State != PacmanState.Story && game.State != PacmanState.Cast && storyView != null)
             {
                 Destroy(storyView.gameObject);
                 storyView = null;
@@ -192,14 +194,21 @@ namespace Studio.Pacman
             {
                 DrawTitle(s);
             }
-            else if (game.State == PacmanState.Story)
+            else if (game.State == PacmanState.Story || game.State == PacmanState.Cast)
             {
                 if (parade != null)
                 {
                     Destroy(parade.gameObject);
                     parade = null;
                 }
-                DrawStory(s);
+                if (game.State == PacmanState.Story)
+                {
+                    DrawStory(s);
+                }
+                else
+                {
+                    DrawCast(s);
+                }
             }
             else
             {
@@ -216,6 +225,7 @@ namespace Studio.Pacman
                     DrawZoomButton(s);
                 }
                 DrawPopups(s);
+                DrawNameTag(s);
                 switch (game.State)
                 {
                     case PacmanState.Ready:
@@ -414,6 +424,108 @@ namespace Studio.Pacman
             Text(skipButton, "SALTAR  »", 26f * s, Gold, TextAnchor.MiddleCenter);
         }
 
+        /// <summary>
+        /// The PERSONAJES screen: one sheet per character with their picture (the same rigs as the comic), who they
+        /// are, what they want and what playing against them teaches.
+        /// </summary>
+        private void DrawCast(float s)
+        {
+            if (storyView == null)
+            {
+                storyView = PacmanStoryView.Create();
+            }
+            CastMember member = game.CastCurrent;
+
+            float W = Screen.width;
+            float H = Screen.height;
+            float aspect = W / Mathf.Max(1f, H);
+            float cs = s * Mathf.Lerp(2.1f, 1f, Mathf.InverseLerp(0.5f, 1.2f, aspect));
+            Fill(new Rect(0f, 0f, W, H), new Color(0.07f, 0.045f, 0.025f, 1f));
+
+            float margin = 20f * s;
+            float pictureAspect = Mathf.Lerp(1.15f, 1.6f, Mathf.InverseLerp(0.55f, 1.2f, aspect));
+            float pictureWidth = Mathf.Min(W - 2f * margin, (H * 0.44f) * pictureAspect);
+            float pictureHeight = pictureWidth / pictureAspect;
+            Rect picture = new Rect((W - pictureWidth) * 0.5f, 56f * s + margin * 0.3f, pictureWidth, pictureHeight);
+            float border = 6f * s;
+            Fill(new Rect(picture.x - border - 3f * s, picture.y - border - 3f * s, picture.width + 2f * (border + 3f * s), picture.height + 2f * (border + 3f * s)), new Color(0.97f, 0.9f, 0.7f, 1f), 6f * s);
+            Fill(new Rect(picture.x - border, picture.y - border, picture.width + 2f * border, picture.height + 2f * border), new Color(0.12f, 0.07f, 0.03f, 1f), 4f * s);
+
+            castTime += Time.unscaledDeltaTime;
+            if (game.CastIndex != castShown)
+            {
+                castShown = game.CastIndex;
+                castTime = 0f;
+            }
+            storyView.Show(member.Scene, castTime, 0.5f);
+            if (storyView.Texture != null)
+            {
+                GUI.DrawTexture(picture, storyView.Texture, ScaleMode.ScaleAndCrop, false);
+            }
+            float pop = 1f - Mathf.Clamp01(castTime / 0.3f);
+            if (pop > 0f)
+            {
+                Fill(picture, new Color(0.07f, 0.045f, 0.025f, pop));
+            }
+
+            Rect badge = new Rect(picture.x + 10f * s, picture.y + 10f * s, 92f * s, 40f * s);
+            Fill(badge, new Color(0.97f, 0.9f, 0.7f, 0.95f), 20f * s);
+            Text(badge, (game.CastIndex + 1) + " / " + PacmanCast.Count, 24f * s, new Color(0.2f, 0.1f, 0.04f), TextAnchor.MiddleCenter);
+
+            // The sheet: name and role, who they are, what they want, what they teach.
+            float sheetTop = picture.yMax + border + 18f * s;
+            Rect sheet = new Rect(picture.x, sheetTop, picture.width, H - sheetTop - 78f * s);
+            Fill(sheet, new Color(0.97f, 0.9f, 0.7f, 0.96f), 10f * s);
+            float pad = 16f * cs;
+            float inner = sheet.width - 2f * pad;
+            Color ink = new Color(0.18f, 0.09f, 0.04f);
+            float y = sheet.y + pad * 0.5f;
+            Text(new Rect(sheet.x + pad, y, inner, 50f * cs), member.Name, FitFont(member.Name, 40f * cs, inner), new Color(0.62f, 0.14f, 0.1f), TextAnchor.MiddleLeft);
+            y += 46f * cs;
+            Text(new Rect(sheet.x + pad, y, inner, 32f * cs), member.Role.ToUpperInvariant(), FitFont(member.Role, 24f * cs, inner), new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
+            y += 36f * cs;
+            float block = (sheet.yMax - y - pad * 0.4f) / 3.2f;
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block * 1.2f), member.Context, 24f * cs, ink, TextAnchor.UpperLeft);
+            y += block * 1.2f;
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "QUIERE: " + member.Wants, 24f * cs, new Color(0.45f, 0.2f, 0.06f), TextAnchor.UpperLeft);
+            y += block;
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "ENSEÑA: " + member.Lesson, 24f * cs, new Color(0.18f, 0.4f, 0.12f), TextAnchor.UpperLeft);
+
+            float dot = 12f * s;
+            float dotsWidth = PacmanCast.Count * dot * 2f;
+            float dotsY = H - 62f * s;
+            for (int i = 0; i < PacmanCast.Count; i++)
+            {
+                Rect d = new Rect(W * 0.5f - dotsWidth * 0.5f + i * dot * 2f + dot * 0.5f, dotsY, dot, dot);
+                Fill(d, i == game.CastIndex ? Gold : new Color(1f, 1f, 1f, 0.2f), dot * 0.5f);
+            }
+            string hint = game.TouchMode ? "TOCA  PARA  SEGUIR" : "↑ ↓  CAMBIAR      ESC  VOLVER";
+            Text(new Rect(0f, H - 46f * s, W, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
+
+            skipButton = new Rect(W - 190f * s - margin, 10f * s, 190f * s, 44f * s);
+            Fill(skipButton, new Color(0f, 0f, 0f, 0.45f), 22f * s);
+            Text(skipButton, "VOLVER  «", 26f * s, Gold, TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>The first-appearance name tag: a small pill under the score that fades in and out, never blocking play.</summary>
+        private void DrawNameTag(float s)
+        {
+            CastMember member = game.TagMember;
+            float a = game.TagAlpha;
+            if (member == null || a <= 0f)
+            {
+                return;
+            }
+            float W = Screen.width;
+            float width = Mathf.Min(W - 40f * s, 560f * s);
+            Rect pill = new Rect((W - width) * 0.5f, 118f * s - (1f - a) * 14f * s, width, 84f * s);
+            Fill(pill, new Color(0.04f, 0.025f, 0.01f, 0.82f * a), 18f * s);
+            Color name = new Color(Gold.r, Gold.g, Gold.b, a);
+            Color line = new Color(1f, 1f, 1f, 0.85f * a);
+            Text(new Rect(pill.x, pill.y + 6f * s, pill.width, 40f * s), member.Name + "  ·  " + member.Role, FitFont(member.Name + "  ·  " + member.Role, 28f * s, pill.width - 24f * s), name, TextAnchor.MiddleCenter);
+            Text(new Rect(pill.x, pill.y + 44f * s, pill.width, 32f * s), member.Tag, 24f * s, line, TextAnchor.MiddleCenter);
+        }
+
         private void DrawHud(float s)
         {
             float margin = 28f * s;
@@ -582,6 +694,7 @@ namespace Studio.Pacman
             {
                 case "START": return "A COSECHAR";
                 case "STORY": return "HISTORIA";
+                case "CAST": return "PERSONAJES";
                 case "RESUME": return "SEGUIR";
                 case "OPTIONS": return "OPCIONES";
                 case "BACK": return "ATRÁS";
