@@ -127,6 +127,9 @@ namespace Studio.Pacman
             return (p - ab * t).magnitude;
         }
 
+        /// <summary>Texture size of the mountain silhouettes; they are drawn many tiles wide, so a small texture shows stair-steps on the ridge.</summary>
+        private const int MountainSize = 384;
+
         /// <summary>A mountain silhouette filling its one-unit square: a peak in the middle sloping to the base corners.</summary>
         public static Sprite Mountain
         {
@@ -141,12 +144,12 @@ namespace Studio.Pacman
                     if (vintage)
                     {
                         // Engraved slopes: slanted hatching that thickens toward the base, an ink line along the ridge and paper grain.
-                        cached = Make("PacMountainV", 128, inside, (x, y, px, py) =>
+                        cached = Make("PacMountainV", MountainSize, inside, (x, y, px, py) =>
                         {
                             float below = ridgeAt(x) - y;
                             float shade = 0.92f + (PacmanToon.Hash(px, py) - 0.5f) * 0.1f;
                             float depth = Mathf.Clamp01(below * 1.6f);
-                            if (Mathf.Repeat(px * 0.6f + py, 5f) < 0.8f + depth * 1.6f)
+                            if (Mathf.Repeat((px * 0.6f + py) * (128f / MountainSize), 5f) < 0.8f + depth * 1.6f)
                             {
                                 shade *= 0.72f;
                             }
@@ -160,7 +163,7 @@ namespace Studio.Pacman
                     }
                     else
                     {
-                        cached = Make("PacMountain", 128, inside);
+                        cached = Make("PacMountain", MountainSize, inside);
                         mountain = cached;
                     }
                 }
