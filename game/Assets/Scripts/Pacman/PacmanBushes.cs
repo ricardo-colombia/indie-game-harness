@@ -165,6 +165,10 @@ namespace Studio.Pacman
             Color lightGreen = Color.Lerp(LeafLight, OliveLight, olive);
             bool flowering = seed % 4 == 1;
             float cherryBias = R(0f, 1f);
+            // How heavy the harvest is: bare-ish, medium or loaded, so neighbouring plants differ the way real ones do.
+            float load = seed % 3 == 0 ? R(0.12f, 0.3f) : seed % 3 == 1 ? R(0.42f, 0.62f) : R(0.78f, 1f);
+            var fruitSegments = new System.Collections.Generic.List<Vector3>();   // x,y = branch point, z = side (+1/-1)
+            var fruitPrev = new System.Collections.Generic.List<Vector2>();
 
             // Soil mound and shadow under the plant.
             c.Ellipse(mid, 7f, R(30f, 38f), 6f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
@@ -225,22 +229,16 @@ namespace Studio.Pacman
                         {
                             c.Leaf(pos, heading - side * 8f, len * 0.9f, wid * 0.95f, midGreen, 0.6f);
                         }
+                        Vector2 prevBefore = prev;
                         prev = pos;
 
-                        // Cherries cluster at the joint, hanging under the branch.
-                        if (k > 0.1f && R(0f, 1f) < 0.62f)
+                        // Remember the branch segment: the cherries are painted later, over the foliage, along the branch.
+                        if (k > 0.04f && u > 0.2f)
                         {
-                            int count = rng.Next(3, 7);
-                            for (int j = 0; j < count; j++)
-                            {
-                                Vector2 cp = pos + new Vector2(R(-3.2f, 3.2f), R(-6.5f, -1.5f));
-                                float ripe = R(0f, 1f) * 0.55f + cherryBias * 0.25f;
-                                Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
-                                c.Line(pos, cp + new Vector2(0f, 2.5f), 0.9f, Wood);
-                                c.Cherry(cp, R(2.7f, 3.4f), cherry);
-                            }
+                            fruitSegments.Add(new Vector3(pos.x, pos.y, side));
+                            fruitPrev.Add(prevBefore);
                         }
-                        else if (flowering && R(0f, 1f) < 0.45f)
+                        if (flowering && R(0f, 1f) < 0.45f)
                         {
                             Vector2 fp = pos + new Vector2(R(-2f, 2f), R(1f, 4f));
                             for (int j = 0; j < 5; j++)
@@ -253,6 +251,29 @@ namespace Studio.Pacman
                     }
                 }
             }
+            // Cherries: strings of fruit along the thin branches, both sides of the stem, over the leaves (a cafeto carries
+            // its beans on the branches, not at the foot). Ripeness is mixed red, orange and green; the load varies per plant.
+            for (int i = 0; i < fruitSegments.Count; i++)
+            {
+                if (R(0f, 1f) > Mathf.Lerp(0.2f, 0.92f, load))
+                {
+                    continue;
+                }
+                Vector2 end = new Vector2(fruitSegments[i].x, fruitSegments[i].y);
+                Vector2 start = fruitPrev[i];
+                int count = Mathf.RoundToInt(Mathf.Lerp(2f, 9f, load) * R(0.7f, 1.2f));
+                for (int j = 0; j < count; j++)
+                {
+                    float along = R(0f, 1f);
+                    Vector2 onBranch = Vector2.Lerp(start, end, along);
+                    Vector2 cp = onBranch + new Vector2(R(-2.2f, 2.2f), R(-4.8f, 3.2f));
+                    float ripe = R(0f, 1f) * 0.55f + cherryBias * 0.25f;
+                    Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
+                    c.Line(onBranch, cp, 0.8f, Wood);
+                    c.Cherry(cp, R(2.5f, 3.1f), cherry);
+                }
+            }
+
             // Crown: the top shoot with its last pair of leaves.
             c.Leaf(trunkTop, 90f + R(-10f, 10f), 14f * leafScale, 6.5f * leafScale, lightGreen, 0.6f);
             c.Leaf(trunkTop, 150f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
