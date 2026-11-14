@@ -292,6 +292,8 @@ namespace Studio.Pacman
 
             // High score, top centre.
             float high = Mathf.Max(game.HighScore, game.Score);
+            // A dark pill behind it: on wide screens the number sits over the fence and bunting.
+            Fill(new Rect(Screen.width * 0.5f - 130f * s, top - 6f * s, 260f * s, 92f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 18f * s);
             Text(new Rect(0, top, Screen.width, 28f * s), "RÉCORD", 22f * s, Dim, TextAnchor.UpperCenter);
             Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), high.ToString("N0"), 40f * s, Gold, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
 
