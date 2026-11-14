@@ -410,10 +410,12 @@ namespace Studio.Pacman
         {
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.03f, 0.02f, 0f, 0.5f));
             float w = Mathf.Min(Mathf.Max(Screen.width * 0.34f, 640f * s), Screen.width * 0.94f);
-            float h = Mathf.Min(Screen.height * 0.5f, 560f * s);
+            // Tall enough for the header and the rows, no more, so there is no empty space at the bottom.
+            float h = Mathf.Min(Screen.height * 0.7f, 150f * s + game.ActiveMenu.Length * 64f * s + 24f * s);
             Rect panel = new Rect((Screen.width - w) * 0.5f, Screen.height * 0.24f, w, h);
-            Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.5f), 22f * s);
-            Fill(panel, Panel, 18f * s);
+            Fill(new Rect(panel.x - 4f * s, panel.y - 4f * s, panel.width + 8f * s, panel.height + 8f * s), new Color(Gold.r, Gold.g, Gold.b, 0.9f), 22f * s);
+            Fill(new Rect(panel.x - 1f * s, panel.y - 1f * s, panel.width + 2f * s, panel.height + 2f * s), new Color(0.07f, 0.045f, 0.02f, 1f), 19f * s);
+            Fill(panel, new Color(0.1f, 0.065f, 0.03f, 1f), 18f * s);
             Text(new Rect(panel.x, panel.y + 24f * s, panel.width, 80f * s), header, 64f * s, Gold, TextAnchor.MiddleCenter, new Vector2(0f, 4f * s));
             DrawMenuItems(s, panel.y + 140f * s);
         }
