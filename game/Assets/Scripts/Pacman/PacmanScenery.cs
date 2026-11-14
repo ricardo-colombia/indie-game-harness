@@ -128,6 +128,7 @@ namespace Studio.Pacman
             // The glowing line around the walls made the bushes hard to read, so it is not drawn.
             outline.enabled = false;
 
+            PacmanGrass.Build(transform);
             PacmanFence.Build(transform);
             PacmanBunting.Build(transform);
             PacmanBushes.Build(transform);
