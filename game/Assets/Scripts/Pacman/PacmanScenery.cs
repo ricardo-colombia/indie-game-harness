@@ -28,6 +28,29 @@ namespace Studio.Pacman
         [Tooltip("Breathing of the outline glow, as a fraction of its brightness.")]
         [SerializeField] private float breathe = 0.1f;
 
+        // Sky: each level has its own time of day (dawn, day, dusk, night), blended smoothly when the level changes.
+        private struct Sky
+        {
+            public Color Top;
+            public Color Horizon;
+            public Color Tint;
+        }
+
+        private static readonly Sky[] Skies =
+        {
+            new Sky { Top = new Color(0.16f, 0.2f, 0.36f), Horizon = new Color(0.9f, 0.5f, 0.38f), Tint = new Color(1.5f, 1.15f, 1.05f) },   // dawn
+            new Sky { Top = new Color(0.16f, 0.4f, 0.66f), Horizon = new Color(0.68f, 0.84f, 0.9f), Tint = new Color(1.9f, 1.9f, 1.8f) },    // day
+            new Sky { Top = new Color(0.22f, 0.1f, 0.28f), Horizon = new Color(0.95f, 0.42f, 0.18f), Tint = new Color(1.5f, 1f, 0.85f) },     // dusk
+            new Sky { Top = new Color(0.03f, 0.07f, 0.04f), Horizon = new Color(0.05f, 0.16f, 0.13f), Tint = new Color(1f, 1f, 1f) },         // night
+        };
+
+        private SpriteRenderer horizon;
+        private SpriteRenderer[] mountains;
+        private Color[] mountainBase;
+        private Camera skyCamera;
+        private int skyIndex;
+        private Sky skyNow = Skies[0];
+
         private SpriteRenderer outline;
         private SpriteRenderer[] portals;
         private Color themeColour = Themes[0];
@@ -49,6 +72,7 @@ namespace Studio.Pacman
         public void SetLevel(int level)
         {
             themeColour = Themes[(Mathf.Max(1, level) - 1) % Themes.Length];
+            skyIndex = (Mathf.Max(1, level) - 1) % Skies.Length;
         }
 
         /// <summary>Makes the rim blink white, for the end-of-level celebration.</summary>
@@ -108,6 +132,8 @@ namespace Studio.Pacman
             BuildMountains();
             BuildPortals();
             BuildStars(centre);
+            BuildHorizon(centre);
+            skyNow = Skies[0];
         }
 
         /// <summary>Two ranges of mountains rising behind the board on either side, so the farm sits in the hills.</summary>
@@ -129,6 +155,9 @@ namespace Studio.Pacman
                 new object[] { -13f, 10f, 6f, near, -27 },
                 new object[] { right + 13f, 10f, 6f, near, -27 },
             };
+            mountains = new SpriteRenderer[peaks.Length];
+            mountainBase = new Color[peaks.Length];
+            int mountainIndex = 0;
             foreach (object[] peak in peaks)
             {
                 GameObject go = new GameObject("Mountain");
@@ -140,6 +169,9 @@ namespace Studio.Pacman
                 renderer.sprite = PacmanSprites.Mountain;
                 renderer.color = (Color)peak[3];
                 renderer.sortingOrder = (int)peak[4];
+                mountains[mountainIndex] = renderer;
+                mountainBase[mountainIndex] = (Color)peak[3];
+                mountainIndex++;
             }
         }
 
@@ -160,6 +192,71 @@ namespace Studio.Pacman
                 renderer.color = PortalColour;
                 renderer.sortingOrder = 2;
                 portals[side] = renderer;
+            }
+        }
+
+        /// <summary>A soft band of horizon light behind the mountains, tinted by the time of day.</summary>
+        private void BuildHorizon(Vector3 centre)
+        {
+            const int h = 64;
+            Texture2D texture = new Texture2D(2, h, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+                name = "PacmanHorizon",
+                hideFlags = HideFlags.DontSave,
+            };
+            Color[] pixels = new Color[2 * h];
+            for (int y = 0; y < h; y++)
+            {
+                float t = y / (h - 1f);
+                // Brightest a third of the way up, fading smoothly both ways.
+                float d = t < 0.33f ? (0.33f - t) / 0.33f : (t - 0.33f) / 0.67f;
+                float a = Mathf.Pow(1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(d)), 1.6f);
+                pixels[y * 2] = pixels[y * 2 + 1] = new Color(1f, 1f, 1f, a);
+            }
+            texture.SetPixels(pixels);
+            texture.Apply(false);
+            Sprite sprite = Sprite.Create(texture, new Rect(0, 0, 2, h), new Vector2(0.5f, 0f), 2f, 0, SpriteMeshType.FullRect);
+            sprite.hideFlags = HideFlags.DontSave;
+            GameObject go = new GameObject("Horizon");
+            go.transform.SetParent(transform, false);
+            float floor = -(PacmanMaze.Height + 2.5f);
+            float height = 36f;
+            go.transform.position = new Vector3(centre.x, floor - height * 0.33f, 0f);
+            go.transform.localScale = new Vector3(60f, height / h * 2f, 1f);
+            horizon = go.AddComponent<SpriteRenderer>();
+            horizon.sprite = sprite;
+            horizon.sortingOrder = -40;
+        }
+
+        private void ApplySky(float blend)
+        {
+            Sky target = Skies[skyIndex];
+            skyNow.Top = Color.Lerp(skyNow.Top, target.Top, blend);
+            skyNow.Horizon = Color.Lerp(skyNow.Horizon, target.Horizon, blend);
+            skyNow.Tint = Color.Lerp(skyNow.Tint, target.Tint, blend);
+            if (skyCamera == null)
+            {
+                skyCamera = Camera.main;
+            }
+            if (skyCamera != null)
+            {
+                skyCamera.backgroundColor = skyNow.Top;
+            }
+            if (horizon != null)
+            {
+                Color c = skyNow.Horizon;
+                c.a = 0.85f;
+                horizon.color = c;
+            }
+            if (mountains != null)
+            {
+                for (int i = 0; i < mountains.Length; i++)
+                {
+                    Color b = mountainBase[i];
+                    mountains[i].color = new Color(b.r * skyNow.Tint.r, b.g * skyNow.Tint.g, b.b * skyNow.Tint.b, 1f);
+                }
             }
         }
 
@@ -207,6 +304,7 @@ namespace Studio.Pacman
 
         private void Update()
         {
+            ApplySky(1f - Mathf.Exp(-Time.unscaledDeltaTime * 0.8f));
             Color target = alert ? AlertColour : themeColour;
             if (flash)
             {
