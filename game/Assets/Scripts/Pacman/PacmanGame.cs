@@ -888,6 +888,8 @@ namespace Studio.Pacman
             {
                 Destroy(fruitObject.transform.GetChild(i).gameObject);
             }
+            // A soft shadow on the ground under the bonus, which stays put while the fruit bobs.
+            AddPelletPart(fruitObject.transform, new Color(0f, 0f, 0f, 0.35f), new Vector2(0f, -0.38f), new Vector3(0.62f, 0.2f, 1f), 0f, 4);
             Transform art = PacmanFruitArt.Build(fruitObject.transform, fruitKind, 0.95f);
             PacmanJuice.Attach(art, PacmanJuice.Kind.Bob, 0.04f, 1.2f, 0f);
             fruitObject.transform.position = FruitPosition;
