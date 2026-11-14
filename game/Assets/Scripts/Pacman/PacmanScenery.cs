@@ -128,6 +128,7 @@ namespace Studio.Pacman
             outline.enabled = false;
 
             PacmanFence.Build(transform);
+            PacmanBunting.Build(transform);
             PacmanBushes.Build(transform);
             rays = PacmanRays.Build(transform);
             PacmanMist.Build(transform);
