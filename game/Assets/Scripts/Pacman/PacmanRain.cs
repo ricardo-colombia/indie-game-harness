@@ -70,7 +70,7 @@ namespace Studio.Pacman
                 go.transform.SetParent(root.transform, false);
                 SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = rippleSprite;
-                sr.sortingOrder = -2; // on the ground, under bushes and walkers
+                sr.sortingOrder = -4; // on the ground, above the dirt fill and under the bushes and walkers
                 sr.color = new Color(0.85f, 0.93f, 1f, 0f);
                 go.SetActive(false);
                 self.ripples[i] = go.transform;
