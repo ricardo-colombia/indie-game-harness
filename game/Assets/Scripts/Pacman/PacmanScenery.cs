@@ -79,6 +79,8 @@ namespace Studio.Pacman
             floorRenderer.size = new Vector2(PacmanMaze.Width + 2f, PacmanMaze.Height + 2f);
             floorRenderer.sortingOrder = -10;
 
+            PacmanPath.Build(transform);
+
             PacmanMazeArt.Get(out Sprite lineSprite, out Sprite fillSprite);
 
             GameObject fill = new GameObject("WallFill");
@@ -96,6 +98,8 @@ namespace Studio.Pacman
             outline.sprite = lineSprite;
             outline.color = themeColour;
             outline.sortingOrder = -4;
+            // The glowing line around the walls made the bushes hard to read, so it is not drawn.
+            outline.enabled = false;
 
             PacmanBushes.Build(transform);
             BuildMountains();

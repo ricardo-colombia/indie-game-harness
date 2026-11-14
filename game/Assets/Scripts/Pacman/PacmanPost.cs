@@ -46,6 +46,12 @@ namespace Studio.Pacman
             baseSize = size;
         }
 
+        /// <summary>Moves the resting camera position (the follow view), keeping the board plane distance.</summary>
+        public void SetBasePosition(Vector3 position)
+        {
+            basePosition = position;
+        }
+
         private void Setup(Camera camera)
         {
             cam = camera;

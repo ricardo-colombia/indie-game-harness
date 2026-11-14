@@ -113,18 +113,41 @@ namespace Studio.Pacman
         private readonly PacmanSwipe swipe = new PacmanSwipe();
         private int fittedWidth;
         private int fittedHeight;
+        private float fullSize = 20f;
+        private float viewSize = 20f;
+        private Vector2 viewCentre;
+        private bool viewStarted;
+        private bool closeView;
+        private const string CloseViewKey = "pacman.closeview";
         private float gameOverSince;
 
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "THEME", "SOUND" };
+        private static readonly string[] TitleItems = { "START", "THEME", "VIEW", "SOUND" };
 #else
-        private static readonly string[] TitleItems = { "START", "THEME", "SOUND", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "THEME", "VIEW", "SOUND", "QUIT" };
 #endif
-        private static readonly string[] PauseItems = { "RESUME", "SOUND", "QUIT TO TITLE" };
+        private static readonly string[] PauseItems = { "RESUME", "VIEW", "SOUND", "QUIT TO TITLE" };
 
         /// <summary>True while the player is using a touch screen: the UI shows touch hints and a pause button.</summary>
         public bool TouchMode { get; private set; }
+
+        /// <summary>True when the camera follows the player up close instead of showing the whole board.</summary>
+        public bool CloseView => closeView;
+
+        /// <summary>Switches between the whole-board view and the close follow view. Remembered between runs.</summary>
+        public void ToggleView()
+        {
+            closeView = !closeView;
+            try
+            {
+                PlayerPrefs.SetInt(CloseViewKey, closeView ? 1 : 0);
+            }
+            catch (System.Exception)
+            {
+                // The choice just is not remembered.
+            }
+        }
 
         /// <summary>Id of the art theme that the next game will use. Probe for menu tests.</summary>
         public string ThemeId => PacmanTheme.Current;
@@ -190,6 +213,7 @@ namespace Studio.Pacman
         private void Awake()
         {
             HighScore = PlayerPrefs.GetInt(HighScoreKey, 0);
+            closeView = PlayerPrefs.GetInt(CloseViewKey, 0) == 1;
             BuildMaze();
             BuildActors();
             SetupCamera();
@@ -259,6 +283,7 @@ namespace Studio.Pacman
         private void Update()
         {
             FitCamera();
+            UpdateView(1f - Mathf.Exp(-7f * Time.unscaledDeltaTime));
             ReadInput();
 
             switch (State)
@@ -357,6 +382,11 @@ namespace Studio.Pacman
                 TouchMode = false;
             }
 
+            if (keyboard.vKey.wasPressedThisFrame || keyboard.tabKey.wasPressedThisFrame)
+            {
+                ToggleView();
+            }
+
             ApplyMenuInput(new MenuInput
             {
                 Up = keyboard.upArrowKey.wasPressedThisFrame || keyboard.wKey.wasPressedThisFrame,
@@ -442,6 +472,12 @@ namespace Studio.Pacman
 
             if (pressed)
             {
+                if (ui != null && ui.OnZoomButton(gui))
+                {
+                    swipe.End();
+                    ToggleView();
+                    return;
+                }
                 if (ui != null && ui.OnPauseButton(gui))
                 {
                     swipe.End();
@@ -495,11 +531,55 @@ namespace Studio.Pacman
             float aspect = (float)Screen.width / Screen.height;
             float forHeight = PacmanMaze.Height * 0.5f + 3f;
             float forWidth = (PacmanMaze.Width * 0.5f + 1.5f) / aspect;
-            float size = Mathf.Max(forHeight, forWidth);
-            cam.orthographicSize = size;
+            fullSize = Mathf.Max(forHeight, forWidth);
+            if (!viewStarted)
+            {
+                viewSize = fullSize;
+            }
+            UpdateView(1f);
+        }
+
+        /// <summary>
+        /// Eases the camera between the whole-board view and a close view that follows the player. The close
+        /// view never leaves the board, and the title and game-over screens always show the whole board.
+        /// </summary>
+        private void UpdateView(float blend)
+        {
+            Camera cam = Camera.main;
+            if (cam == null || Screen.height <= 0)
+            {
+                return;
+            }
+            float aspect = (float)Screen.width / Screen.height;
+            float centreX = PacmanMaze.Width * 0.5f - 0.5f;
+            float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
+            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && player != null;
+            float targetSize = close ? Mathf.Min(fullSize, Mathf.Max(6f, 5.4f / aspect)) : fullSize;
+            Vector2 target = new Vector2(centreX, centreY);
+            if (close)
+            {
+                float halfWidth = targetSize * aspect;
+                float slackX = Mathf.Max(0f, PacmanMaze.Width * 0.5f + 1f - halfWidth);
+                float slackY = Mathf.Max(0f, PacmanMaze.Height * 0.5f + 1.5f - targetSize);
+                Vector3 at = player.transform.position;
+                target = new Vector2(Mathf.Clamp(at.x, centreX - slackX, centreX + slackX), Mathf.Clamp(at.y, centreY - slackY, centreY + slackY));
+            }
+            if (!viewStarted)
+            {
+                viewCentre = target;
+                viewStarted = true;
+            }
+            viewSize = Mathf.Lerp(viewSize, targetSize, blend);
+            viewCentre = Vector2.Lerp(viewCentre, target, blend);
             if (post != null)
             {
-                post.SetBaseSize(size);
+                post.SetBaseSize(viewSize);
+                post.SetBasePosition(new Vector3(viewCentre.x, viewCentre.y, -10f));
+            }
+            else
+            {
+                cam.orthographicSize = viewSize;
+                cam.transform.position = new Vector3(viewCentre.x, viewCentre.y, -10f);
             }
         }
 
@@ -572,6 +652,9 @@ namespace Studio.Pacman
                     break;
                 case "SOUND":
                     soundOn = !soundOn;
+                    break;
+                case "VIEW":
+                    ToggleView();
                     break;
                 case "THEME":
                     // Everything is painted once at startup, so reloading the scene is what applies the new look.

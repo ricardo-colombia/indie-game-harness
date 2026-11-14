@@ -135,8 +135,10 @@ namespace Studio.Pacman
         private static readonly Color Wood = new Color(0.3f, 0.18f, 0.1f);
 
         /// <summary>
-        /// One shrub, different every time: a canopy of three to five tiers of leafy lumps whose number, size, lean,
-        /// colour and fruit change with the seed, so no two neighbours look alike.
+        /// One coffee plant in side view, the way a cafeto really grows: a slim trunk with tiers of nearly horizontal
+        /// branches that droop at the tips (longest at the bottom, so the shrub is a cone), pairs of glossy pointed oval
+        /// leaves facing each other along every branch, and red cherries bunched at the leaf joints. Branch count, length,
+        /// droop, leaf size, colour, fruit and flowers change with the seed so neighbours never repeat.
         /// </summary>
         private static Sprite Paint(int seed)
         {
@@ -145,101 +147,111 @@ namespace Studio.Pacman
             float R(float a, float b) { return a + (float)rng.NextDouble() * (b - a); }
 
             float mid = W * 0.5f + R(-2.5f, 2.5f);
-            float spread = R(0.8f, 1.08f);
-            float tall = R(0.8f, 1.02f);
-            float lean = R(-5f, 5f);
-            float leafScale = R(0.85f, 1.2f);
-            float olive = R(0f, 1f) < 0.35f ? R(0.35f, 0.8f) : R(0f, 0.2f);
+            float tall = R(0.85f, 1.05f);
+            float spread = R(0.85f, 1.1f);
+            float lean = R(-4f, 4f);
+            float leafScale = R(0.9f, 1.2f);
+            float olive = R(0f, 1f) < 0.3f ? R(0.3f, 0.7f) : R(0f, 0.15f);
             Color midGreen = Color.Lerp(LeafMid, OliveMid, olive);
             Color lightGreen = Color.Lerp(LeafLight, OliveLight, olive);
+            bool flowering = seed % 4 == 1;
+            float cherryBias = R(0f, 1f);
 
             // Soil mound and shadow under the plant.
-            c.Ellipse(mid, 8f, R(30f, 38f), 6.5f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
-            c.Ellipse(mid, 10f, R(22f, 30f), 5.5f, new Color(0.3f, 0.18f, 0.1f), 1f);
+            c.Ellipse(mid, 7f, R(30f, 38f), 6f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
+            c.Ellipse(mid, 9f, R(22f, 30f), 5f, new Color(0.3f, 0.18f, 0.1f), 1f);
 
-            // Lumps of canopy, back (top) first so the lower, nearer ones overlap them.
-            var lumps = new System.Collections.Generic.List<Vector3>();
-            int top = 1 + rng.Next(0, 2);
-            for (int i = 0; i < top; i++)
-            {
-                lumps.Add(new Vector3(mid + R(-9f, 9f) * spread + lean, R(52f, 58f) * tall, R(11f, 14f)));
-            }
-            int middle = 2 + rng.Next(0, 2);
-            for (int i = 0; i < middle; i++)
-            {
-                float u = middle == 1 ? 0f : Mathf.Lerp(-1f, 1f, i / (middle - 1f));
-                lumps.Add(new Vector3(mid + (u * R(11f, 17f) + R(-3f, 3f)) * spread + lean * 0.6f, R(38f, 44f) * tall, R(12f, 16f)));
-            }
-            int bottom = 2 + rng.Next(0, 2);
-            for (int i = 0; i < bottom; i++)
-            {
-                float u = Mathf.Lerp(-1f, 1f, i / (bottom - 1f));
-                lumps.Add(new Vector3(mid + (u * R(19f, 24f) + R(-3f, 3f)) * spread, R(22f, 27f), R(13f, 17f)));
-            }
+            // Trunk.
+            float topY = 72f * tall;
+            Vector2 trunkTop = new Vector2(mid + lean, topY);
+            c.Line(new Vector2(mid, 9f), new Vector2(mid + lean * 0.5f, topY * 0.55f), 3.4f, Wood);
+            c.Line(new Vector2(mid + lean * 0.5f, topY * 0.55f), trunkTop, 2.4f, Wood);
 
-            foreach (Vector3 lump in lumps)
+            // Tiers of branches, top first so the lower, nearer ones overlap them.
+            int tiers = rng.Next(4, 7);
+            for (int t = 0; t < tiers; t++)
             {
-                Vector2 centre = new Vector2(lump.x, lump.y);
-                float rad = lump.z;
-                // Dark filling so no gaps show between leaves.
-                c.Ellipse(centre.x, centre.y - 1f, rad * 1.28f, rad * 1.02f, LeafDark, 1f);
-                int leaves = Mathf.RoundToInt(rad * 1.7f);
-                for (int i = 0; i < leaves; i++)
+                float k = t / (float)(tiers - 1);              // 0 = top tier, 1 = bottom tier
+                float y = Mathf.Lerp(topY - 3f, 20f * tall + 3f, k) + R(-1.5f, 1.5f);
+                float reach = Mathf.Lerp(13f, 40f, Mathf.Pow(k, 0.85f)) * spread + R(-2f, 2f);
+                float x0 = mid + lean * (1f - k * 0.5f);
+                // Shaded foliage mass behind the branches, so the trunk never shows through between the leaves.
+                c.Ellipse(x0, y - 2f, reach * 0.72f, 6.5f, Color.Lerp(LeafDark, midGreen, 0.25f), 1f);
+                for (int side = -1; side <= 1; side += 2)
                 {
-                    float ring = Mathf.Lerp(0.2f, 1f, i / (float)(leaves - 1));
-                    float theta = R(0f, 360f) * Mathf.Deg2Rad;
-                    Vector2 pos = centre + new Vector2(Mathf.Cos(theta) * rad * 1.15f * ring, Mathf.Sin(theta) * rad * 0.92f * ring);
-                    float angle = theta * Mathf.Rad2Deg + R(-30f, 30f);
-                    float height = Mathf.Clamp01((pos.y - 12f) / 58f);
-                    float sun = Mathf.Clamp01(0.5f - (pos.x - mid) / 120f);
-                    Color col = Color.Lerp(midGreen, lightGreen, Mathf.Clamp01(height * 0.7f + sun * 0.3f + R(-0.22f, 0.22f)));
-                    if (R(0f, 1f) < 0.05f)
+                    float sideReach = reach * R(0.8f, 1.05f);
+                    float rise = R(6f, 22f);                    // angle above horizontal near the trunk
+                    float droop = R(18f, 34f);                  // extra bend towards the ground along the branch
+                    int nodes = Mathf.Max(2, Mathf.RoundToInt(sideReach / 6.5f));
+                    Vector2 prev = new Vector2(x0, y);
+                    for (int n = 1; n <= nodes; n++)
                     {
-                        col = Color.Lerp(col, new Color(0.7f, 0.76f, 0.2f), 0.7f);
-                    }
-                    c.Leaf(pos, angle, R(11f, 16f) * leafScale, R(7.5f, 10.5f) * leafScale, col, 0.55f);
-                }
-            }
+                        float u = n / (float)nodes;
+                        float ang = rise - droop * u * u * 1.6f;
+                        float stepLen = sideReach / nodes;
+                        Vector2 pos = prev + new Vector2(side * Mathf.Cos(ang * Mathf.Deg2Rad), Mathf.Sin(ang * Mathf.Deg2Rad)) * stepLen;
+                        c.Line(prev, pos, Mathf.Lerp(2.1f, 1.1f, u), Wood);
 
-            // Cherries hang in tight clusters at the lower rim of the nearer lumps, not scattered across the top.
-            int clusters = 1 + rng.Next(0, 4);
-            for (int cl = 0; cl < clusters; cl++)
-            {
-                Vector3 lump = lumps[rng.Next(Mathf.Max(0, lumps.Count - 5), lumps.Count)];
-                float theta = R(205f, 335f) * Mathf.Deg2Rad;
-                Vector2 pos = new Vector2(lump.x, lump.y) + new Vector2(Mathf.Cos(theta) * lump.z * 0.95f, Mathf.Sin(theta) * lump.z * 0.75f);
-                int count = rng.Next(3, 6);
-                float ripeBias = R(0f, 1f);
-                for (int j = 0; j < count; j++)
-                {
-                    Vector2 cp = pos + new Vector2(R(-4.5f, 4.5f), R(-3.5f, 3.5f));
-                    float ripe = R(0f, 1f) * 0.7f + ripeBias * 0.3f;
-                    Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.8f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
-                    c.Cherry(cp, R(2.5f, 3.2f), cherry);
-                }
-            }
+                        // A pair of opposite leaves at this joint, one leaning up, one down, both sweeping outward.
+                        float heading = side > 0 ? ang : 180f - ang;
+                        float spreadAngle = R(38f, 58f);
+                        float len = R(13f, 17f) * leafScale * Mathf.Lerp(1f, 0.8f, k < 0.2f ? 1f : 0f) * Mathf.Lerp(0.85f, 1f, u);
+                        float wid = len * R(0.42f, 0.5f);
+                        for (int half = -1; half <= 1; half += 2)
+                        {
+                            float a = heading + half * spreadAngle * side;
+                            float sun = Mathf.Clamp01(0.45f + half * 0.28f + R(-0.15f, 0.15f));
+                            Color col = Color.Lerp(midGreen, lightGreen, sun);
+                            if (R(0f, 1f) < 0.04f)
+                            {
+                                col = Color.Lerp(col, new Color(0.7f, 0.76f, 0.2f), 0.6f);
+                            }
+                            c.Leaf(pos, a, len * R(0.9f, 1.05f), wid, col, 0.6f);
+                        }
+                        // The terminal leaf, pointing straight on.
+                        if (n == nodes)
+                        {
+                            c.Leaf(pos, heading - side * 8f, len * 0.9f, wid * 0.95f, midGreen, 0.6f);
+                        }
+                        prev = pos;
 
-            // In flower (a few of the bushes): small white blossom clusters along the branches.
-            if (seed % 4 == 1)
-            {
-                for (int f = 0; f < 4 + rng.Next(0, 3); f++)
-                {
-                    Vector3 lump = lumps[rng.Next(0, lumps.Count)];
-                    float theta = R(10f, 170f) * Mathf.Deg2Rad;
-                    Vector2 pos = new Vector2(lump.x, lump.y) + new Vector2(Mathf.Cos(theta) * lump.z * 0.9f, Mathf.Sin(theta) * lump.z * 0.8f);
-                    for (int j = 0; j < 3; j++)
-                    {
-                        c.Cherry(pos + new Vector2(R(-3f, 3f), R(-3f, 3f)), 2.2f, new Color(0.98f, 0.97f, 0.92f));
+                        // Cherries cluster at the joint, hanging under the branch.
+                        if (k > 0.15f && R(0f, 1f) < 0.4f)
+                        {
+                            int count = rng.Next(2, 5);
+                            for (int j = 0; j < count; j++)
+                            {
+                                Vector2 cp = pos + new Vector2(R(-3.5f, 3.5f), R(-8f, -2.5f));
+                                float ripe = R(0f, 1f) * 0.7f + cherryBias * 0.3f;
+                                Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
+                                c.Line(pos, cp + new Vector2(0f, 2.5f), 0.9f, Wood);
+                                c.Cherry(cp, R(2.4f, 3.1f), cherry);
+                            }
+                        }
+                        else if (flowering && R(0f, 1f) < 0.45f)
+                        {
+                            Vector2 fp = pos + new Vector2(R(-2f, 2f), R(1f, 4f));
+                            for (int j = 0; j < 5; j++)
+                            {
+                                float pa = j * 72f * Mathf.Deg2Rad;
+                                c.Ellipse(fp.x + Mathf.Cos(pa) * 2.2f, fp.y + Mathf.Sin(pa) * 2.2f, 1.7f, 1.7f, new Color(0.99f, 0.98f, 0.93f), 1f);
+                            }
+                            c.Ellipse(fp.x, fp.y, 1.2f, 1.2f, new Color(0.95f, 0.8f, 0.25f), 1f);
+                        }
                     }
                 }
             }
+            // Crown: the top shoot with its last pair of leaves.
+            c.Leaf(trunkTop, 90f + R(-10f, 10f), 14f * leafScale, 6.5f * leafScale, lightGreen, 0.6f);
+            c.Leaf(trunkTop, 150f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
+            c.Leaf(trunkTop, 30f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
 
             // Grass tufts around the foot.
             int tufts = rng.Next(5, 11);
             for (int i = 0; i < tufts; i++)
             {
                 float gx = mid + R(-34f, 34f);
-                c.Line(new Vector2(gx, 9f), new Vector2(gx + R(-3.5f, 3.5f), R(13f, 20f)), 1.2f, new Color(0.34f, 0.62f, 0.2f));
+                c.Line(new Vector2(gx, 8f), new Vector2(gx + R(-3.5f, 3.5f), R(12f, 19f)), 1.2f, new Color(0.34f, 0.62f, 0.2f));
             }
 
             c.Outline(PacmanToon.Ink, 1.5f);

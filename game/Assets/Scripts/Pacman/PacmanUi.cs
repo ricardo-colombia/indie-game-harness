@@ -43,6 +43,7 @@ namespace Studio.Pacman
         private float stateAge;
         private readonly List<Rect> menuRows = new List<Rect>();
         private Rect pauseButton;
+        private Rect zoomButton;
 
         public static void Show(Vector3 world, string text, Color colour)
         {
@@ -83,6 +84,12 @@ namespace Studio.Pacman
         public bool OnPauseButton(Vector2 gui)
         {
             return game != null && game.TouchMode && game.State == PacmanState.Playing && pauseButton.Contains(gui);
+        }
+
+        /// <summary>True when a position (y down) is on the on-screen zoom button, which only shows for touch play.</summary>
+        public bool OnZoomButton(Vector2 gui)
+        {
+            return game != null && game.TouchMode && game.State == PacmanState.Playing && zoomButton.Contains(gui);
         }
 
         /// <summary>
@@ -157,6 +164,7 @@ namespace Studio.Pacman
             EnsureStyle();
             menuRows.Clear();
             pauseButton = new Rect(-1000f, -1000f, 0f, 0f);
+            zoomButton = new Rect(-1000f, -1000f, 0f, 0f);
 
             if (game.State == PacmanState.Title)
             {
@@ -168,6 +176,7 @@ namespace Studio.Pacman
                 if (game.TouchMode && game.State == PacmanState.Playing)
                 {
                     DrawPauseButton(s);
+                    DrawZoomButton(s);
                 }
                 DrawPopups(s);
                 switch (game.State)
@@ -241,7 +250,7 @@ namespace Studio.Pacman
             }
             string hint = game.TouchMode
                 ? "DESLIZA  MOVER      TOCA  ELEGIR"
-                : "FLECHAS / WASD  MOVER      ENTER  ELEGIR      ESC  PAUSA";
+                : "FLECHAS / WASD  MOVER      ENTER  ELEGIR      V  ZOOM      ESC  PAUSA";
             Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
 
             // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom.
@@ -305,6 +314,22 @@ namespace Studio.Pacman
             float bar = 10f * s;
             Fill(new Rect(r.x + size * 0.5f - bar * 1.6f, r.y + size * 0.26f, bar, size * 0.48f), new Color(1f, 1f, 1f, 0.7f), 3f * s);
             Fill(new Rect(r.x + size * 0.5f + bar * 0.6f, r.y + size * 0.26f, bar, size * 0.48f), new Color(1f, 1f, 1f, 0.7f), 3f * s);
+        }
+
+        /// <summary>A magnifier button left of the pause button: switches between the whole board and the close view.</summary>
+        private void DrawZoomButton(float s)
+        {
+            float size = 76f * s;
+            float margin = 24f * s;
+            Rect r = new Rect(Screen.width - margin - size * 2f - 18f * s, Screen.height - margin - size, size, size);
+            zoomButton = new Rect(r.x - 16f * s, r.y - 16f * s, r.width + 32f * s, r.height + 32f * s);
+            Fill(r, new Color(1f, 1f, 1f, game.CloseView ? 0.3f : 0.12f), 16f * s);
+            Color white = new Color(1f, 1f, 1f, 0.75f);
+            float lens = size * 0.36f;
+            Rect ring = new Rect(r.x + size * 0.2f, r.y + size * 0.18f, lens, lens);
+            Fill(ring, white, lens * 0.5f);
+            Fill(new Rect(ring.x + 5f * s, ring.y + 5f * s, lens - 10f * s, lens - 10f * s), new Color(0.12f, 0.1f, 0.08f, 0.95f), (lens - 10f * s) * 0.5f);
+            Fill(new Rect(r.x + size * 0.56f, r.y + size * 0.56f, size * 0.26f, 8f * s), white, 3f * s);
         }
 
         private void DrawPopups(float s)
@@ -391,6 +416,7 @@ namespace Studio.Pacman
                 bool selected = i == game.MenuIndex;
                 string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO")
                     : items[i] == "THEME" ? "ESTILO:  " + (game.ThemeId == PacmanTheme.Vintage ? "VINTAGE" : "CLÁSICO")
+                    : items[i] == "VIEW" ? "VISTA:  " + (game.CloseView ? "CERCA" : "COMPLETA")
                     : MenuLabel(items[i]);
                 float width = Mathf.Min(520f * s, Screen.width * 0.9f);
                 Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
