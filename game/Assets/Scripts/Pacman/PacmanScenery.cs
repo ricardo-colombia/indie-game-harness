@@ -250,6 +250,14 @@ namespace Studio.Pacman
             {
                 skyCamera.backgroundColor = skyNow.Top;
             }
+            if (skyCamera != null)
+            {
+                PacmanPost grading = skyCamera.GetComponent<PacmanPost>();
+                if (grading != null)
+                {
+                    grading.SetNight(Mathf.Clamp01((1.5f - skyNow.Tint.r) / 0.5f));
+                }
+            }
             if (rays != null)
             {
                 // Light is the horizon colour brightened toward white; strongest at dawn and dusk, faint at night.

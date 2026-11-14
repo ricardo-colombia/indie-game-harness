@@ -27,6 +27,7 @@ namespace Studio.Pacman
         private Bloom bloom;
         private ChromaticAberration chromatic;
         private Vignette vignetteEffect;
+        private ColorAdjustments gradeEffect;
 
         /// <summary>Sets up the volume and the camera effects. Call after the camera is positioned.</summary>
         public static PacmanPost Attach(Camera camera)
@@ -38,6 +39,18 @@ namespace Studio.Pacman
             }
             post.Setup(camera);
             return post;
+        }
+
+        /// <summary>Cools and dims the picture toward moonlight. 0 = the warm default, 1 = full night.</summary>
+        public void SetNight(float night)
+        {
+            if (gradeEffect == null)
+            {
+                return;
+            }
+            night = Mathf.Clamp01(night);
+            gradeEffect.colorFilter.value = Color.Lerp(new Color(1f, 0.96f, 0.88f), new Color(0.66f, 0.76f, 1f), night);
+            gradeEffect.postExposure.value = Mathf.Lerp(0.05f, -0.3f, night);
         }
 
         /// <summary>Changes the resting zoom, for when the screen shape changes.</summary>
@@ -84,6 +97,7 @@ namespace Studio.Pacman
             vignetteEffect.rounded.value = false;
 
             ColorAdjustments grade = profile.Add<ColorAdjustments>(true);
+            gradeEffect = grade;
             grade.postExposure.value = 0.05f;
             grade.contrast.value = 14f;
             grade.saturation.value = 14f;
