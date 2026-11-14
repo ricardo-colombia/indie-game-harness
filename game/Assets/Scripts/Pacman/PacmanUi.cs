@@ -307,6 +307,8 @@ namespace Studio.Pacman
             }
 
             // Level, bottom left; a hint while frightened, bottom centre.
+            // A dark pill behind it: in the close view the label sits on the reddish ground strip below the farm.
+            Fill(new Rect(margin - 14f * s, Screen.height - 64f * s, 190f * s, 54f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
             Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "FINCA  " + game.Level, 30f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
             if (game.FrightenedActive)
             {
