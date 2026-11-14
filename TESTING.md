@@ -31,7 +31,7 @@ bash scripts/selftest.sh live
 `all` runs everything. The offline tests always run first.
 
 ### Offline (≈20 s, no AI, no Unity)
-Expected ending: `Ran 31 tests ... OK` (shows `skipped=N` if Blender or ffmpeg is missing).
+Expected ending: `Ran 34 tests ... OK` (shows `skipped=N` if Blender or ffmpeg is missing).
 What it checks:
 - **Runner:** merges a card, strips your API key from agent calls, forces the model, rejects changes to protected paths, and resumes the session on the fix attempt.
 - **Adversarial:** rejects edits outside the writable allowlist (harness package, Editor code), doesn't execute suspicious code, stops the run if the main checkout's judges change, rejects forged/stale metrics, finds harness code in a release build, sends BLOCKED cards to review, resumes quota-paused cards, requires a strict last-line review verdict, refuses a $0 run that could bill money, refuses `hx run`/`card ready` from an agent session, and re-gates taste cards before merging.
@@ -41,7 +41,7 @@ What it checks:
 - **Files:** every config, agent, skill and plugin file is valid.
 
 ### Unity (15–40 min the first time, mostly project import)
-This creates a throwaway Unity project in a temp folder and adds the harness package and a generated sample scene. It then runs a headless build, the EditMode and PlayMode tests, autotest (`smoke` plus `selftest_move`, which drives a cube forward for 2 s and expects about 10 m travelled at 5 m/s), and a 2-take camera capture.
+This creates a throwaway Unity project in a temp folder and adds the harness package and a generated sample scene. It then runs a headless build, the EditMode and PlayMode tests, autotest (`smoke` plus `selftest_move`, building for the OS you are on, which drives a cube forward for 2 s and expects about 10 m travelled at 5 m/s), and a 2-take camera capture.
 Expected: every line `PASS`. The last line shows where the captured frames were kept.
 
 ### Live (≈2–5 min, plan quota, Haiku)
@@ -61,4 +61,4 @@ Expected PASS lines:
 | Windows: `claude` not found | Reopen the terminal after installing (PATH), or check `where claude`. |
 
 ## 3. Continuous check
-`.github/workflows/selftest.yml` runs the offline level on Ubuntu and Windows on every push. That's free on GitHub-hosted runners and needs no secrets.
+`.github/workflows/selftest.yml` runs the offline level on Ubuntu on every push. That's free on GitHub-hosted runners and needs no secrets.

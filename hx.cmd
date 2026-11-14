@@ -1,0 +1,3 @@
+@echo off
+rem Launcher for the harness CLI on Windows: hx doctor | setup | verify | web ...
+python "%~dp0harness\hx.py" %*

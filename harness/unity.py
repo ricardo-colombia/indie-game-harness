@@ -7,10 +7,11 @@ import os
 import platform
 import secrets
 import shutil
+import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from core import find_unity, sh
+from core import find_unity, player_exe, sh
 
 HARNESS_MARKER = b"Studio.Harness"   # assembly name; present in any build that compiled the harness in
 
@@ -38,22 +39,53 @@ def _display_wrap(cmd: list[str]) -> list[str]:
     return cmd
 
 
-def build(cfg, project: Path, out: Path, release: bool = False, binary: Path | None = None):
+def editor_open(project: Path) -> bool:
+    """True if a Unity editor has this project open. A second (batch) Unity can't open a locked project."""
+    if not shutil.which("unity"):
+        return False
+    try:
+        r = subprocess.run(["unity", "status", "--format", "json", "--no-banner"], capture_output=True, text=True, timeout=20)
+        items = (json.loads(r.stdout).get("data") or {}).get("instances") or []
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
+        return False
+    here = project.resolve()
+    return any(Path(i.get("projectPath", "")).resolve() == here for i in items if isinstance(i, dict) and i.get("projectPath"))
+
+
+def _locked(project: Path, log: Path):
+    """(ok, summary) failure if an editor holds the project, else None."""
+    if editor_open(project):
+        msg = (f"the Unity editor has {project.name}/ open, so a batch run can't use it. Close it (`unity close {project}`) "
+               "or, to stay in the editor, use `unity command` / `unity test`.")
+        return False, {"rc": 1, "error": msg, "log": str(log)}
+    return None
+
+
+def build(cfg, project: Path, out: Path, release: bool = False, binary: Path | None = None, target: str | None = None):
+    """target: override the build target (e.g. "WebGL"); `binary` is then the output folder."""
+    web = target == "WebGL"
     binary = binary or (project / (_release_binary(cfg) if release else cfg["game"]["player_binary"]))
-    log = out / ("build-release.log" if release else "build.log")
-    r = _run(cfg, [_unity(cfg, project), "-batchmode", "-nographics", "-quit", "-projectPath", str(project),
-                   "-buildTarget", cfg["game"]["build_target"],
+    log = out / ("build-web.log" if web else "build-release.log" if release else "build.log")
+    if (busy := _locked(project, log)):
+        return busy
+    r = _run(cfg, [_unity(cfg, project), "-batchmode", *([] if web else ["-nographics"]), "-quit", "-projectPath", str(project),
+                   "-buildTarget", target or cfg["game"]["build_target"],
                    "-executeMethod", "Harness.Editor.HarnessBuild.BuildPlayer",
                    "-harnessBuildPath", str(binary), *(["-release"] if release else []), "-logFile", "-"],
              timeout=cfg["unity"]["build_timeout_min"] * 60, log=log)
     errors = [l for l in r.stdout.splitlines() if "error CS" in l][:20]
-    ok = r.returncode == 0 and binary.exists()
+    ok = r.returncode == 0 and binary.exists() and (not web or (binary / "index.html").exists())
     summary = {"rc": r.returncode, "binary": str(binary), "compile_errors": errors, "log": str(log)}
     if ok and release:
         leaks = scan_for_harness(binary)
         summary["harness_leaks"] = leaks
         ok = not leaks
     return ok, summary
+
+
+def build_web(cfg, project: Path, out: Path):
+    """Shareable browser build: release (no harness), uncompressed so GitHub Pages and any static host can serve it."""
+    return build(cfg, project, out, release=True, binary=project / "Builds/Web", target="WebGL")
 
 
 def _release_binary(cfg) -> str:
@@ -75,7 +107,7 @@ def scan_for_harness(binary: Path) -> list[str]:
         if f.name.startswith("Studio.Harness"):
             leaks.append(str(f.relative_to(root)))
             continue
-        if f.suffix.lower() in (".dll", ".dat", ".so", ".dylib", ".json", "") or f.name.startswith("GameAssembly"):
+        if f.suffix.lower() in (".dll", ".dat", ".so", ".dylib", ".json", ".wasm", ".data", "") or f.name.startswith("GameAssembly"):
             with f.open("rb") as fh:
                 prev = b""
                 while chunk := fh.read(1 << 20):
@@ -92,6 +124,8 @@ def tests(cfg, project: Path, out: Path, platform_: str):
     cmd = ([_unity(cfg, project), "-batchmode", "-projectPath", str(project), "-runTests",
             "-testPlatform", platform_, "-testResults", str(results), "-logFile", "-"]
            + (["-nographics"] if platform_ == "EditMode" else []))
+    if (busy := _locked(project, log)):
+        return busy
     if results.exists():
         results.unlink()
     r = _run(cfg, cmd if platform_ == "EditMode" else _display_wrap(cmd),   # PlayMode needs a display on Linux
@@ -129,7 +163,7 @@ def _min_seconds(spec: dict) -> float:
 def autotest(cfg, project: Path, out: Path, scenarios: list[str], scenario_dir: Path | None = None):
     """scenario_dir: where the scenario JSONs are read from. The runner passes the MAIN checkout's
     scenarios/, so nothing in the card's worktree (or written during its build) can change the contract."""
-    binary = project / cfg["game"]["player_binary"]
+    binary = player_exe(project / cfg["game"]["player_binary"])
     sdir = scenario_dir or (project.parent / "scenarios")
     results, ok = {}, True
     for name in scenarios:
@@ -180,7 +214,7 @@ def autotest(cfg, project: Path, out: Path, scenarios: list[str], scenario_dir: 
 
 
 def capture(cfg, project: Path, takes_file: Path, out: Path):
-    binary = project / cfg["game"]["player_binary"]
+    binary = player_exe(project / cfg["game"]["player_binary"])
     c = cfg["marketing"]["capture"]
     out.mkdir(parents=True, exist_ok=True)
     r = _run(cfg, _display_wrap([str(binary), "-capture", str(takes_file), "-harnessOut", str(out),

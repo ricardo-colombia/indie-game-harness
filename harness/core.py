@@ -4,10 +4,12 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import platform
 import re
 import shutil
 import signal
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -84,9 +86,32 @@ def find_blender(cfg: dict | None = None) -> str | None:
     return next((str(c) for c in cands if c.is_file()), None)
 
 
+HOST_TARGET = {"Darwin": "StandaloneOSX", "Windows": "StandaloneWindows64", "Linux": "StandaloneLinux64"}
+TARGET_EXT = {"StandaloneOSX": ".app", "StandaloneWindows64": ".exe", "StandaloneLinux64": ""}
+
+
 def load_config(root: Path = ROOT) -> dict:
+    """config.yaml with `game.build_target` / `game.player_binary` resolved: `auto` (the default) builds for the
+    machine you are on, so autotest can run the player it just built. A Windows build on a Mac can't be run."""
     text = os.path.expandvars((root / "harness" / "config.yaml").read_text())
-    return yaml.safe_load(text)
+    cfg = yaml.safe_load(text)
+    g = cfg.setdefault("game", {})
+    target = str(g.get("build_target") or "auto")
+    if target == "auto":
+        target = HOST_TARGET.get(platform.system(), "StandaloneLinux64")
+    g["build_target"] = target
+    if str(g.get("player_binary") or "auto") == "auto":
+        g["player_binary"] = f"Builds/Player/{re.sub(r'[^A-Za-z0-9]', '', str(g.get('name', ''))) or 'Game'}{TARGET_EXT.get(target, '')}"
+    return cfg
+
+
+def player_exe(binary: Path) -> Path:
+    """What to execute for a built player. A macOS .app is a folder: the program is inside it."""
+    if binary.is_dir() and binary.suffix == ".app":
+        inner = sorted(f for f in (binary / "Contents/MacOS").glob("*") if f.is_file())
+        if inner:
+            return inner[0]
+    return binary
 
 
 def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
@@ -101,17 +126,25 @@ def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
     if exe:
         cmd = [exe, *cmd[1:]]
     kw = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
-    p = subprocess.Popen(cmd, cwd=cwd, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-                         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=full_env,
-                         encoding="utf-8", errors="replace", **kw)
-    try:
-        out, _ = p.communicate(input=stdin, timeout=timeout)
-        rc = p.returncode
-    except subprocess.TimeoutExpired:
-        kill_tree(p)
-        out, _ = p.communicate()
-        out, rc = f"TIMEOUT after {timeout}s\n{out or ''}", 124
-    out = out or ""
+    # Output goes to a file, not a pipe: Unity leaves a UnityPackageManager server running after it exits, and it
+    # keeps an inherited pipe open, so reading until EOF would hang for the whole timeout after a finished build.
+    with tempfile.TemporaryFile() as fout, tempfile.TemporaryFile() as fin:
+        if stdin is not None:
+            fin.write(stdin.encode("utf-8"))
+            fin.seek(0)
+        p = subprocess.Popen(cmd, cwd=cwd, stdin=fin if stdin is not None else subprocess.DEVNULL,
+                             stdout=fout, stderr=subprocess.STDOUT, env=full_env, **kw)
+        try:
+            p.wait(timeout=timeout)
+            rc, timed_out = p.returncode, False
+        except subprocess.TimeoutExpired:
+            kill_tree(p)
+            p.wait()
+            rc, timed_out = 124, True
+        fout.seek(0)
+        out = fout.read().decode("utf-8", errors="replace")
+    if timed_out:
+        out = f"TIMEOUT after {timeout}s\n{out}"
     if log:
         log.parent.mkdir(parents=True, exist_ok=True)
         log.write_text(out)

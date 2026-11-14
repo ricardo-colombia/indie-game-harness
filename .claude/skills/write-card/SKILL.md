@@ -2,7 +2,7 @@
 name: write-card
 description: Turn notes, design ideas, playtest feedback or bug reports into well-formed backlog cards the runner can complete. Use for "add to backlog", "make cards from these notes", "plan this feature".
 ---
-1. Create each card with `python harness/hx.py card new "<imperative title>" --type <feature|bug|tuning|art|marketing|chore>`; it lands in `backlog/inbox/` from `backlog/_template.md`.
+1. Create each card with `./hx card new "<imperative title>" --type <feature|bug|tuning|art|marketing|chore>`; it lands in `backlog/inbox/` from `backlog/_template.md`.
 2. Fill it in:
    - **Goal**: one sentence of player-facing outcome.
    - **Acceptance criteria**: checkable statements — a test name, a metric threshold (`vehicle.speed.max between 6 and 12 in scenario drive_straight`), or "screenshot X shows Y". No "feels good".

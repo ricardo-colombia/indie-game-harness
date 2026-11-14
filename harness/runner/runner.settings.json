@@ -12,6 +12,10 @@
       "Bash(python harness/hx.py test:*)",
       "Bash(python harness/hx.py autotest:*)",
       "Bash(python harness/hx.py verify:*)",
+      "Bash(./hx build)",
+      "Bash(./hx test:*)",
+      "Bash(./hx autotest:*)",
+      "Bash(./hx verify:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
@@ -53,7 +57,12 @@
       "Bash(git -c:*)",
       "Bash(python harness/hx.py run:*)",
       "Bash(python harness/hx.py merge:*)",
-      "Bash(python harness/hx.py card:*)"
+      "Bash(python harness/hx.py card:*)",
+      "Bash(./hx run:*)",
+      "Bash(./hx merge:*)",
+      "Bash(./hx card:*)",
+      "Bash(./hx setup:*)",
+      "Bash(bash scripts/publish_web.sh:*)"
     ]
   },
   "env": {
@@ -66,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python harness/hooks/guard_cs.py"
+            "command": "sh -c 'exec \"$(command -v python3 || command -v python)\" harness/hooks/guard_cs.py'"
           }
         ]
       }

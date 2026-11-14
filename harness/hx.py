@@ -3,6 +3,7 @@
 
   hx verify [--scenarios a b]        build + EditMode + PlayMode + autotest on this checkout
   hx build | hx test EditMode|PlayMode | hx autotest smoke drive_straight
+  hx web [--serve]                   browser (WebGL) build in game/Builds/Web; --serve plays it on localhost:8000
   hx capture marketing/takes/launch.json
   hx card new "Title" [--type feature] | hx card ready C-0007 | hx cards
   hx release [--to-steam]            release build (no HARNESS) + scan for harness code; --to-steam stages it
@@ -28,6 +29,12 @@ from pathlib import Path
 if sys.argv[1:2] in (['setup'], ['doctor']):  # stdlib only: must work before dependencies are installed
     raise SystemExit(subprocess.call([sys.executable, str(Path(__file__).parent / 'setup.py'), *sys.argv[1:]]))
 
+# `hx setup` keeps the Python dependencies in .venv (system Pythons on macOS/Linux refuse `pip install`). Use it.
+_venv = Path(__file__).resolve().parent.parent / ".venv"
+_venv_py = _venv / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+if _venv_py.exists() and Path(sys.prefix).resolve() != _venv.resolve():
+    raise SystemExit(subprocess.call([str(_venv_py), *sys.argv]))
+
 sys.path.insert(0, str(Path(__file__).parent))
 import unity  # noqa: E402
 from core import BACKLOG, LEDGER, REPORTS, ROOT, STATES, list_cards, load_config, parse_card  # noqa: E402
@@ -50,6 +57,7 @@ def main(argv=None) -> int:
     v = sub.add_parser("verify"); v.add_argument("--scenarios", nargs="*", default=[])
     rl = sub.add_parser("release"); rl.add_argument("--to-steam", action="store_true")
     sub.add_parser("build")
+    w = sub.add_parser("web"); w.add_argument("--serve", action="store_true"); w.add_argument("--port", type=int, default=8000)
     t = sub.add_parser("test"); t.add_argument("platform", choices=["EditMode", "PlayMode"])
     at = sub.add_parser("autotest"); at.add_argument("scenarios", nargs="+")
     cp = sub.add_parser("capture"); cp.add_argument("takes")
@@ -72,6 +80,18 @@ def main(argv=None) -> int:
 
     if a.cmd == "build":
         return _print(*unity.build(cfg, project, _out("build")))
+    if a.cmd == "web":
+        dest = project / "Builds/Web"
+        if not (a.serve and (dest / "index.html").exists()):   # --serve alone re-serves the last build
+            ok, summ = unity.build_web(cfg, project, _out("web"))
+            if not ok:
+                return _print(False, summ)
+            print(json.dumps({"ok": True, **summ}, indent=1, default=str))
+        if a.serve:
+            print(f"Serving {dest} at http://localhost:{a.port}/  (Ctrl+C to stop)")
+            return subprocess.call([sys.executable, "-m", "http.server", str(a.port), "--directory", str(dest)])
+        print("Try it with `./hx web --serve`; publish with `bash scripts/publish_web.sh` (asks first).")
+        return 0
     if a.cmd == "test":
         return _print(*unity.tests(cfg, project, _out("test"), a.platform))
     if a.cmd == "autotest":

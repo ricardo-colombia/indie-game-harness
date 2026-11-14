@@ -1,9 +1,9 @@
 # Studio harness config. One file per game repo. Env vars like ${VAR} are expanded.
 game:
-  name: Test
+  name: My Game                       # `./hx setup "Name"` writes this
   unity_project: game                 # Unity project folder, relative to repo root
-  build_target: StandaloneWindows64   # StandaloneWindows64 | StandaloneLinux64 | StandaloneOSX
-  player_binary: Builds/Player/Test.exe   # relative to unity_project, produced by the build gate
+  build_target: auto                  # auto = the OS you are on, so autotest can run what it built | StandaloneOSX | StandaloneWindows64 | StandaloneLinux64
+  player_binary: auto                 # auto = Builds/Player/<Name>.app|.exe, relative to unity_project, produced by the build gate
 
 unity:
   editor_path: ""                     # empty = found via the Unity CLI (`unity editors path <project version>`); set only to override

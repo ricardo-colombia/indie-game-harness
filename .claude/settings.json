@@ -21,6 +21,20 @@
       "Bash(ffmpeg:*)",
       "Bash(ffprobe:*)",
       "Bash(python harness/hx.py doctor)",
+      "Bash(python harness/hx.py web:*)",
+      "Bash(./hx verify:*)",
+      "Bash(./hx build)",
+      "Bash(./hx web:*)",
+      "Bash(./hx test:*)",
+      "Bash(./hx autotest:*)",
+      "Bash(./hx capture:*)",
+      "Bash(./hx cards)",
+      "Bash(./hx card new:*)",
+      "Bash(./hx report)",
+      "Bash(./hx cost:*)",
+      "Bash(./hx release)",
+      "Bash(./hx selftest)",
+      "Bash(./hx doctor)",
       "Bash(unity status:*)",
       "Bash(unity open:*)",
       "Bash(unity command:*)",
@@ -30,6 +44,14 @@
       "Bash(unity command script eval:*)",
       "Bash(unity command script eval_file:*)",
       "Bash(python harness/hx.py setup:*)",
+      "Bash(./hx setup:*)",
+      "Bash(./hx run:*)",
+      "Bash(./hx merge:*)",
+      "Bash(./hx card ready:*)",
+      "Bash(./hx release --to-steam)",
+      "Bash(./hx selftest --live:*)",
+      "Bash(./hx selftest --all:*)",
+      "Bash(bash scripts/publish_web.sh:*)",
       "Bash(python harness/hx.py run:*)",
       "Bash(python harness/hx.py merge:*)",
       "Bash(python harness/hx.py card ready:*)",
@@ -63,7 +85,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python harness/hooks/guard_cs.py"
+            "command": "sh -c 'exec \"$(command -v python3 || command -v python)\" harness/hooks/guard_cs.py'"
           }
         ]
       }

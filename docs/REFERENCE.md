@@ -23,17 +23,18 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
 |---|---|
 | `CLAUDE.md` | Studio rules: the code contract, verification, cost discipline, hard "nevers" |
 | `.claude/agents/` | producer, gameplay-engineer, qa-playtester, code-reviewer (haiku), tech-artist, marketing-producer (haiku), build-release (haiku) |
-| `.claude/skills/` | new-game, write-card, run-card, playtest, art-asset, capture-shorts, steam-page, steam-release, taste-review |
+| `.claude/skills/` | new-game, playtest, web-release, write-card, run-card, taste-review, art-asset, capture-shorts, steam-page, steam-release |
 | `.claude/settings.json` + `harness/hooks/` | permissions (paid/irreversible actions require approval), C# guard hook |
 | `.mcp.json` | empty by default; the editor is driven with `unity command`, no MCP needed |
 | `.claude-plugin/` | lets other game repos install the agents and skills as a plugin |
-| `harness/hx.py` | single CLI: `verify build test autotest capture card cards run report cost` |
+| `hx` · `harness/hx.py` | single CLI (`./hx`, switches to `.venv` by itself): `setup doctor verify build web test autotest capture card cards run report cost` |
 | `harness/runner.py` | the on-demand card runner |
 | `packages/com.studio.harness` | Unity package (editor + harness builds only): `HarnessBuild`, `InputDriver` (virtual devices + trace replay), probes, AutoPilot (`-autotest`), CameraTakes (`-capture`), *Record Input*, smoke tests |
 | `scenarios/` | input scripts and metric thresholds (your "feel contract"), read from the main checkout, never from the card's branch |
 | `art/` + `harness/art/` | manifest-driven concept → pick → Tripo → Blender cleanup → Unity |
 | `marketing/` + `harness/marketing/` | camera takes → ffmpeg shorts → approval → slot schedule → poster |
 | `steam/` | store checklist, steamcmd templates, beta-branch upload |
+| `scripts/publish_web.sh` | publishes the `./hx web` build to GitHub Pages (needs the director's go-ahead) |
 
 ## The key idea: the built game is driven and measured from the outside, with zero harness code in the game
 The game is written normally, with **Unity's Input System** (actions / `PlayerInput`). The harness only observes it from outside.
@@ -68,7 +69,7 @@ The only requirement on a game is that it uses the Input System package, which i
 ## Validate the harness at $0: `hx selftest`
 | Level | Cost | What it proves |
 |---|---|---|
-| `hx selftest` | $0, no AI | 31 checks: runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, Blender cleanup (if installed), all config/agent/skill/plugin files |
+| `hx selftest` | $0, no AI | 34 checks: runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, Blender cleanup (if installed), all config/agent/skill/plugin files |
 | `--unity` | $0 | temp sample project → package compiles → headless build → EditMode + PlayMode → autotest (input → movement → metrics → thresholds) → camera capture frames |
 | `--live` | plan quota only, **Haiku forced**, $0.05 caps | headless call on your login, project skills load, one real card through the runner |
 
@@ -103,7 +104,7 @@ The gates run code the agent wrote (Editor scripts during the build, tests, the 
 - Paid generation only happens through `harness/art/pipeline.py` with `variants` set per asset and costs logged (`hx cost`); every paid command needs approval in `.claude/settings.json`.
 
 ## Things to adapt per game
-- `harness/config.yaml`: build target, binary name, `plan_models` (what your plan includes), art providers, and API prices for the ledger.
+- `harness/config.yaml`: `build_target` / `player_binary` (`auto` = the OS you are on; autotest has to run the player it built, so a Windows target on a Mac does not work), `plan_models` (what your plan includes), art providers, and API prices for the ledger.
 - `harness/runner/runner.settings.json`: deny rules assume the Unity project is at `game/`.
 - `art/style.md` and `design/PILLARS.md` (yours).
 - Check the endpoint and field names in `harness/art/pipeline.py` (Magnific generation endpoint, Tripo v3 fields) against your plan's current API docs, and use `--dry-run` first.

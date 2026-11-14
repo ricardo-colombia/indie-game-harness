@@ -1,8 +1,0 @@
-﻿<Solution>
-  <Project Path="Studio.Harness.csproj" />
-  <Project Path="Studio.Harness.Editor.csproj" />
-  <Project Path="Assembly-CSharp-Editor.csproj" />
-  <Project Path="Assembly-CSharp.csproj" />
-  <Project Path="Studio.Harness.Tests.Runtime.csproj" />
-  <Project Path="Studio.Harness.Tests.Editor.csproj" />
-</Solution>

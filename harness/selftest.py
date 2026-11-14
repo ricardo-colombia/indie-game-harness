@@ -49,6 +49,7 @@ elif a[:2] == ["projects", "create"]:
     (p / "ProjectSettings").mkdir(parents=True); (p / "Packages").mkdir()
     (p / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 6000.3.1f1\n")
     (p / "Packages/manifest.json").write_text('{"dependencies": {}}')
+    (p / "Assets/TutorialInfo").mkdir(parents=True); (p / "Assets/Readme.asset").write_text("x")
 elif a[:2] == ["pipeline", "install"]:
     f = Path(a[a.index("--project-path") + 1]) / "Packages/manifest.json"
     m = json.loads(f.read_text()); m["dependencies"]["com.unity.pipeline"] = "0.9.0"; f.write_text(json.dumps(m))
@@ -126,9 +127,18 @@ def run(cmd, cwd=None, env=None, unset=(), timeout=600, stdin=None):
 
 def clone_repo(tmp: Path) -> Path:
     dst = tmp / "repo"
-    shutil.copytree(REPO, dst, ignore=shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
-                                                             "__pycache__", "reports", "ledger.jsonl", ".venv",
-                                                             "selftest-results.txt"))
+    skip = shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs", "Builds", "__pycache__", "reports",
+                                  "ledger.jsonl", ".venv", "selftest-results.txt")
+
+    def ignore(folder, names):
+        ignored = set(skip(folder, names))
+        # Your game's Unity project is not the harness under test: setup tests start from a repo without one,
+        # and its LFS files can't be checked out into a scratch repo.
+        if Path(folder) == Path(REPO):
+            ignored.add("game")
+        return ignored
+
+    shutil.copytree(REPO, dst, ignore=ignore)
     for c in (["git", "init", "-q", "-b", "main"], ["git", "config", "user.name", "selftest"],
               ["git", "config", "user.email", "selftest@local"], ["git", "add", "-A"], ["git", "commit", "-qm", "init"]):
         run(c, cwd=dst)
@@ -483,7 +493,9 @@ class Offline(unittest.TestCase):
         self.assertIn("com.studio.harness", m["testables"])
         cfg = (self.repo / "harness/config.yaml").read_text()
         self.assertIn("name: My Game", cfg)
-        self.assertIn("Builds/Player/MyGame.exe", cfg)
+        self.assertFalse((self.repo / "game/Assets/TutorialInfo").exists())      # Unity's tutorial scaffolding is gone
+        self.assertFalse((self.repo / "game/Assets/Readme.asset").exists())
+        self.assertTrue((self.repo / "game/Assets/WebGLTemplates/Harness/index.html").exists())
         log = (self.tmp / "unity.log").read_text()
         self.assertIn("--editor-version 6000.3.1f1", log)   # newest installed Unity 6, not a new download
         self.assertNotIn("--install-editor", log)
@@ -500,6 +512,35 @@ class Offline(unittest.TestCase):
         self.assertNotIn("projects create", (self.tmp / "unity.log").read_text())
         run([PY, "harness/hx.py", "setup", "My Game", "--yes"], cwd=self.repo, env=env)
         self.assertIn("--install-editor --accept-eula", (self.tmp / "unity.log").read_text())
+
+    def test_config_auto_target_matches_this_machine(self):
+        import platform
+        from core import load_config
+        want = {"Darwin": ("StandaloneOSX", ".app"), "Windows": ("StandaloneWindows64", ".exe"),
+                "Linux": ("StandaloneLinux64", "")}[platform.system()]
+        set_cfg_section(self.repo, "game", name="My Game")
+        g = load_config(self.repo)["game"]
+        self.assertEqual(g["build_target"], want[0])                  # the player autotest builds is one it can run
+        self.assertEqual(g["player_binary"], f"Builds/Player/MyGame{want[1]}")
+        set_cfg_section(self.repo, "game", build_target="StandaloneWindows64", player_binary="Builds/x.exe")
+        g = load_config(self.repo)["game"]                            # explicit values still win
+        self.assertEqual((g["build_target"], g["player_binary"]), ("StandaloneWindows64", "Builds/x.exe"))
+
+    def test_macos_app_bundle_runs_its_inner_executable(self):
+        from core import player_exe
+        app = self.tmp / "Builds/My.app"
+        (app / "Contents/MacOS").mkdir(parents=True)
+        (app / "Contents/MacOS/My").write_text("x")
+        self.assertEqual(player_exe(app), app / "Contents/MacOS/My")
+        self.assertEqual(player_exe(self.tmp / "Builds/game.exe"), self.tmp / "Builds/game.exe")
+
+    def test_web_build_pieces_exist(self):
+        page = (REPO / "packages/com.studio.harness/WebGLTemplates~/Harness/index.html").read_text()
+        self.assertIn("{{{ LOADER_FILENAME }}}", page)                # a real Unity WebGL template, not a stub
+        self.assertIn("#if USE_WASM", page)
+        build_cs = (REPO / "packages/com.studio.harness/Editor/HarnessBuild.cs").read_text()
+        self.assertIn("WebGLCompressionFormat.Disabled", build_cs)    # GitHub Pages can't serve .br/.gz
+        self.assertTrue(os.access(REPO / "hx", os.X_OK) and os.access(REPO / "scripts/publish_web.sh", os.X_OK))
 
     def test_static_files(self):
         import yaml

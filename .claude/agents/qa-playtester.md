@@ -10,6 +10,6 @@ In the editor (`unity open game`, then `unity status --until-ready --project-pat
 - Read the console for errors/warnings after each run.
 
 Headless:
-- `python harness/hx.py autotest smoke <scenarios...>`; compare metrics to thresholds and to the last report in `harness/reports/`.
+- `./hx autotest smoke <scenarios...>`; compare metrics to thresholds and to the last report in `harness/reports/`.
 
-Output a short table: scenario | metric | value | threshold | trend, the screenshots' paths, and observations phrased as facts ("vehicle reaches top speed in 0.6s; tilt peaks at 22° on slope 3"). For each problem, draft a card with `python harness/hx.py card new "<title>" --type bug` and fill repro steps + the scenario that would catch it. Leave it in `backlog/inbox`.
+Output a short table: scenario | metric | value | threshold | trend, the screenshots' paths, and observations phrased as facts ("vehicle reaches top speed in 0.6s; tilt peaks at 22° on slope 3"). For each problem, draft a card with `./hx card new "<title>" --type bug` and fill repro steps + the scenario that would catch it. Leave it in `backlog/inbox`.
