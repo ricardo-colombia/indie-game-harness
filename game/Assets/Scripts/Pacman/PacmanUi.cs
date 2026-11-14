@@ -323,6 +323,15 @@ namespace Studio.Pacman
             label.wordWrap = false;
         }
 
+        /// <summary>The largest font size, up to <paramref name="size"/>, at which a one-line text fits a width.</summary>
+        private float FitFont(string text, float size, float width)
+        {
+            label.wordWrap = false;
+            label.fontSize = Mathf.Max(8, Mathf.RoundToInt(size));
+            float w = label.CalcSize(new GUIContent(text)).x;
+            return w <= width ? size : size * width / w * 0.97f;
+        }
+
         private void DrawStory(float s)
         {
             PacmanStoryPlayer story = game.Story;
@@ -378,13 +387,13 @@ namespace Studio.Pacman
             float pad = 16f * cs;
             Color ink = new Color(0.18f, 0.09f, 0.04f);
             float y = caption.y + pad * 0.6f;
-            Text(new Rect(caption.x + pad, y, caption.width - 2f * pad, 52f * cs), panel.Title, 40f * cs, new Color(0.62f, 0.14f, 0.1f), TextAnchor.MiddleLeft);
+            Text(new Rect(caption.x + pad, y, caption.width - 2f * pad, 52f * cs), panel.Title, FitFont(panel.Title, 40f * cs, caption.width - 2f * pad), new Color(0.62f, 0.14f, 0.1f), TextAnchor.MiddleLeft);
             y += 52f * cs;
             float motiveHeight = string.IsNullOrEmpty(panel.Motive) ? 0f : 46f * cs;
             TextWrapped(new Rect(caption.x + pad, y, caption.width - 2f * pad, caption.yMax - y - motiveHeight - pad * 0.5f), panel.Text, 29f * cs, ink, TextAnchor.UpperLeft);
             if (motiveHeight > 0f)
             {
-                Text(new Rect(caption.x + pad, caption.yMax - motiveHeight - pad * 0.4f, caption.width - 2f * pad, motiveHeight), panel.Motive, 27f * cs, new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
+                Text(new Rect(caption.x + pad, caption.yMax - motiveHeight - pad * 0.4f, caption.width - 2f * pad, motiveHeight), panel.Motive, FitFont(panel.Motive, 27f * cs, caption.width - 2f * pad), new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
             }
 
             // Progress dots and the control hint.
