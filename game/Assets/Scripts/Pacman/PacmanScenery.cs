@@ -104,6 +104,7 @@ namespace Studio.Pacman
             PacmanFence.Build(transform);
             PacmanBushes.Build(transform);
             PacmanMist.Build(transform);
+            PacmanDew.Build(transform);
             BuildMountains();
             BuildPortals();
             BuildStars(centre);
