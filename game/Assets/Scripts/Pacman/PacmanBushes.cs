@@ -149,6 +149,27 @@ namespace Studio.Pacman
         /// leaves facing each other along every branch, and red cherries bunched at the leaf joints. Branch count, length,
         /// droop, leaf size, colour, fruit and flowers change with the seed so neighbours never repeat.
         /// </summary>
+        /// <summary>The main stem: tapered, with a lit side and a dark side. <paramref name="onlyBelow"/> limits it to the foot.</summary>
+        private static void DrawTrunk(Canvas c, float baseX, Vector2 trunkMid, Vector2 trunkTop, Color bark, Color lit, float onlyBelow = 1000f)
+        {
+            Vector2 foot = new Vector2(baseX, 8f);
+            Vector2 a = foot;
+            Vector2 b = trunkMid;
+            if (onlyBelow < 1000f)
+            {
+                float f = Mathf.Clamp01((onlyBelow - foot.y) / (trunkMid.y - foot.y));
+                b = Vector2.Lerp(foot, trunkMid, f);
+            }
+            c.Line(a, b, 5.2f, new Color(0.12f, 0.07f, 0.04f));
+            c.Line(a, b, 4.2f, bark);
+            c.Line(a + new Vector2(0.9f, 0f), b + new Vector2(0.9f, 0f), 1.4f, lit);
+            if (onlyBelow >= 1000f)
+            {
+                c.Line(trunkMid, trunkTop, 3.4f, bark);
+                c.Line(trunkMid + new Vector2(0.6f, 0f), trunkTop + new Vector2(0.6f, 0f), 1.1f, lit);
+            }
+        }
+
         private static Sprite Paint(int seed)
         {
             Canvas c = new Canvas(W, H);
@@ -174,21 +195,23 @@ namespace Studio.Pacman
             c.Ellipse(mid, 7f, R(30f, 38f), 6f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
             c.Ellipse(mid, 9f, R(22f, 30f), 5f, new Color(0.3f, 0.18f, 0.1f), 1f);
 
-            // Trunk.
+            // Trunk: a real stem with a bare foot, thick at the base, thinning to the top, with a lit side so it reads round.
             float topY = 72f * tall;
             Vector2 trunkTop = new Vector2(mid + lean, topY);
-            c.Line(new Vector2(mid, 9f), new Vector2(mid + lean * 0.5f, topY * 0.55f), 3.4f, Wood);
-            c.Line(new Vector2(mid + lean * 0.5f, topY * 0.55f), trunkTop, 2.4f, Wood);
+            Vector2 trunkMid = new Vector2(mid + lean * 0.5f, topY * 0.55f);
+            Color bark = new Color(0.36f, 0.22f, 0.12f);
+            Color barkLit = new Color(0.6f, 0.4f, 0.22f);
 
-            // A dense rounded mass of foliage around the trunk: a cafeto is a leafy dome, not a bare pole with tiers.
-            c.Ellipse(mid + lean * 0.5f, topY * 0.5f + 6f, 30f * spread, topY * 0.4f, Color.Lerp(LeafDark, midGreen, 0.3f), 1f);
+            // A dense rounded mass of foliage above the bare foot: a cafeto is a leafy dome on a visible stem.
+            c.Ellipse(mid + lean * 0.5f, topY * 0.58f + 9f, 30f * spread, topY * 0.36f, Color.Lerp(LeafDark, midGreen, 0.3f), 1f);
+            DrawTrunk(c, mid, trunkMid, trunkTop, bark, barkLit);
 
             // Tiers of branches, top first so the lower, nearer ones overlap them.
             int tiers = rng.Next(5, 8);
             for (int t = 0; t < tiers; t++)
             {
                 float k = t / (float)(tiers - 1);              // 0 = top tier, 1 = bottom tier
-                float y = Mathf.Lerp(topY - 3f, 20f * tall + 3f, k) + R(-1.5f, 1.5f);
+                float y = Mathf.Lerp(topY - 3f, 27f * tall + 3f, k) + R(-1.5f, 1.5f);
                 float reach = 40f * Mathf.Sin((0.15f + 0.6f * k) * Mathf.PI) * spread + R(-2f, 2f);   // widest around the middle: a rounded crown
                 float x0 = mid + lean * (1f - k * 0.5f);
                 // Shaded foliage mass behind the branches, so the trunk never shows through between the leaves.
@@ -251,6 +274,11 @@ namespace Studio.Pacman
                     }
                 }
             }
+            // Crown: the top shoot with its last pair of leaves.
+            c.Leaf(trunkTop, 90f + R(-10f, 10f), 14f * leafScale, 6.5f * leafScale, lightGreen, 0.6f);
+            c.Leaf(trunkTop, 150f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
+            c.Leaf(trunkTop, 30f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
+
             // Cherries, the way Coffea arabica carries them: in small clusters in the axil of each leaf pair, so the fruit sits
             // on the node and follows the line of the branch (it is never scattered over the plant or hung from the trunk).
             // A light harvest is a cherry or two at a few nodes; a heavy one is a continuous string of three or four per node.
@@ -279,15 +307,15 @@ namespace Studio.Pacman
                     Vector2 cp = onBranch + perp * hang;
                     float ripe = R(0f, 1f) * 0.55f + cherryBias * 0.25f;
                     Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
+                    float cr = R(2.3f, 2.8f);
+                    c.Ellipse(cp.x + 0.9f, cp.y - 1.3f, cr + 0.9f, cr + 0.9f, new Color(0f, 0.04f, 0.02f), 0.4f);   // contact shadow on the leaves below
                     c.Line(onBranch, cp, 0.7f, Wood);
-                    c.Cherry(cp, R(2.3f, 2.8f), cherry);
+                    c.Cherry(cp, cr, cherry);
                 }
             }
 
-            // Crown: the top shoot with its last pair of leaves.
-            c.Leaf(trunkTop, 90f + R(-10f, 10f), 14f * leafScale, 6.5f * leafScale, lightGreen, 0.6f);
-            c.Leaf(trunkTop, 150f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
-            c.Leaf(trunkTop, 30f, 12f * leafScale, 6f * leafScale, midGreen, 0.6f);
+            // The bare foot of the stem, over the lowest leaves, so the plant visibly stands on a trunk.
+            DrawTrunk(c, mid, trunkMid, trunkTop, bark, barkLit, 24f);
 
             // Grass tufts around the foot.
             int tufts = rng.Next(5, 11);
@@ -374,8 +402,13 @@ namespace Studio.Pacman
             /// widest a little before the middle, a short wedge at the base and a long drawn-out tip, a gently wavy margin, a slight
             /// arc, a pale midrib with forward-sweeping side veins, and a dark glossy blade with a sheen along one side.
             /// </summary>
-            public void Leaf(Vector2 root, float angleDegrees, float length, float width, Color baseColour, float roundness = 1f)
+            public void Leaf(Vector2 root, float angleDegrees, float length, float width, Color baseColour, float roundness = 1f, float alpha = 1f, bool flat = false)
             {
+                if (!flat)
+                {
+                    // A soft shadow below and behind each blade separates the layers, so the foliage reads as depth, not flat cards.
+                    Leaf(root + new Vector2(0.9f, -1.7f), angleDegrees, length, width, new Color(0f, 0.05f, 0.03f), roundness, 0.38f, true);
+                }
                 float rad = angleDegrees * Mathf.Deg2Rad;
                 Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
                 Vector2 perp = new Vector2(-dir.y, dir.x);
@@ -431,8 +464,12 @@ namespace Studio.Pacman
                             }
                         }
                         col = Color.Lerp(col, new Color(0.5f, 0.74f, 0.4f), vein);
+                        if (flat)
+                        {
+                            col = baseColour;
+                        }
                         col.a = 1f;
-                        Blend(x, y, col, cov);
+                        Blend(x, y, col, cov * alpha);
                     }
                 }
             }
