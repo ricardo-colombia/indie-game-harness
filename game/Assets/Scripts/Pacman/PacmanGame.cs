@@ -118,7 +118,8 @@ namespace Studio.Pacman
         private float viewSize = 20f;
         private Vector2 viewCentre;
         private bool viewStarted;
-        private bool closeView;
+        // The close follow view is the default; the VIEW row switches to the whole board and the choice is remembered.
+        private bool closeView = true;
         private const string CloseViewKey = "pacman.closeview";
         private float gameOverSince;
 
@@ -214,7 +215,7 @@ namespace Studio.Pacman
         private void Awake()
         {
             HighScore = PlayerPrefs.GetInt(HighScoreKey, 0);
-            closeView = PlayerPrefs.GetInt(CloseViewKey, 0) == 1;
+            closeView = PlayerPrefs.GetInt(CloseViewKey, 1) == 1;
             BuildMaze();
             BuildActors();
             SetupCamera();
