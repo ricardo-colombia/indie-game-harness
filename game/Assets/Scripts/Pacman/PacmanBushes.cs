@@ -67,7 +67,9 @@ namespace Studio.Pacman
                     float sx = (0.88f + ((hash >> 3) & 15) * 0.018f) * growth;
                     float sy = (0.88f + ((hash >> 7) & 15) * 0.018f) * growth;
                     float lift = (((hash >> 11) & 7) - 3.5f) * 0.008f;
-                    bush.transform.localPosition = new Vector3(x, -y - 0.53f + lift, 0f);
+                    // Each bush also stands a little left or right of its tile centre, so the trunks do not line up along a row.
+                    float shift = (((hash >> 4) & 31) - 15.5f) / 15.5f * 0.13f;
+                    bush.transform.localPosition = new Vector3(x + shift, -y - 0.53f + lift, 0f);
                     bush.transform.localScale = new Vector3(((hash >> 15) & 1) == 0 ? sx : -sx, sy, 1f);
                     SpriteRenderer renderer = bush.AddComponent<SpriteRenderer>();
                     renderer.sprite = sprites[variant];
@@ -146,10 +148,10 @@ namespace Studio.Pacman
             System.Random rng = new System.Random(seed * 7919 + 13);
             float R(float a, float b) { return a + (float)rng.NextDouble() * (b - a); }
 
-            float mid = W * 0.5f + R(-2.5f, 2.5f);
+            float mid = W * 0.5f + R(-9f, 9f);   // the trunk stands left or right of the sprite's middle, so the rows never line up
             float tall = R(0.85f, 1.05f);
             float spread = R(0.85f, 1.1f);
-            float lean = R(-4f, 4f);
+            float lean = R(-7f, 7f);
             float leafScale = R(0.9f, 1.2f);
             float olive = R(0f, 1f) < 0.3f ? R(0.3f, 0.7f) : R(0f, 0.15f);
             Color midGreen = Color.Lerp(LeafMid, OliveMid, olive);
@@ -167,13 +169,16 @@ namespace Studio.Pacman
             c.Line(new Vector2(mid, 9f), new Vector2(mid + lean * 0.5f, topY * 0.55f), 3.4f, Wood);
             c.Line(new Vector2(mid + lean * 0.5f, topY * 0.55f), trunkTop, 2.4f, Wood);
 
+            // A dense rounded mass of foliage around the trunk: a cafeto is a leafy dome, not a bare pole with tiers.
+            c.Ellipse(mid + lean * 0.5f, topY * 0.5f + 6f, 30f * spread, topY * 0.4f, Color.Lerp(LeafDark, midGreen, 0.3f), 1f);
+
             // Tiers of branches, top first so the lower, nearer ones overlap them.
-            int tiers = rng.Next(4, 7);
+            int tiers = rng.Next(5, 8);
             for (int t = 0; t < tiers; t++)
             {
                 float k = t / (float)(tiers - 1);              // 0 = top tier, 1 = bottom tier
                 float y = Mathf.Lerp(topY - 3f, 20f * tall + 3f, k) + R(-1.5f, 1.5f);
-                float reach = Mathf.Lerp(13f, 40f, Mathf.Pow(k, 0.85f)) * spread + R(-2f, 2f);
+                float reach = 40f * Mathf.Sin((0.15f + 0.6f * k) * Mathf.PI) * spread + R(-2f, 2f);   // widest around the middle: a rounded crown
                 float x0 = mid + lean * (1f - k * 0.5f);
                 // Shaded foliage mass behind the branches, so the trunk never shows through between the leaves.
                 c.Ellipse(x0, y - 2f, reach * 0.72f, 6.5f, Color.Lerp(LeafDark, midGreen, 0.25f), 1f);
@@ -195,8 +200,8 @@ namespace Studio.Pacman
                         // A pair of opposite leaves at this joint, one leaning up, one down, both sweeping outward.
                         float heading = side > 0 ? ang : 180f - ang;
                         float spreadAngle = R(38f, 58f);
-                        float len = R(13f, 17f) * leafScale * Mathf.Lerp(1f, 0.8f, k < 0.2f ? 1f : 0f) * Mathf.Lerp(0.85f, 1f, u);
-                        float wid = len * R(0.42f, 0.5f);
+                        float len = R(15f, 20f) * leafScale * Mathf.Lerp(1f, 0.8f, k < 0.2f ? 1f : 0f) * Mathf.Lerp(0.85f, 1f, u);
+                        float wid = len * R(0.48f, 0.56f);
                         for (int half = -1; half <= 1; half += 2)
                         {
                             float a = heading + half * spreadAngle * side;
@@ -216,16 +221,16 @@ namespace Studio.Pacman
                         prev = pos;
 
                         // Cherries cluster at the joint, hanging under the branch.
-                        if (k > 0.15f && R(0f, 1f) < 0.4f)
+                        if (k > 0.1f && R(0f, 1f) < 0.62f)
                         {
-                            int count = rng.Next(2, 5);
+                            int count = rng.Next(3, 7);
                             for (int j = 0; j < count; j++)
                             {
-                                Vector2 cp = pos + new Vector2(R(-3.5f, 3.5f), R(-8f, -2.5f));
-                                float ripe = R(0f, 1f) * 0.7f + cherryBias * 0.3f;
+                                Vector2 cp = pos + new Vector2(R(-3.2f, 3.2f), R(-6.5f, -1.5f));
+                                float ripe = R(0f, 1f) * 0.55f + cherryBias * 0.25f;
                                 Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
                                 c.Line(pos, cp + new Vector2(0f, 2.5f), 0.9f, Wood);
-                                c.Cherry(cp, R(2.4f, 3.1f), cherry);
+                                c.Cherry(cp, R(2.7f, 3.4f), cherry);
                             }
                         }
                         else if (flowering && R(0f, 1f) < 0.45f)

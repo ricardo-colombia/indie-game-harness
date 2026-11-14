@@ -34,13 +34,13 @@ namespace Studio.Pacman
         private PacmanGame game;
         private Font font;
         private bool customFont;
-        private Texture2D[] pacIcons;
         private Texture2D hatIcon;
         private GUIStyle label;
         private readonly List<Popup> popups = new List<Popup>();
         private float shownScore;
         private float fade;
         private PacmanState lastState = PacmanState.Title;
+        private PacmanTitleParade parade;
         private float stateAge;
         private readonly List<Rect> menuRows = new List<Rect>();
         private Rect pauseButton;
@@ -59,7 +59,6 @@ namespace Studio.Pacman
             game = owner;
             instance = this;
             hatIcon = MakeHatIcon(64);
-            pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
             // The label-poster face that ships with the game (Abril Fatface, SIL Open Font License); it works in browsers too.
             font = Resources.Load<Font>("Fonts/AbrilFatface-Regular");
             customFont = font != null;
@@ -180,6 +179,12 @@ namespace Studio.Pacman
             }
             else
             {
+                if (parade != null)
+                {
+                    // The title's stage is only built while the title shows, so no stray farmer exists during play.
+                    Destroy(parade.gameObject);
+                    parade = null;
+                }
                 DrawHud(s);
                 if (game.TouchMode && game.State == PacmanState.Playing)
                 {
@@ -269,15 +274,18 @@ namespace Studio.Pacman
                 : "FLECHAS / WASD  MOVER      ENTER  ELEGIR      V  ZOOM      ESC  PAUSA";
             Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
 
-            // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom.
-            float run = Mathf.Repeat(t * 0.12f, 1f);
-            float x = Mathf.Lerp(-0.1f, 1.1f, run) * Screen.width;
-            float y = Screen.height * 0.78f;
-            DrawFarmer(new Rect(x, y - 6f * s, 64f * s, 72f * s), t);
-            for (int i = 0; i < PacmanGame.GhostColours.Length; i++)
+            // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom,
+            // drawn from the game's own rigs.
+            if (parade == null)
             {
-                float gx = x - (i + 1) * 80f * s - 30f * s;
-                DrawGhostIcon(new Rect(gx, y + 2f * s, 56f * s, 60f * s), PacmanGame.GhostColours[i], i, t + i);
+                parade = PacmanTitleParade.Create();
+            }
+            float stripHeight = 110f * s;
+            Rect strip = new Rect(0f, Screen.height * 0.78f - 22f * s, Screen.width, stripHeight);
+            parade.Frame(Mathf.RoundToInt(strip.width), Mathf.RoundToInt(strip.height), 62f * s, Mathf.Repeat(t * 0.12f, 1f));
+            if (parade.Texture != null)
+            {
+                GUI.DrawTexture(strip, parade.Texture, ScaleMode.StretchToFill, true);
             }
         }
 
@@ -307,6 +315,8 @@ namespace Studio.Pacman
             }
 
             // Level, bottom left; a hint while frightened, bottom centre.
+            // A dark pill behind it: in the close view the label sits on the reddish ground strip below the farm.
+            Fill(new Rect(margin - 14f * s, Screen.height - 64f * s, 190f * s, 54f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
             Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 40f * s), "FINCA  " + game.Level, 30f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
             if (game.FrightenedActive)
             {
@@ -544,123 +554,6 @@ namespace Studio.Pacman
             GUI.color = previous;
         }
 
-        /// <summary>The campesino in profile, walking right with his basket: straw hat, white shirt, jeans, swinging legs.</summary>
-        /// <summary>A filled rounded rect with a thin dark ink edge, so the menu icons match the engraved look.</summary>
-        private static void Ink(Rect rect, Color colour, float radius = 0f)
-        {
-            float e = Mathf.Max(1.2f, Screen.height / 700f);
-            Fill(new Rect(rect.x - e, rect.y - e, rect.width + 2f * e, rect.height + 2f * e), new Color(0.1f, 0.05f, 0.02f, 0.95f * colour.a), radius > 0f ? radius + e : 0f);
-            Fill(rect, colour, radius);
-        }
-
-        private void DrawFarmer(Rect rect, float time)
-        {
-            float w = rect.width;
-            float h = rect.height;
-            float swing = Mathf.Sin(time * 12f);
-            float bob = Mathf.Abs(swing) * h * 0.03f;
-            Color skin = new Color(0.8f, 0.55f, 0.38f);
-            Color jeans = new Color(0.2f, 0.32f, 0.6f);
-            Color shirt = new Color(0.96f, 0.95f, 0.9f);
-            Color straw = new Color(0.95f, 0.82f, 0.5f);
-            Color boot = new Color(0.25f, 0.15f, 0.08f);
-            float top = rect.y - bob;
-
-            // Far leg and arm first, then body, near leg and arm.
-            Ink(new Rect(rect.x + w * (0.44f - swing * 0.1f), top + h * 0.62f, w * 0.14f, h * 0.3f), jeans * 0.75f, 2f);
-            Ink(new Rect(rect.x + w * (0.44f - swing * 0.16f), top + h * 0.9f, w * 0.2f, h * 0.09f), boot, 2f);
-            // Canasto on the back, with its strap.
-            Ink(new Rect(rect.x + w * 0.08f, top + h * 0.38f, w * 0.26f, h * 0.3f), new Color(0.65f, 0.4f, 0.18f), 4f);
-            Ink(new Rect(rect.x + w * 0.1f, top + h * 0.4f, w * 0.22f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 2f);
-            Ink(new Rect(rect.x + w * 0.3f, top + h * 0.4f, w * 0.06f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 3f);
-            // Torso.
-            Ink(new Rect(rect.x + w * 0.3f, top + h * 0.34f, w * 0.34f, h * 0.34f), shirt, w * 0.08f);
-            // Near leg.
-            Ink(new Rect(rect.x + w * (0.4f + swing * 0.1f), top + h * 0.62f, w * 0.16f, h * 0.3f), jeans, 2f);
-            Ink(new Rect(rect.x + w * (0.4f + swing * 0.16f), top + h * 0.9f, w * 0.22f, h * 0.09f), boot, 2f);
-            // Arm swinging.
-            Ink(new Rect(rect.x + w * (0.42f - swing * 0.08f), top + h * 0.38f, w * 0.12f, h * 0.24f), new Color(0.88f, 0.87f, 0.82f), 3f);
-            // Head, in profile, with a nose.
-            Ink(new Rect(rect.x + w * 0.36f, top + h * 0.17f, w * 0.26f, h * 0.2f), skin, w * 0.1f);
-            Ink(new Rect(rect.x + w * 0.6f, top + h * 0.24f, w * 0.06f, h * 0.06f), skin, 2f);
-            Ink(new Rect(rect.x + w * 0.54f, top + h * 0.22f, w * 0.04f, h * 0.04f), new Color(0.1f, 0.06f, 0.04f), 2f);
-            // Straw hat: wide brim, domed crown, dark band.
-            Ink(new Rect(rect.x + w * 0.22f, top + h * 0.15f, w * 0.56f, h * 0.06f), straw, 3f);
-            Ink(new Rect(rect.x + w * 0.34f, top + h * 0.03f, w * 0.3f, h * 0.15f), straw, w * 0.1f);
-            Ink(new Rect(rect.x + w * 0.34f, top + h * 0.12f, w * 0.3f, h * 0.035f), new Color(0.12f, 0.08f, 0.06f), 1f);
-        }
-
-        /// <summary>Pac-Man icon, mouth to the right. openness 0..1 picks the frame; negative chomps with time.</summary>
-        private void DrawPac(Rect rect, float time, float openness = -1f)
-        {
-            float open = openness >= 0f ? openness : 0.5f + 0.5f * Mathf.Sin(time * 10f);
-            int frame = open > 0.66f ? 0 : open > 0.33f ? 1 : 2;
-            Color previous = GUI.color;
-            GUI.color = Color.white;
-            GUI.DrawTexture(rect, pacIcons[frame], ScaleMode.StretchToFill, true);
-            GUI.color = previous;
-        }
-
-        /// <summary>A little pest for the title chase: 0 DIAN agent, 1 guerrilla fighter, 2 narco, 3 coral snake.</summary>
-        private void DrawGhostIcon(Rect rect, Color colour, int kind, float time)
-        {
-            float wiggle = Mathf.Sin(time * 14f);
-            float w = rect.width;
-            float h = rect.height;
-            if (kind == 3)
-            {
-                // Snake: a column of shrinking segments swaying side to side, with a tongue.
-                for (int i = 0; i < 7; i++)
-                {
-                    float t = i / 6f;
-                    float size = Mathf.Lerp(w * 0.42f, w * 0.14f, t);
-                    float cx = rect.center.x + Mathf.Sin(t * 5f + time * 9f) * w * 0.28f * Mathf.Min(1f, t * 3f);
-                    Ink(new Rect(cx - size * 0.5f, rect.y + h * (0.2f + t * 0.72f) - size * 0.5f, size, size), i % 3 == 1 ? new Color(1f, 0.85f, 0.15f) : colour, size * 0.5f);
-                }
-                Ink(new Rect(rect.center.x - 2f, rect.y - h * 0.04f, 3f, h * 0.14f), new Color(0.95f, 0.1f, 0.25f), 1f);
-                Ink(new Rect(rect.center.x - w * 0.22f, rect.y + h * 0.08f, w * 0.44f, h * 0.2f), new Color(0.12f, 0.1f, 0.1f), w * 0.2f);
-                foreach (float ex in new[] { -0.12f, 0.06f })
-                {
-                    Ink(new Rect(rect.center.x + w * ex, rect.y + h * 0.14f, w * 0.08f, w * 0.08f), Color.white, w * 0.04f);
-                }
-                return;
-            }
-
-            // Person: legs, torso, head, then the prop that says who it is.
-            Ink(new Rect(rect.x + w * 0.22f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f + wiggle * 3f), colour * 0.7f, 2f);
-            Ink(new Rect(rect.x + w * 0.58f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f - wiggle * 3f), colour * 0.7f, 2f);
-            Ink(new Rect(rect.x + w * 0.12f, rect.y + h * 0.4f, w * 0.76f, h * 0.44f), colour, w * 0.2f);
-            Ink(new Rect(rect.x + w * 0.26f, rect.y + h * 0.05f, w * 0.48f, h * 0.44f), colour, w * 0.24f);
-            switch (kind)
-            {
-                case 0:
-                    Ink(new Rect(rect.center.x - w * 0.04f, rect.y + h * 0.46f, w * 0.08f, h * 0.3f), new Color(0.85f, 0.1f, 0.12f), 1f);
-                    Ink(new Rect(rect.xMax - w * 0.2f, rect.y + h * 0.7f, w * 0.3f, h * 0.22f), new Color(0.5f, 0.28f, 0.12f), 2f);
-                    break;
-                case 1:
-                    Ink(new Rect(rect.x + w * 0.22f, rect.y - h * 0.02f, w * 0.58f, h * 0.18f), new Color(0.5f, 0.1f, 0.08f), w * 0.1f);
-                    Ink(new Rect(rect.x + w * 0.3f, rect.y + h * 0.02f, w * 0.1f, w * 0.1f), new Color(1f, 0.85f, 0.15f), w * 0.05f);
-                    break;
-                default:
-                    foreach (float gx in new[] { 0.3f, 0.46f, 0.62f })
-                    {
-                        Ink(new Rect(rect.x + w * gx, rect.y + h * (gx == 0.46f ? 0.5f : 0.46f), w * 0.1f, w * 0.1f), new Color(1f, 0.8f, 0.1f), w * 0.05f);
-                    }
-                    break;
-            }
-            float eye = w * 0.14f;
-            foreach (float ex in new[] { 0.33f, 0.53f })
-            {
-                if (kind == 2)
-                {
-                    Ink(new Rect(rect.x + w * ex - 1f, rect.y + h * 0.22f, eye * 1.2f, eye * 0.8f), new Color(0.05f, 0.05f, 0.08f), 2f);
-                    continue;
-                }
-                Ink(new Rect(rect.x + w * ex, rect.y + h * 0.2f, eye, eye * 1.2f), Color.white, eye * 0.5f);
-                Ink(new Rect(rect.x + w * ex + eye * 0.35f, rect.y + h * 0.25f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
-            }
-        }
-
         private static Texture2D MakeHatIcon(int n)
         {
             // A straw hat in front view: wide brim, domed crown, dark band.
@@ -680,29 +573,6 @@ namespace Studio.Pacman
                     }
                     float a = Mathf.Clamp01(Mathf.Max(brim, crown) * n * 0.25f);
                     texture.SetPixel(x, y, new Color(c.r, c.g, c.b, a));
-                }
-            }
-            texture.Apply();
-            return texture;
-        }
-
-        private static Texture2D MakePacIcon(int n, float mouthSlope)
-        {
-            Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, name = "PacIcon" };
-            Color clear = new Color(0f, 0f, 0f, 0f);
-            for (int y = 0; y < n; y++)
-            {
-                for (int x = 0; x < n; x++)
-                {
-                    float dx = (x + 0.5f) / n * 2f - 1f;
-                    float dy = (y + 0.5f) / n * 2f - 1f;
-                    float d = Mathf.Sqrt(dx * dx + dy * dy);
-                    float edge = Mathf.Clamp01((0.96f - d) * n * 0.5f);
-                    // A sombrero seen from above: straw brim with a bite out of it, dark band, pale crown.
-                    bool mouth = dx > 0f && Mathf.Abs(dy) < dx * mouthSlope && d > 0.42f;
-                    Color hat = d < 0.3f ? new Color(0.99f, 0.95f, 0.82f) : d < 0.42f ? new Color(0.12f, 0.08f, 0.06f) : new Color(0.96f, 0.86f, 0.58f);
-                    Color c = mouth ? clear : new Color(hat.r, hat.g, hat.b, edge);
-                    texture.SetPixel(x, y, c);
                 }
             }
             texture.Apply();

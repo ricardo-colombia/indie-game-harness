@@ -5,10 +5,11 @@ namespace Studio.Pacman
     /// <summary>
     /// The game's own music, composed as data and rendered at startup with PacmanSynth:
     /// a bambuco (Andean 6/8 against 3/4) A-minor harvest loop written for an arcade game: chip-synth lead in parallel thirds, tiple arpeggio, strummed guitar chords, bass, tambora and shaker, a tense
-    /// frightened loop and a short ready fanfare.
+    /// frightened loop, a short ready fanfare and a slow D-minor pasillo waltz of its own for the title menu.
     /// </summary>
     public class PacmanMusic
     {
+        public AudioClip Title { get; private set; }
         public AudioClip Chase { get; private set; }
         public AudioClip Frightened { get; private set; }
         public AudioClip Intro { get; private set; }
@@ -46,6 +47,7 @@ namespace Studio.Pacman
 
         public PacmanMusic()
         {
+            Title = BuildTitle();
             Chase = BuildChase();
             Frightened = BuildFrightened();
             Intro = BuildIntro();
@@ -65,6 +67,103 @@ namespace Studio.Pacman
                 }
             }
             return midi - 3;
+        }
+
+        // Title menu: a slow pasillo (3/4 waltz) in D minor, eight bars of Dm - Gm - A - Dm - Bb - F - A - Dm, played twice.
+        private static readonly float[] TitleRoots = { 38f, 43f, 45f, 38f, 46f, 41f, 45f, 38f };
+        private static readonly float[][] TitleChords =
+        {
+            new[] { 62f, 65f, 69f },
+            new[] { 62f, 67f, 70f },
+            new[] { 61f, 64f, 69f },
+            new[] { 62f, 65f, 69f },
+            new[] { 62f, 65f, 70f },
+            new[] { 60f, 65f, 69f },
+            new[] { 61f, 64f, 69f },
+            new[] { 62f, 65f, 69f },
+        };
+        private static readonly int[][] TitleMelody =
+        {
+            new[] { 74, 3, 77, 2, 76, 1 },
+            new[] { 74, 3, 70, 2, 72, 1 },
+            new[] { 69, 2, 73, 2, 76, 2 },
+            new[] { 77, 4, 74, 2 },
+            new[] { 79, 3, 77, 2, 74, 1 },
+            new[] { 72, 2, 77, 2, 81, 2 },
+            new[] { 79, 3, 76, 2, 73, 1 },
+            new[] { 74, 6 },
+        };
+
+        /// <summary>The note a diatonic third below in D minor (the seventh is raised over the A chord).</summary>
+        private static float TitleThirdBelow(int midi, int bar)
+        {
+            bool dominant = bar == 2 || bar == 6;
+            for (int drop = 3; drop <= 4; drop++)
+            {
+                int pc = ((midi - drop) % 12 + 12) % 12;
+                bool inScale = pc == 2 || pc == 4 || pc == 5 || pc == 7 || pc == 9 || pc == 10 || (dominant ? pc == 1 : pc == 0);
+                if (inScale)
+                {
+                    return midi - drop;
+                }
+            }
+            return midi - 3;
+        }
+
+        private static AudioClip BuildTitle()
+        {
+            const float eighth = 0.27f;
+            const int bars = 16;
+            float barLength = eighth * 6f;
+            float[] melodic = PacmanSynth.Buffer(barLength * bars);
+            float[] rhythm = PacmanSynth.Buffer(barLength * bars);
+
+            for (int bar = 0; bar < bars; bar++)
+            {
+                int chord = bar % 8;
+                bool second = bar >= 8;
+                float barStart = bar * barLength;
+                float root = TitleRoots[chord];
+
+                // Waltz bass: the root on one, a softer fifth on the second beat.
+                PacmanSynth.Note(rhythm, barStart, eighth * 3.2f, root, Wave.Triangle, 0.32f, 3f);
+                PacmanSynth.Note(rhythm, barStart + eighth * 2f, eighth * 1.6f, root + 7f, Wave.Triangle, 0.15f, 5f);
+
+                // Rolled guitar arpeggio, one note per eighth after the bass.
+                int[] order = { 0, 1, 2, 1, 2 };
+                for (int e = 1; e < 6; e++)
+                {
+                    PacmanSynth.Note(rhythm, barStart + e * eighth, eighth * 1.5f, TitleChords[chord][order[e - 1]], Wave.Pulse125, 0.07f, 9f);
+                }
+
+                // Barely there percussion: a soft thump on one and a shaker on the beats.
+                PacmanSynth.Kick(rhythm, barStart, 0.16f);
+                for (int h = 0; h < 3; h++)
+                {
+                    PacmanSynth.Hat(rhythm, barStart + h * eighth * 2f, 0.035f, false, bar * 7 + h);
+                }
+
+                // Sung melody; the second time round it doubles in thirds with a brighter voice.
+                int[] notes = TitleMelody[chord];
+                float cursor = barStart;
+                for (int n = 0; n < notes.Length; n += 2)
+                {
+                    float length = notes[n + 1] * eighth;
+                    Wave wave = second ? Wave.Pulse25 : Wave.Triangle;
+                    float gain = second ? 0.1f : 0.2f;
+                    PacmanSynth.Note(melodic, cursor, length * 0.97f, notes[n], wave, gain, 1.4f, 5f, 0.25f);
+                    if (second)
+                    {
+                        PacmanSynth.Note(melodic, cursor, length * 0.97f, TitleThirdBelow(notes[n], chord), wave, gain * 0.7f, 1.4f, 5f, 0.25f);
+                    }
+                    cursor += length;
+                }
+            }
+
+            PacmanSynth.Echo(melodic, eighth * 3f, 0.35f, 0.34f, true);
+            Mix(melodic, rhythm);
+            PacmanSynth.Limit(melodic, 0.9f);
+            return PacmanSynth.ToClip("music_title", melodic, true);
         }
 
         private static AudioClip BuildChase()

@@ -112,7 +112,7 @@ namespace Studio.Pacman
             switch (next)
             {
                 case Track.Title:
-                    source.clip = music.Chase;
+                    source.clip = music.Title;
                     source.loop = true;
                     break;
                 case Track.Intro:

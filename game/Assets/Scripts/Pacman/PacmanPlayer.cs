@@ -52,6 +52,9 @@ namespace Studio.Pacman
         private float deathTimer;
         private float deathDuration = 1f;
         private float deathFrom;
+        private bool parade;
+        private GhostKind deathBy;
+        private float deathAway = 1f;
 
         public Vector2Int Desired => desired;
 
@@ -230,6 +233,15 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>The title-screen chase: the picker walks on the spot facing this way (+1 right, -1 left), with no maze or game.</summary>
+        public void ShowParade(float facingSign)
+        {
+            parade = true;
+            facing = facingSign < 0f ? -1f : 1f;
+            SetView(View.Side);
+            views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+        }
+
         public void Request(Vector2Int direction)
         {
             if (direction != Vector2Int.zero)
@@ -260,13 +272,60 @@ namespace Studio.Pacman
             views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
         }
 
-        /// <summary>Starts the death animation: the picker spins and shrinks away.</summary>
-        public void StartDeath(float duration)
+        /// <summary>
+        /// Starts the death animation, which depends on who caught him: bitten by the snake he jolts and drops, drained
+        /// by the tax agent he deflates, shot by the guerrilla he is thrown back, bought out by the narco he sinks under cash.
+        /// </summary>
+        public void StartDeath(float duration, GhostKind by = GhostKind.Clyde, float away = 1f)
         {
             dying = true;
             deathTimer = 0f;
             deathDuration = Mathf.Max(0.01f, duration);
             deathFrom = MouthAngle;
+            deathBy = by;
+            deathAway = away;
+        }
+
+        /// <summary>The picker's death pose for the pest that caught him. t runs 0..1; the last fifth shrinks him away.</summary>
+        private void AnimateDeath(float t)
+        {
+            float vanish = Mathf.Clamp01((t - 0.8f) / 0.2f);
+            float fall = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.25f) / 0.45f));
+            Vector3 pos = Vector3.zero;
+            float angle = 0f;
+            Vector3 scale = Vector3.one;
+            switch (deathBy)
+            {
+                case GhostKind.Clyde:
+                    // A jolt at the bite, then he drops sideways.
+                    pos.x = t < 0.25f ? Mathf.Sin(t * 120f) * 0.03f : 0f;
+                    scale = new Vector3(1f, 1f + (t < 0.25f ? 0.1f : 0f), 1f);
+                    angle = -deathAway * 90f * fall;
+                    pos.y = -0.22f * fall;
+                    break;
+                case GhostKind.Blinky:
+                    // Drained: he gets thinner and flatter, swaying, until nothing is left.
+                    float drain = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.8f));
+                    scale = new Vector3(1f - 0.3f * drain, 1f - 0.5f * drain, 1f);
+                    angle = Mathf.Sin(t * 14f) * 6f * drain;
+                    pos.y = -0.25f * drain * 0.5f;
+                    break;
+                case GhostKind.Pinky:
+                    // Thrown back by the shots, then down.
+                    pos.x = deathAway * 0.45f * Mathf.Clamp01(t / 0.35f);
+                    angle = -deathAway * 100f * fall;
+                    pos.y = -0.2f * fall;
+                    break;
+                default:
+                    // Buried: he sinks into the pile of cash.
+                    scale = new Vector3(1f, 1f - 0.45f * t, 1f);
+                    pos.y = -0.3f * t;
+                    angle = Mathf.Sin(t * 10f) * 4f;
+                    break;
+            }
+            farmer.localPosition = pos;
+            farmer.localRotation = Quaternion.Euler(0f, 0f, angle);
+            farmer.localScale = scale * Mathf.Max(0.0001f, 1f - vanish);
         }
 
         /// <summary>Leaves the death animation and restores the normal walk.</summary>
@@ -295,13 +354,12 @@ namespace Studio.Pacman
                 float t = Mathf.Clamp01(deathTimer / deathDuration);
                 float eased = t * t * (3f - 2f * t);
                 SetMouth(Mathf.Lerp(deathFrom, Mathf.PI, eased));
-                farmer.localRotation = Quaternion.Euler(0f, 0f, eased * 540f);
-                farmer.localScale = Vector3.one * Mathf.Max(0.0001f, 1f - eased);
+                AnimateDeath(t);
                 return;
             }
 
             raise = Mathf.MoveTowards(raise, 0f, Time.deltaTime * 5f);
-            bool moving = Dir != Vector2Int.zero;
+            bool moving = Dir != Vector2Int.zero || parade;
             moveBlend = Mathf.MoveTowards(moveBlend, moving ? 1f : 0f, Time.deltaTime * 7f);
             if (moving)
             {
