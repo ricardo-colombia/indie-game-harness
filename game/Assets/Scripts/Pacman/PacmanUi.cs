@@ -527,6 +527,14 @@ namespace Studio.Pacman
         }
 
         /// <summary>The campesino in profile, walking right with his basket: straw hat, white shirt, jeans, swinging legs.</summary>
+        /// <summary>A filled rounded rect with a thin dark ink edge, so the menu icons match the engraved look.</summary>
+        private static void Ink(Rect rect, Color colour, float radius = 0f)
+        {
+            float e = Mathf.Max(1.2f, Screen.height / 700f);
+            Fill(new Rect(rect.x - e, rect.y - e, rect.width + 2f * e, rect.height + 2f * e), new Color(0.1f, 0.05f, 0.02f, 0.95f * colour.a), radius > 0f ? radius + e : 0f);
+            Fill(rect, colour, radius);
+        }
+
         private void DrawFarmer(Rect rect, float time)
         {
             float w = rect.width;
@@ -541,27 +549,27 @@ namespace Studio.Pacman
             float top = rect.y - bob;
 
             // Far leg and arm first, then body, near leg and arm.
-            Fill(new Rect(rect.x + w * (0.44f - swing * 0.1f), top + h * 0.62f, w * 0.14f, h * 0.3f), jeans * 0.75f, 2f);
-            Fill(new Rect(rect.x + w * (0.44f - swing * 0.16f), top + h * 0.9f, w * 0.2f, h * 0.09f), boot, 2f);
+            Ink(new Rect(rect.x + w * (0.44f - swing * 0.1f), top + h * 0.62f, w * 0.14f, h * 0.3f), jeans * 0.75f, 2f);
+            Ink(new Rect(rect.x + w * (0.44f - swing * 0.16f), top + h * 0.9f, w * 0.2f, h * 0.09f), boot, 2f);
             // Canasto on the back, with its strap.
-            Fill(new Rect(rect.x + w * 0.08f, top + h * 0.38f, w * 0.26f, h * 0.3f), new Color(0.65f, 0.4f, 0.18f), 4f);
-            Fill(new Rect(rect.x + w * 0.1f, top + h * 0.4f, w * 0.22f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 2f);
-            Fill(new Rect(rect.x + w * 0.3f, top + h * 0.4f, w * 0.06f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 3f);
+            Ink(new Rect(rect.x + w * 0.08f, top + h * 0.38f, w * 0.26f, h * 0.3f), new Color(0.65f, 0.4f, 0.18f), 4f);
+            Ink(new Rect(rect.x + w * 0.1f, top + h * 0.4f, w * 0.22f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 2f);
+            Ink(new Rect(rect.x + w * 0.3f, top + h * 0.4f, w * 0.06f, h * 0.06f), new Color(0.85f, 0.15f, 0.12f), 3f);
             // Torso.
-            Fill(new Rect(rect.x + w * 0.3f, top + h * 0.34f, w * 0.34f, h * 0.34f), shirt, w * 0.08f);
+            Ink(new Rect(rect.x + w * 0.3f, top + h * 0.34f, w * 0.34f, h * 0.34f), shirt, w * 0.08f);
             // Near leg.
-            Fill(new Rect(rect.x + w * (0.4f + swing * 0.1f), top + h * 0.62f, w * 0.16f, h * 0.3f), jeans, 2f);
-            Fill(new Rect(rect.x + w * (0.4f + swing * 0.16f), top + h * 0.9f, w * 0.22f, h * 0.09f), boot, 2f);
+            Ink(new Rect(rect.x + w * (0.4f + swing * 0.1f), top + h * 0.62f, w * 0.16f, h * 0.3f), jeans, 2f);
+            Ink(new Rect(rect.x + w * (0.4f + swing * 0.16f), top + h * 0.9f, w * 0.22f, h * 0.09f), boot, 2f);
             // Arm swinging.
-            Fill(new Rect(rect.x + w * (0.42f - swing * 0.08f), top + h * 0.38f, w * 0.12f, h * 0.24f), new Color(0.88f, 0.87f, 0.82f), 3f);
+            Ink(new Rect(rect.x + w * (0.42f - swing * 0.08f), top + h * 0.38f, w * 0.12f, h * 0.24f), new Color(0.88f, 0.87f, 0.82f), 3f);
             // Head, in profile, with a nose.
-            Fill(new Rect(rect.x + w * 0.36f, top + h * 0.17f, w * 0.26f, h * 0.2f), skin, w * 0.1f);
-            Fill(new Rect(rect.x + w * 0.6f, top + h * 0.24f, w * 0.06f, h * 0.06f), skin, 2f);
-            Fill(new Rect(rect.x + w * 0.54f, top + h * 0.22f, w * 0.04f, h * 0.04f), new Color(0.1f, 0.06f, 0.04f), 2f);
+            Ink(new Rect(rect.x + w * 0.36f, top + h * 0.17f, w * 0.26f, h * 0.2f), skin, w * 0.1f);
+            Ink(new Rect(rect.x + w * 0.6f, top + h * 0.24f, w * 0.06f, h * 0.06f), skin, 2f);
+            Ink(new Rect(rect.x + w * 0.54f, top + h * 0.22f, w * 0.04f, h * 0.04f), new Color(0.1f, 0.06f, 0.04f), 2f);
             // Straw hat: wide brim, domed crown, dark band.
-            Fill(new Rect(rect.x + w * 0.22f, top + h * 0.15f, w * 0.56f, h * 0.06f), straw, 3f);
-            Fill(new Rect(rect.x + w * 0.34f, top + h * 0.03f, w * 0.3f, h * 0.15f), straw, w * 0.1f);
-            Fill(new Rect(rect.x + w * 0.34f, top + h * 0.12f, w * 0.3f, h * 0.035f), new Color(0.12f, 0.08f, 0.06f), 1f);
+            Ink(new Rect(rect.x + w * 0.22f, top + h * 0.15f, w * 0.56f, h * 0.06f), straw, 3f);
+            Ink(new Rect(rect.x + w * 0.34f, top + h * 0.03f, w * 0.3f, h * 0.15f), straw, w * 0.1f);
+            Ink(new Rect(rect.x + w * 0.34f, top + h * 0.12f, w * 0.3f, h * 0.035f), new Color(0.12f, 0.08f, 0.06f), 1f);
         }
 
         /// <summary>Pac-Man icon, mouth to the right. openness 0..1 picks the frame; negative chomps with time.</summary>
@@ -589,36 +597,36 @@ namespace Studio.Pacman
                     float t = i / 6f;
                     float size = Mathf.Lerp(w * 0.42f, w * 0.14f, t);
                     float cx = rect.center.x + Mathf.Sin(t * 5f + time * 9f) * w * 0.28f * Mathf.Min(1f, t * 3f);
-                    Fill(new Rect(cx - size * 0.5f, rect.y + h * (0.2f + t * 0.72f) - size * 0.5f, size, size), i % 3 == 1 ? new Color(1f, 0.85f, 0.15f) : colour, size * 0.5f);
+                    Ink(new Rect(cx - size * 0.5f, rect.y + h * (0.2f + t * 0.72f) - size * 0.5f, size, size), i % 3 == 1 ? new Color(1f, 0.85f, 0.15f) : colour, size * 0.5f);
                 }
-                Fill(new Rect(rect.center.x - 2f, rect.y - h * 0.04f, 3f, h * 0.14f), new Color(0.95f, 0.1f, 0.25f), 1f);
-                Fill(new Rect(rect.center.x - w * 0.22f, rect.y + h * 0.08f, w * 0.44f, h * 0.2f), new Color(0.12f, 0.1f, 0.1f), w * 0.2f);
+                Ink(new Rect(rect.center.x - 2f, rect.y - h * 0.04f, 3f, h * 0.14f), new Color(0.95f, 0.1f, 0.25f), 1f);
+                Ink(new Rect(rect.center.x - w * 0.22f, rect.y + h * 0.08f, w * 0.44f, h * 0.2f), new Color(0.12f, 0.1f, 0.1f), w * 0.2f);
                 foreach (float ex in new[] { -0.12f, 0.06f })
                 {
-                    Fill(new Rect(rect.center.x + w * ex, rect.y + h * 0.14f, w * 0.08f, w * 0.08f), Color.white, w * 0.04f);
+                    Ink(new Rect(rect.center.x + w * ex, rect.y + h * 0.14f, w * 0.08f, w * 0.08f), Color.white, w * 0.04f);
                 }
                 return;
             }
 
             // Person: legs, torso, head, then the prop that says who it is.
-            Fill(new Rect(rect.x + w * 0.22f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f + wiggle * 3f), colour * 0.7f, 2f);
-            Fill(new Rect(rect.x + w * 0.58f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f - wiggle * 3f), colour * 0.7f, 2f);
-            Fill(new Rect(rect.x + w * 0.12f, rect.y + h * 0.4f, w * 0.76f, h * 0.44f), colour, w * 0.2f);
-            Fill(new Rect(rect.x + w * 0.26f, rect.y + h * 0.05f, w * 0.48f, h * 0.44f), colour, w * 0.24f);
+            Ink(new Rect(rect.x + w * 0.22f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f + wiggle * 3f), colour * 0.7f, 2f);
+            Ink(new Rect(rect.x + w * 0.58f, rect.y + h * 0.78f, w * 0.18f, h * 0.2f - wiggle * 3f), colour * 0.7f, 2f);
+            Ink(new Rect(rect.x + w * 0.12f, rect.y + h * 0.4f, w * 0.76f, h * 0.44f), colour, w * 0.2f);
+            Ink(new Rect(rect.x + w * 0.26f, rect.y + h * 0.05f, w * 0.48f, h * 0.44f), colour, w * 0.24f);
             switch (kind)
             {
                 case 0:
-                    Fill(new Rect(rect.center.x - w * 0.04f, rect.y + h * 0.46f, w * 0.08f, h * 0.3f), new Color(0.85f, 0.1f, 0.12f), 1f);
-                    Fill(new Rect(rect.xMax - w * 0.2f, rect.y + h * 0.7f, w * 0.3f, h * 0.22f), new Color(0.5f, 0.28f, 0.12f), 2f);
+                    Ink(new Rect(rect.center.x - w * 0.04f, rect.y + h * 0.46f, w * 0.08f, h * 0.3f), new Color(0.85f, 0.1f, 0.12f), 1f);
+                    Ink(new Rect(rect.xMax - w * 0.2f, rect.y + h * 0.7f, w * 0.3f, h * 0.22f), new Color(0.5f, 0.28f, 0.12f), 2f);
                     break;
                 case 1:
-                    Fill(new Rect(rect.x + w * 0.22f, rect.y - h * 0.02f, w * 0.58f, h * 0.18f), new Color(0.5f, 0.1f, 0.08f), w * 0.1f);
-                    Fill(new Rect(rect.x + w * 0.3f, rect.y + h * 0.02f, w * 0.1f, w * 0.1f), new Color(1f, 0.85f, 0.15f), w * 0.05f);
+                    Ink(new Rect(rect.x + w * 0.22f, rect.y - h * 0.02f, w * 0.58f, h * 0.18f), new Color(0.5f, 0.1f, 0.08f), w * 0.1f);
+                    Ink(new Rect(rect.x + w * 0.3f, rect.y + h * 0.02f, w * 0.1f, w * 0.1f), new Color(1f, 0.85f, 0.15f), w * 0.05f);
                     break;
                 default:
                     foreach (float gx in new[] { 0.3f, 0.46f, 0.62f })
                     {
-                        Fill(new Rect(rect.x + w * gx, rect.y + h * (gx == 0.46f ? 0.5f : 0.46f), w * 0.1f, w * 0.1f), new Color(1f, 0.8f, 0.1f), w * 0.05f);
+                        Ink(new Rect(rect.x + w * gx, rect.y + h * (gx == 0.46f ? 0.5f : 0.46f), w * 0.1f, w * 0.1f), new Color(1f, 0.8f, 0.1f), w * 0.05f);
                     }
                     break;
             }
@@ -627,11 +635,11 @@ namespace Studio.Pacman
             {
                 if (kind == 2)
                 {
-                    Fill(new Rect(rect.x + w * ex - 1f, rect.y + h * 0.22f, eye * 1.2f, eye * 0.8f), new Color(0.05f, 0.05f, 0.08f), 2f);
+                    Ink(new Rect(rect.x + w * ex - 1f, rect.y + h * 0.22f, eye * 1.2f, eye * 0.8f), new Color(0.05f, 0.05f, 0.08f), 2f);
                     continue;
                 }
-                Fill(new Rect(rect.x + w * ex, rect.y + h * 0.2f, eye, eye * 1.2f), Color.white, eye * 0.5f);
-                Fill(new Rect(rect.x + w * ex + eye * 0.35f, rect.y + h * 0.25f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
+                Ink(new Rect(rect.x + w * ex, rect.y + h * 0.2f, eye, eye * 1.2f), Color.white, eye * 0.5f);
+                Ink(new Rect(rect.x + w * ex + eye * 0.35f, rect.y + h * 0.25f, eye * 0.5f, eye * 0.6f), new Color(0.12f, 0.06f, 0.03f), eye * 0.25f);
             }
         }
 
