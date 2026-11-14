@@ -226,6 +226,7 @@ namespace Studio.Pacman
                 }
                 DrawPopups(s);
                 DrawNameTag(s);
+                DrawSaying(s);
                 switch (game.State)
                 {
                     case PacmanState.Ready:
@@ -505,6 +506,35 @@ namespace Studio.Pacman
             skipButton = new Rect(W - 190f * s - margin, 10f * s, 190f * s, 44f * s);
             Fill(skipButton, new Color(0f, 0f, 0f, 0.45f), 22f * s);
             Text(skipButton, "VOLVER  «", 26f * s, Gold, TextAnchor.MiddleCenter);
+        }
+
+        /// <summary>The farmer's speech bubble: a cream comic bubble over his head, fading in and out.</summary>
+        private void DrawSaying(float s)
+        {
+            string text = game.SayingText;
+            float a = game.SayingAlpha;
+            Camera cam = Camera.main;
+            if (text == null || a <= 0f || cam == null)
+            {
+                return;
+            }
+            Vector3 screen = cam.WorldToScreenPoint(game.PlayerWorldPosition + new Vector3(0f, 0.9f, 0f));
+            if (screen.z < 0f)
+            {
+                return;
+            }
+            float size = 30f * s;
+            label.wordWrap = false;
+            label.fontSize = Mathf.Max(8, Mathf.RoundToInt(size));
+            float W = Screen.width;
+            float width = Mathf.Min(W - 24f * s, label.CalcSize(new GUIContent(text)).x + 40f * s);
+            float height = 52f * s;
+            float x = Mathf.Clamp(screen.x - width * 0.5f, 12f * s, W - width - 12f * s);
+            float y = Mathf.Clamp(Screen.height - screen.y - height - 12f * s, 80f * s, Screen.height - height);
+            Rect bubble = new Rect(x, y - (1f - a) * 8f * s, width, height);
+            Fill(new Rect(bubble.x - 3f * s, bubble.y - 3f * s, bubble.width + 6f * s, bubble.height + 6f * s), new Color(0.12f, 0.07f, 0.03f, 0.9f * a), height * 0.5f);
+            Fill(bubble, new Color(0.97f, 0.9f, 0.7f, 0.97f * a), height * 0.5f);
+            Text(bubble, text, FitFont(text, size, width - 24f * s), new Color(0.18f, 0.09f, 0.04f, a), TextAnchor.MiddleCenter);
         }
 
         /// <summary>The first-appearance name tag: a small pill under the score that fades in and out, never blocking play.</summary>

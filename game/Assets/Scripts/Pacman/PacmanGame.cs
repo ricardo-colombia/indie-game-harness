@@ -136,6 +136,25 @@ namespace Studio.Pacman
         private bool storyReplay;
         private float storyHold;
 
+        // Don Eliseo's sayings: now and then he says something while he walks, and reacts to what happens.
+        [SerializeField, Tooltip("Shortest and longest wait, in seconds of play, between two sayings while he walks.")]
+        private Vector2 sayWalkEvery = new Vector2(9f, 16f);
+        [SerializeField] private float sayShowSeconds = 2.6f;
+        [SerializeField, Range(0f, 1f)] private float sayPowerChance = 0.6f;
+        [SerializeField, Range(0f, 1f)] private float sayEatPestChance = 0.5f;
+        private readonly System.Random sayRandom = new System.Random();
+        private readonly Dictionary<SayKind, PacmanSayings.Bag> sayBags = new Dictionary<SayKind, PacmanSayings.Bag>();
+        private string sayText;
+        private float sayTimer;
+        private float sayWalkLeft = -1f;
+
+        /// <summary>What the farmer is saying now (null when quiet).</summary>
+        public string SayingText => sayText;
+        /// <summary>0 to 1: fade of the speech bubble.</summary>
+        public float SayingAlpha => sayText == null ? 0f : Mathf.Clamp01(Mathf.Min(sayTimer, sayShowSeconds - sayTimer) / 0.25f);
+        /// <summary>Where the farmer is in the world, for the speech bubble.</summary>
+        public Vector3 PlayerWorldPosition => player != null ? player.transform.position : Vector3.zero;
+
         // The cast sheets (PERSONAJES), and the name tag each character gets the first time they appear.
         private const string MetKey = "studio.pacman.met";
         private const float TagSeconds = 2.4f;
@@ -304,6 +323,8 @@ namespace Studio.Pacman
             inOptions = false;
             tagQueue.Clear();
             tagMember = null;
+            sayText = null;
+            sayWalkLeft = -1f;
         }
 
         /// <summary>Opens the character sheets from the title.</summary>
@@ -344,6 +365,43 @@ namespace Studio.Pacman
             if (!Application.isBatchMode)
             {
                 tagQueue.Enqueue(PacmanCast.Members[member]);
+            }
+        }
+
+        /// <summary>The farmer says something of this kind (a new line from its shuffled bag).</summary>
+        private void Say(SayKind kind)
+        {
+            if (!sayBags.TryGetValue(kind, out PacmanSayings.Bag bag))
+            {
+                bag = new PacmanSayings.Bag(PacmanSayings.Pool(kind), sayRandom);
+                sayBags[kind] = bag;
+            }
+            sayText = bag.Next();
+            sayTimer = 0f;
+        }
+
+        private void SayMaybe(SayKind kind, float chance)
+        {
+            if (sayRandom.NextDouble() < chance)
+            {
+                Say(kind);
+            }
+        }
+
+        private float NextWalkWait()
+        {
+            return Mathf.Lerp(sayWalkEvery.x, sayWalkEvery.y, (float)sayRandom.NextDouble());
+        }
+
+        private void TickSaying(float dt)
+        {
+            if (sayText != null)
+            {
+                sayTimer += dt;
+                if (sayTimer >= sayShowSeconds)
+                {
+                    sayText = null;
+                }
             }
         }
 
@@ -431,6 +489,7 @@ namespace Studio.Pacman
             post?.SetGloom(State == PacmanState.Dying || State == PacmanState.GameOver ? 1f : 0f);
             ReadInput();
             TickTag(Time.unscaledDeltaTime);
+            TickSaying(Time.unscaledDeltaTime);
 
             switch (State)
             {
@@ -1034,6 +1093,16 @@ namespace Studio.Pacman
             playTime += dt;
             release.Tick(dt);
             Meet(0);
+            if (sayWalkLeft < 0f)
+            {
+                sayWalkLeft = NextWalkWait();
+            }
+            sayWalkLeft -= dt;
+            if (sayWalkLeft <= 0f && sayText == null && tagMember == null && tagQueue.Count == 0 && player.Dir != Vector2Int.zero)
+            {
+                Say(SayKind.Walk);
+                sayWalkLeft = NextWalkWait();
+            }
             for (int i = 0; i < ghosts.Count; i++)
             {
                 PacmanGhost ghost = ghosts[i];
@@ -1100,6 +1169,7 @@ namespace Studio.Pacman
                     PacmanUi.Show(ghost.transform.position, points.ToString(), new Color(0.55f, 0.85f, 1f));
                     post?.Punch(0.7f);
                     post?.Shake(0.12f, 0.18f);
+                    SayMaybe(SayKind.EatPest, sayEatPestChance);
                 }
                 else if (ghost.Mode != GhostMode.Eaten)
                 {
@@ -1111,6 +1181,7 @@ namespace Studio.Pacman
                     PacmanSfx.Play(audioSource, sfx?.Death, soundOn);
                     post?.Shake(0.3f, 0.35f);
                     post?.Punch(0.4f);
+                    Say(SayKind.Hurt);
                     return;
                 }
             }
@@ -1144,6 +1215,7 @@ namespace Studio.Pacman
                 }
                 PacmanSfx.Play(audioSource, sfx?.Power, soundOn);
                 post?.Punch(0.55f);
+                SayMaybe(SayKind.Power, sayPowerChance);
             }
             else
             {
@@ -1165,6 +1237,7 @@ namespace Studio.Pacman
                 State = PacmanState.LevelClear;
                 stateTimer = levelClearDuration;
                 PacmanSfx.Play(audioSource, sfx?.LevelClear, soundOn);
+                Say(SayKind.Clear);
             }
         }
 
