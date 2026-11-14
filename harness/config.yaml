@@ -1,9 +1,9 @@
 # Studio harness config. One file per game repo. Env vars like ${VAR} are expanded.
 game:
-  name: Test
+  name: My Game                       # `./hx setup "Name"` writes this
   unity_project: game                 # Unity project folder, relative to repo root
-  build_target: StandaloneWindows64   # StandaloneWindows64 | StandaloneLinux64 | StandaloneOSX
-  player_binary: Builds/Player/Test.exe   # relative to unity_project, produced by the build gate
+  build_target: auto                  # auto = the OS you are on, so autotest can run what it built | StandaloneOSX | StandaloneWindows64 | StandaloneLinux64
+  player_binary: auto                 # auto = Builds/Player/<Name>.app|.exe, relative to unity_project, produced by the build gate
 
 unity:
   editor_path: ""                     # empty = found via the Unity CLI (`unity editors path <project version>`); set only to override
@@ -54,9 +54,9 @@ runner:
                 AWS_SESSION_TOKEN, AWS_BEARER_TOKEN_BEDROCK, GOOGLE_APPLICATION_CREDENTIALS]
   defaults:
     model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
-    budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating your quota
-    timeout_min: 45
-    max_turns: 80
+    budget_usd: 2.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating your quota
+    timeout_min: 30                    # cards are small (≤ 1 system); a card that needs more should be split, or raise these in its front matter
+    max_turns: 50
     gates: [build, release, editmode, playmode, autotest, review]   # release = build without HARNESS + scan
   models:                              # card `difficulty` -> model alias
     trivial: haiku

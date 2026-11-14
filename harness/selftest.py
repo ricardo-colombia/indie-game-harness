@@ -49,6 +49,7 @@ elif a[:2] == ["projects", "create"]:
     (p / "ProjectSettings").mkdir(parents=True); (p / "Packages").mkdir()
     (p / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 6000.3.1f1\n")
     (p / "Packages/manifest.json").write_text('{"dependencies": {}}')
+    (p / "Assets/TutorialInfo").mkdir(parents=True); (p / "Assets/Readme.asset").write_text("x")
 elif a[:2] == ["pipeline", "install"]:
     f = Path(a[a.index("--project-path") + 1]) / "Packages/manifest.json"
     m = json.loads(f.read_text()); m["dependencies"]["com.unity.pipeline"] = "0.9.0"; f.write_text(json.dumps(m))
@@ -126,13 +127,13 @@ def run(cmd, cwd=None, env=None, unset=(), timeout=600, stdin=None):
 
 def clone_repo(tmp: Path) -> Path:
     dst = tmp / "repo"
-    skip = shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs",
-                                  "__pycache__", "reports", "ledger.jsonl", ".venv", "selftest-results.txt")
+    skip = shutil.ignore_patterns(".git", ".worktrees", "Library", "Temp", "Logs", "Builds", "__pycache__", "reports",
+                                  "ledger.jsonl", ".venv", "selftest-results.txt")
 
     def ignore(folder, names):
         ignored = set(skip(folder, names))
-        # The game's own Unity project is not part of the harness template under test: the setup tests start
-        # from a repo without one, and its LFS files cannot be checked out into a scratch repo.
+        # Your game's Unity project is not the harness under test: setup tests start from a repo without one,
+        # and its LFS files can't be checked out into a scratch repo.
         if Path(folder) == Path(REPO):
             ignored.add("game")
         return ignored
@@ -492,7 +493,9 @@ class Offline(unittest.TestCase):
         self.assertIn("com.studio.harness", m["testables"])
         cfg = (self.repo / "harness/config.yaml").read_text()
         self.assertIn("name: My Game", cfg)
-        self.assertIn("Builds/Player/MyGame.exe", cfg)
+        self.assertFalse((self.repo / "game/Assets/TutorialInfo").exists())      # Unity's tutorial scaffolding is gone
+        self.assertFalse((self.repo / "game/Assets/Readme.asset").exists())
+        self.assertTrue((self.repo / "game/Assets/WebGLTemplates/Harness/index.html").exists())
         log = (self.tmp / "unity.log").read_text()
         self.assertIn("--editor-version 6000.3.1f1", log)   # newest installed Unity 6, not a new download
         self.assertNotIn("--install-editor", log)
@@ -509,6 +512,52 @@ class Offline(unittest.TestCase):
         self.assertNotIn("projects create", (self.tmp / "unity.log").read_text())
         run([PY, "harness/hx.py", "setup", "My Game", "--yes"], cwd=self.repo, env=env)
         self.assertIn("--install-editor --accept-eula", (self.tmp / "unity.log").read_text())
+
+    def test_config_auto_target_matches_this_machine(self):
+        import platform
+        from core import load_config
+        want = {"Darwin": ("StandaloneOSX", ".app"), "Windows": ("StandaloneWindows64", ".exe"),
+                "Linux": ("StandaloneLinux64", "")}[platform.system()]
+        set_cfg_section(self.repo, "game", name="My Game")
+        g = load_config(self.repo)["game"]
+        self.assertEqual(g["build_target"], want[0])                  # the player autotest builds is one it can run
+        self.assertEqual(g["player_binary"], f"Builds/Player/MyGame{want[1]}")
+        set_cfg_section(self.repo, "game", build_target="StandaloneWindows64", player_binary="Builds/x.exe")
+        g = load_config(self.repo)["game"]                            # explicit values still win
+        self.assertEqual((g["build_target"], g["player_binary"]), ("StandaloneWindows64", "Builds/x.exe"))
+
+    def test_macos_app_bundle_runs_its_inner_executable(self):
+        from core import player_exe
+        app = self.tmp / "Builds/My.app"
+        (app / "Contents/MacOS").mkdir(parents=True)
+        (app / "Contents/MacOS/My").write_text("x")
+        self.assertEqual(player_exe(app), app / "Contents/MacOS/My")
+        self.assertEqual(player_exe(self.tmp / "Builds/game.exe"), self.tmp / "Builds/game.exe")
+
+    def test_passing_output_is_small_and_failures_keep_their_details(self):
+        from core import slim
+        stats = {"min": 1, "max": 2, "avg": 1.5, "last": 1, "p95": 2, "count": 9}
+        ok = slim({"ok": True, "smoke": {"ok": True, "rc": 0, "fails": [], "metrics": {"frame.ms": stats}, "log": "/x/log"}})
+        self.assertEqual(ok, {"ok": True, "smoke": {"ok": True}})       # a pass says only that it passed
+        bad = slim({"ok": False, "build": {"rc": 1, "compile_errors": ["error CS0103"], "log": "/x/log"}})
+        self.assertEqual(bad["build"], {"rc": 1, "compile_errors": ["error CS0103"], "log": "/x/log"})
+        self.assertIn("metrics", slim({"ok": True, "metrics": {"a": stats}}, metrics=True))
+
+    def test_sh_returns_when_the_command_exits_even_if_a_child_keeps_running(self):
+        import time
+        from core import sh
+        t = time.time()                                                   # Unity leaves a package server like this
+        r = sh(["sh", "-c", "sleep 25 & echo done"], timeout=20)
+        self.assertLess(time.time() - t, 10)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, "done"))
+
+    def test_web_build_pieces_exist(self):
+        page = (REPO / "packages/com.studio.harness/WebGLTemplates~/Harness/index.html").read_text()
+        self.assertIn("{{{ LOADER_FILENAME }}}", page)                # a real Unity WebGL template, not a stub
+        self.assertIn("#if USE_WASM", page)
+        build_cs = (REPO / "packages/com.studio.harness/Editor/HarnessBuild.cs").read_text()
+        self.assertIn("WebGLCompressionFormat.Disabled", build_cs)    # GitHub Pages can't serve .br/.gz
+        self.assertTrue(os.access(REPO / "hx", os.X_OK) and os.access(REPO / "scripts/publish_web.sh", os.X_OK))
 
     def test_static_files(self):
         import yaml
@@ -607,7 +656,7 @@ def live_checks() -> list[tuple[str, bool, str]]:
         res.append(("hint", False, "run `claude` once and /login with your Pro/Max account; API keys are stripped on purpose"))
         return res
     d = call("Without using tools, list the names of the project skills available to you, comma-separated.")
-    found = [s for s in ("run-card", "write-card", "playtest") if s in str(d.get("result", ""))]
+    found = [s for s in ("gamedev-run-card", "gamedev-write-card", "gamedev-playtest") if s in str(d.get("result", ""))]
     res.append(("project skills load", len(found) >= 2, f"saw {found}"))
 
     tmp = Path(tempfile.mkdtemp(prefix="hx-live-"))
