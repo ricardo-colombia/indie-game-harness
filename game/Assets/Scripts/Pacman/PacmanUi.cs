@@ -313,6 +313,8 @@ namespace Studio.Pacman
                 float remaining = game.FrightenedRemaining;
                 float bar = Screen.width * 0.22f;
                 Rect track = new Rect((Screen.width - bar) * 0.5f, Screen.height - 46f * s, bar, 10f * s);
+                // A dark pill behind the hint and its bar, so they read over the maze on narrow screens.
+                Fill(new Rect(track.x - 24f * s, Screen.height - 84f * s, bar + 48f * s, 48f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
                 Fill(track, new Color(1f, 1f, 1f, 0.12f), 5f * s);
                 float full = Mathf.Max(0.01f, game.FrightenedDuration);
                 Color c = remaining < 2f ? new Color(1f, 0.35f, 0.4f) : new Color(0.4f, 0.55f, 1f);
