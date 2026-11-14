@@ -60,10 +60,13 @@ namespace Studio.Pacman.Tests
         public void Music_LoopsAreAudibleAndFinite()
         {
             PacmanMusic music = new PacmanMusic();
+            AssertClean(music.Title, "Title");
             AssertClean(music.Chase, "Chase");
             AssertClean(music.Frightened, "Frightened");
             AssertClean(music.Intro, "Intro");
             Assert.Greater(music.Chase.length, 4f, "Chase is a real loop");
+            Assert.Greater(music.Title.length, 4f, "Title is a real loop");
+            Assert.AreNotSame(music.Title, music.Chase, "The menu has its own song");
         }
     }
 }
