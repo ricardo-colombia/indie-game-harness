@@ -19,6 +19,15 @@ namespace Studio.Pacman
             root.transform.localScale = Vector3.one * scale;
             Transform t = root.transform;
 
+            Sprite themed = PacmanTheme.Get("fruit_" + kind.ToString().ToLowerInvariant());
+            if (themed != null)
+            {
+                SpriteRenderer themedRenderer = root.AddComponent<SpriteRenderer>();
+                themedRenderer.sprite = themed;
+                themedRenderer.sortingOrder = 5;
+                return t;
+            }
+
             switch (kind)
             {
                 case FruitKind.CoffeeCherry:

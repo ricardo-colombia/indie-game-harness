@@ -1025,6 +1025,14 @@ namespace Studio.Pacman
             pellet.transform.localScale = Vector3.one * (power ? PowerPelletSize : PelletSize);
             SpriteRenderer renderer = pellet.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = 1;
+            Sprite themed = PacmanTheme.Get(power ? "mug" : "bean");
+            if (!power && themed != null)
+            {
+                // A themed bean: its own sprite, each tilted a little differently.
+                renderer.sprite = themed;
+                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
+                return pellet;
+            }
             if (!power)
             {
                 // A coffee bean: caramel body with a dark crease, each tilted a little differently.
@@ -1040,9 +1048,14 @@ namespace Studio.Pacman
             // the picker chase the pests. The root disc is a warm glow behind it.
             renderer.sprite = PacmanSprites.Disc;
             renderer.color = PowerPelletColour;
+            Transform t = pellet.transform;
+            if (themed != null)
+            {
+                AddPelletPart(t, Color.white, Vector2.zero, Vector3.one * 0.92f, 0f, 3, themed);
+                return pellet;
+            }
             Color cream = new Color(0.95f, 0.91f, 0.8f);
             Color dark = new Color(0.07f, 0.04f, 0.025f);
-            Transform t = pellet.transform;
             AddPelletPart(t, cream, new Vector2(0.27f, -0.08f), new Vector3(0.36f, 0.36f, 1f), 0f, 2);
             AddPelletPart(t, dark, new Vector2(0.28f, -0.08f), new Vector3(0.16f, 0.16f, 1f), 0f, 3);
             AddPelletPart(t, cream, new Vector2(-0.1f, -0.08f), new Vector3(0.58f, 0.5f, 1f), 0f, 3, PacmanSprites.Square);

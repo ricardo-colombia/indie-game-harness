@@ -10,9 +10,9 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanBushes : MonoBehaviour
     {
-        private const int Variants = 6;
-        private const int W = 96;
-        private const int H = 84;
+        private const int Variants = 20;
+        private const int W = 104;
+        private const int H = 92;
         private const float PixelsPerUnit = 86f;
 
         private static Sprite[] sprites;
@@ -37,23 +37,44 @@ namespace Studio.Pacman
 
             var list = new System.Collections.Generic.List<Transform>();
             var phaseList = new System.Collections.Generic.List<float>();
+            int[,] chosen = new int[PacmanMaze.Width, PacmanMaze.Height];
             for (int y = 0; y < PacmanMaze.Height; y++)
             {
                 for (int x = 0; x < PacmanMaze.Width; x++)
                 {
+                    chosen[x, y] = -1;
                     if (PacmanMaze.Cell(x, y) != '#')
                     {
                         continue;
                     }
                     int hash = (x * 73856093) ^ (y * 19349663);
+                    hash ^= hash >> 13;
+                    hash *= 1274126177;
+                    hash ^= hash >> 16;
+
+                    // Never put the same bush next to itself: pick a variant that differs from every neighbour already placed.
+                    int variant = (hash & 0xffff) % Variants;
+                    for (int tries = 0; tries < Variants && Clash(chosen, x, y, variant); tries++)
+                    {
+                        variant = (variant + 7) % Variants;
+                    }
+                    chosen[x, y] = variant;
+
                     GameObject bush = new GameObject("Bush");
                     bush.transform.SetParent(root.transform, false);
-                    float scale = 0.95f + ((hash >> 3) & 7) * 0.02f;
-                    bush.transform.localPosition = new Vector3(x, -y - 0.53f, 0f);
-                    bush.transform.localScale = new Vector3(((hash >> 6) & 1) == 0 ? scale : -scale, scale, 1f);
+                    float sx = 0.9f + ((hash >> 3) & 15) * 0.014f;
+                    float sy = 0.9f + ((hash >> 7) & 15) * 0.014f;
+                    float lift = (((hash >> 11) & 7) - 3.5f) * 0.008f;
+                    bush.transform.localPosition = new Vector3(x, -y - 0.53f + lift, 0f);
+                    bush.transform.localScale = new Vector3(((hash >> 15) & 1) == 0 ? sx : -sx, sy, 1f);
                     SpriteRenderer renderer = bush.AddComponent<SpriteRenderer>();
-                    renderer.sprite = sprites[(hash & 0xff) % Variants];
+                    renderer.sprite = sprites[variant];
                     renderer.sortingOrder = y;
+                    // A slightly different green on each bush, as in a real plantation.
+                    float tr = 0.93f + ((hash >> 16) & 15) * 0.009f;
+                    float tg = 0.94f + ((hash >> 20) & 15) * 0.008f;
+                    float tb = 0.9f + ((hash >> 24) & 15) * 0.009f;
+                    renderer.color = new Color(tr, tg, tb, 1f);
                     list.Add(bush.transform);
                     phaseList.Add(((hash >> 9) & 255) / 255f * 6.283f);
                 }
@@ -61,6 +82,17 @@ namespace Studio.Pacman
             self.bushes = list.ToArray();
             self.phases = phaseList.ToArray();
             return self;
+        }
+
+        private static bool Clash(int[,] chosen, int x, int y, int variant)
+        {
+            return Same(chosen, x - 1, y, variant) || Same(chosen, x, y - 1, variant)
+                || Same(chosen, x - 1, y - 1, variant) || Same(chosen, x + 1, y - 1, variant) || Same(chosen, x - 2, y, variant);
+        }
+
+        private static bool Same(int[,] chosen, int x, int y, int variant)
+        {
+            return x >= 0 && y >= 0 && x < chosen.GetLength(0) && y < chosen.GetLength(1) && chosen[x, y] == variant;
         }
 
         private void Update()
@@ -93,82 +125,122 @@ namespace Studio.Pacman
             }
         }
 
-        private static readonly Color LeafDark = new Color(0.03f, 0.17f, 0.07f);
-        private static readonly Color LeafMid = new Color(0.07f, 0.36f, 0.12f);
-        private static readonly Color LeafLight = new Color(0.22f, 0.6f, 0.2f);
+        private static readonly Color LeafDark = new Color(0.04f, 0.16f, 0.07f);
+        private static readonly Color LeafMid = new Color(0.08f, 0.38f, 0.13f);
+        private static readonly Color LeafLight = new Color(0.26f, 0.64f, 0.2f);
+        private static readonly Color OliveMid = new Color(0.2f, 0.42f, 0.1f);
+        private static readonly Color OliveLight = new Color(0.52f, 0.68f, 0.16f);
         private static readonly Color Wood = new Color(0.3f, 0.18f, 0.1f);
 
+        /// <summary>
+        /// One shrub, different every time: a canopy of three to five tiers of leafy lumps whose number, size, lean,
+        /// colour and fruit change with the seed, so no two neighbours look alike.
+        /// </summary>
         private static Sprite Paint(int seed)
         {
             Canvas c = new Canvas(W, H);
             System.Random rng = new System.Random(seed * 7919 + 13);
             float R(float a, float b) { return a + (float)rng.NextDouble() * (b - a); }
 
-            float mid = W * 0.5f;
+            float mid = W * 0.5f + R(-2.5f, 2.5f);
+            float spread = R(0.8f, 1.08f);
+            float tall = R(0.8f, 1.02f);
+            float lean = R(-5f, 5f);
+            float leafScale = R(0.85f, 1.2f);
+            float olive = R(0f, 1f) < 0.35f ? R(0.35f, 0.8f) : R(0f, 0.2f);
+            Color midGreen = Color.Lerp(LeafMid, OliveMid, olive);
+            Color lightGreen = Color.Lerp(LeafLight, OliveLight, olive);
 
             // Soil mound and shadow under the plant.
-            c.Ellipse(mid, 8f, 38f, 7f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
-            c.Ellipse(mid, 10f, 30f, 6f, new Color(0.28f, 0.17f, 0.09f), 1f);
+            c.Ellipse(mid, 8f, R(30f, 38f), 6.5f, new Color(0.05f, 0.03f, 0.02f), 0.55f);
+            c.Ellipse(mid, 10f, R(22f, 30f), 5.5f, new Color(0.3f, 0.18f, 0.1f), 1f);
 
-            // A coffee shrub is low and round, as wide as it is tall: a dark dome of foliage first, so no gaps show.
-            c.Ellipse(mid, 24f, 44f, 17f, LeafDark, 1f);
-            c.Ellipse(mid, 38f, 42f, 24f, LeafDark, 1f);
-            c.Ellipse(mid, 52f, 34f, 22f, LeafDark, 1f);
-            c.Ellipse(mid, 63f, 22f, 14f, LeafDark, 1f);
-
-            // Short woody stem at the foot, with a couple of low branches.
-            c.Line(new Vector2(mid, 8f), new Vector2(mid + R(-1f, 1f), 24f), 4.2f, Wood);
-
-            // Broad, rounded, glossy leaves covering the dome, painted from the heart outwards so the outer
-            // ones overlap. Rounded (not needle-like) leaves are what makes it read as a broadleaf shrub.
-            Vector2 heart = new Vector2(mid, 28f);
-            for (int i = 0; i < 70; i++)
+            // Lumps of canopy, back (top) first so the lower, nearer ones overlap them.
+            var lumps = new System.Collections.Generic.List<Vector3>();
+            int top = 1 + rng.Next(0, 2);
+            for (int i = 0; i < top; i++)
             {
-                float ring = Mathf.Lerp(0.15f, 1f, i / 69f);
-                float theta = R(8f, 172f) * Mathf.Deg2Rad;
-                Vector2 pos = heart + new Vector2(Mathf.Cos(theta) * 40f * ring, Mathf.Sin(theta) * 38f * ring);
-                Vector2 outward = pos - heart;
-                float angle = Mathf.Atan2(outward.y, outward.x) * Mathf.Rad2Deg + R(-28f, 28f);
-                float height = Mathf.Clamp01((pos.y - 14f) / 56f);
-                Color col = Color.Lerp(LeafMid, LeafLight, Mathf.Clamp01(height * 0.9f + R(-0.2f, 0.2f)));
-                c.Leaf(pos, angle, R(15f, 21f), R(9.5f, 12f), col, 0.55f);
+                lumps.Add(new Vector3(mid + R(-9f, 9f) * spread + lean, R(52f, 58f) * tall, R(11f, 14f)));
+            }
+            int middle = 2 + rng.Next(0, 2);
+            for (int i = 0; i < middle; i++)
+            {
+                float u = middle == 1 ? 0f : Mathf.Lerp(-1f, 1f, i / (middle - 1f));
+                lumps.Add(new Vector3(mid + (u * R(11f, 17f) + R(-3f, 3f)) * spread + lean * 0.6f, R(38f, 44f) * tall, R(12f, 16f)));
+            }
+            int bottom = 2 + rng.Next(0, 2);
+            for (int i = 0; i < bottom; i++)
+            {
+                float u = Mathf.Lerp(-1f, 1f, i / (bottom - 1f));
+                lumps.Add(new Vector3(mid + (u * R(19f, 24f) + R(-3f, 3f)) * spread, R(22f, 27f), R(13f, 17f)));
             }
 
-            // Cherries grow in tight clusters tucked under the leaves, not scattered over them.
-            int clusters = 2 + rng.Next(0, 3);
-            for (int cl = 0; cl < clusters; cl++)
+            foreach (Vector3 lump in lumps)
             {
-                float theta = R(25f, 155f) * Mathf.Deg2Rad;
-                Vector2 pos = heart + new Vector2(Mathf.Cos(theta) * 30f, Mathf.Sin(theta) * 22f - 6f);
-                for (int j = 0; j < 4; j++)
+                Vector2 centre = new Vector2(lump.x, lump.y);
+                float rad = lump.z;
+                // Dark filling so no gaps show between leaves.
+                c.Ellipse(centre.x, centre.y - 1f, rad * 1.28f, rad * 1.02f, LeafDark, 1f);
+                int leaves = Mathf.RoundToInt(rad * 1.7f);
+                for (int i = 0; i < leaves; i++)
                 {
-                    Vector2 cp = pos + new Vector2(R(-4f, 4f), R(-4f, 4f));
-                    float ripe = R(0f, 1f);
-                    Color cherry = ripe < 0.7f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.88f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.65f, 0.75f, 0.18f);
-                    c.Cherry(cp, 2.9f, cherry);
+                    float ring = Mathf.Lerp(0.2f, 1f, i / (float)(leaves - 1));
+                    float theta = R(0f, 360f) * Mathf.Deg2Rad;
+                    Vector2 pos = centre + new Vector2(Mathf.Cos(theta) * rad * 1.15f * ring, Mathf.Sin(theta) * rad * 0.92f * ring);
+                    float angle = theta * Mathf.Rad2Deg + R(-30f, 30f);
+                    float height = Mathf.Clamp01((pos.y - 12f) / 58f);
+                    float sun = Mathf.Clamp01(0.5f - (pos.x - mid) / 120f);
+                    Color col = Color.Lerp(midGreen, lightGreen, Mathf.Clamp01(height * 0.7f + sun * 0.3f + R(-0.22f, 0.22f)));
+                    if (R(0f, 1f) < 0.05f)
+                    {
+                        col = Color.Lerp(col, new Color(0.7f, 0.76f, 0.2f), 0.7f);
+                    }
+                    c.Leaf(pos, angle, R(11f, 16f) * leafScale, R(7.5f, 10.5f) * leafScale, col, 0.55f);
                 }
             }
 
-            // In flower (a third of the bushes): small white blossom clusters along the branches, like the reference photos.
-            if (seed % 3 == 0)
+            // Cherries hang in tight clusters at the lower rim of the nearer lumps, not scattered across the top.
+            int clusters = 1 + rng.Next(0, 4);
+            for (int cl = 0; cl < clusters; cl++)
             {
-                for (int f = 0; f < 5; f++)
+                Vector3 lump = lumps[rng.Next(Mathf.Max(0, lumps.Count - 5), lumps.Count)];
+                float theta = R(205f, 335f) * Mathf.Deg2Rad;
+                Vector2 pos = new Vector2(lump.x, lump.y) + new Vector2(Mathf.Cos(theta) * lump.z * 0.95f, Mathf.Sin(theta) * lump.z * 0.75f);
+                int count = rng.Next(3, 6);
+                float ripeBias = R(0f, 1f);
+                for (int j = 0; j < count; j++)
                 {
-                    float theta = R(20f, 160f) * Mathf.Deg2Rad;
-                    Vector2 pos = heart + new Vector2(Mathf.Cos(theta) * 34f, Mathf.Sin(theta) * 30f);
+                    Vector2 cp = pos + new Vector2(R(-4.5f, 4.5f), R(-3.5f, 3.5f));
+                    float ripe = R(0f, 1f) * 0.7f + ripeBias * 0.3f;
+                    Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.8f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
+                    c.Cherry(cp, R(2.5f, 3.2f), cherry);
+                }
+            }
+
+            // In flower (a few of the bushes): small white blossom clusters along the branches.
+            if (seed % 4 == 1)
+            {
+                for (int f = 0; f < 4 + rng.Next(0, 3); f++)
+                {
+                    Vector3 lump = lumps[rng.Next(0, lumps.Count)];
+                    float theta = R(10f, 170f) * Mathf.Deg2Rad;
+                    Vector2 pos = new Vector2(lump.x, lump.y) + new Vector2(Mathf.Cos(theta) * lump.z * 0.9f, Mathf.Sin(theta) * lump.z * 0.8f);
                     for (int j = 0; j < 3; j++)
                     {
-                        c.Cherry(pos + new Vector2(R(-3f, 3f), R(-3f, 3f)), 2.2f, new Color(0.97f, 0.97f, 0.92f));
+                        c.Cherry(pos + new Vector2(R(-3f, 3f), R(-3f, 3f)), 2.2f, new Color(0.98f, 0.97f, 0.92f));
                     }
                 }
             }
 
             // Grass tufts around the foot.
-            for (int i = 0; i < 9; i++)
+            int tufts = rng.Next(5, 11);
+            for (int i = 0; i < tufts; i++)
             {
                 float gx = mid + R(-34f, 34f);
-                c.Line(new Vector2(gx, 9f), new Vector2(gx + R(-3f, 3f), R(15f, 20f)), 1.1f, new Color(0.32f, 0.6f, 0.2f));
+                c.Line(new Vector2(gx, 9f), new Vector2(gx + R(-3.5f, 3.5f), R(13f, 20f)), 1.2f, new Color(0.34f, 0.62f, 0.2f));
             }
+
+            c.Outline(PacmanToon.Ink, 1.5f);
             return c.ToSprite("CoffeeBush" + seed, PixelsPerUnit);
         }
 
@@ -289,6 +361,44 @@ namespace Studio.Pacman
                 Ellipse(p.x, p.y, radius + 0.7f, radius + 0.7f, new Color(0.25f, 0.03f, 0.03f), 1f);
                 Ellipse(p.x, p.y, radius, radius, colour, 1f);
                 Ellipse(p.x - radius * 0.35f, p.y + radius * 0.4f, radius * 0.32f, radius * 0.32f, Color.Lerp(colour, Color.white, 0.75f), 1f);
+            }
+
+            /// <summary>Draws a dark outline around everything solid, the shared look of all sprites in the game.</summary>
+            public void Outline(Color ink, float radius)
+            {
+                float[] solid = new float[w * h];
+                for (int i = 0; i < solid.Length; i++)
+                {
+                    solid[i] = pa[i] > 0.85f ? pa[i] : 0f;
+                }
+                int r = Mathf.CeilToInt(radius);
+                for (int y = 0; y < h; y++)
+                {
+                    for (int x = 0; x < w; x++)
+                    {
+                        float own = solid[y * w + x];
+                        if (own >= 0.999f)
+                        {
+                            continue;
+                        }
+                        float best = 0f;
+                        for (int dy = -r; dy <= r; dy++)
+                        {
+                            for (int dx = -r; dx <= r; dx++)
+                            {
+                                int nx = x + dx;
+                                int ny = y + dy;
+                                if (nx < 0 || ny < 0 || nx >= w || ny >= h)
+                                {
+                                    continue;
+                                }
+                                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                                best = Mathf.Max(best, solid[ny * w + nx] * Mathf.Clamp01(radius + 0.5f - dist));
+                            }
+                        }
+                        Blend(x, y, ink, best * (1f - own));
+                    }
+                }
             }
 
             public Sprite ToSprite(string name, float pixelsPerUnit)
