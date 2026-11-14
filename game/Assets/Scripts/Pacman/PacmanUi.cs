@@ -249,8 +249,8 @@ namespace Studio.Pacman
             float t = Time.unscaledTime;
 
             // Logo: shifting gold-to-cherry colour with a soft echo behind it.
-            string logo = "PAC-CAFÉ";
-            float size = 150f * s;
+            string logo = "COFFEE-MAN";
+            float size = Mathf.Min(150f * s, Screen.width * 0.92f / (logo.Length * 0.62f));   // 10 letters: keep it inside narrow phone screens
             Color glow = Color.Lerp(Gold, CherryRed, 0.5f + 0.5f * Mathf.Sin(t * 1.3f));
             float bob = Mathf.Sin(t * 2f) * 6f * s;
             Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
