@@ -136,9 +136,9 @@ namespace Studio.Pacman
             }
         }
 
-        private static readonly Color LeafDark = new Color(0.04f, 0.16f, 0.07f);
-        private static readonly Color LeafMid = new Color(0.08f, 0.38f, 0.13f);
-        private static readonly Color LeafLight = new Color(0.26f, 0.64f, 0.2f);
+        private static readonly Color LeafDark = new Color(0.02f, 0.11f, 0.07f);
+        private static readonly Color LeafMid = new Color(0.05f, 0.28f, 0.14f);
+        private static readonly Color LeafLight = new Color(0.12f, 0.46f, 0.2f);
         private static readonly Color OliveMid = new Color(0.2f, 0.42f, 0.1f);
         private static readonly Color OliveLight = new Color(0.52f, 0.68f, 0.16f);
         private static readonly Color Wood = new Color(0.3f, 0.18f, 0.1f);
@@ -159,14 +159,14 @@ namespace Studio.Pacman
             float tall = R(0.85f, 1.05f);
             float spread = R(0.85f, 1.1f);
             float lean = R(-7f, 7f);
-            float leafScale = R(0.9f, 1.2f);
+            float leafScale = R(1.2f, 1.5f);
             float olive = R(0f, 1f) < 0.3f ? R(0.3f, 0.7f) : R(0f, 0.15f);
             Color midGreen = Color.Lerp(LeafMid, OliveMid, olive);
             Color lightGreen = Color.Lerp(LeafLight, OliveLight, olive);
             bool flowering = seed % 4 == 1;
             float cherryBias = R(0f, 1f);
             // How heavy the harvest is: bare-ish, medium or loaded, so neighbouring plants differ the way real ones do.
-            float load = seed % 3 == 0 ? R(0.12f, 0.3f) : seed % 3 == 1 ? R(0.42f, 0.62f) : R(0.78f, 1f);
+            float load = seed % 3 == 0 ? R(0.1f, 0.25f) : seed % 3 == 1 ? R(0.35f, 0.5f) : R(0.6f, 0.8f);
             var fruitSegments = new System.Collections.Generic.List<Vector3>();   // x,y = branch point, z = side (+1/-1)
             var fruitPrev = new System.Collections.Generic.List<Vector2>();
 
@@ -212,7 +212,7 @@ namespace Studio.Pacman
                         float heading = side > 0 ? ang : 180f - ang;
                         float spreadAngle = R(38f, 58f);
                         float len = R(15f, 20f) * leafScale * Mathf.Lerp(1f, 0.8f, k < 0.2f ? 1f : 0f) * Mathf.Lerp(0.85f, 1f, u);
-                        float wid = len * R(0.48f, 0.56f);
+                        float wid = len * R(0.5f, 0.6f);
                         for (int half = -1; half <= 1; half += 2)
                         {
                             float a = heading + half * spreadAngle * side;
@@ -251,26 +251,36 @@ namespace Studio.Pacman
                     }
                 }
             }
-            // Cherries: strings of fruit along the thin branches, both sides of the stem, over the leaves (a cafeto carries
-            // its beans on the branches, not at the foot). Ripeness is mixed red, orange and green; the load varies per plant.
+            // Cherries, the way Coffea arabica carries them: in small clusters in the axil of each leaf pair, so the fruit sits
+            // on the node and follows the line of the branch (it is never scattered over the plant or hung from the trunk).
+            // A light harvest is a cherry or two at a few nodes; a heavy one is a continuous string of three or four per node.
+            float nodeChance = Mathf.Lerp(0.18f, 0.85f, load);
             for (int i = 0; i < fruitSegments.Count; i++)
             {
-                if (R(0f, 1f) > Mathf.Lerp(0.2f, 0.92f, load))
+                if (R(0f, 1f) > nodeChance)
                 {
                     continue;
                 }
                 Vector2 end = new Vector2(fruitSegments[i].x, fruitSegments[i].y);
                 Vector2 start = fruitPrev[i];
-                int count = Mathf.RoundToInt(Mathf.Lerp(2f, 9f, load) * R(0.7f, 1.2f));
+                Vector2 dir = (end - start).normalized;
+                Vector2 perp = new Vector2(-dir.y, dir.x);
+                if (perp.y > 0f)
+                {
+                    perp = -perp;                                    // always the underside of the branch: fruit hangs
+                }
+                float segLen = (end - start).magnitude;
+                int count = Mathf.Clamp(Mathf.RoundToInt(Mathf.Lerp(1f, 4.4f, load) * R(0.7f, 1.15f)), 1, 5);
                 for (int j = 0; j < count; j++)
                 {
-                    float along = R(0f, 1f);
-                    Vector2 onBranch = Vector2.Lerp(start, end, along);
-                    Vector2 cp = onBranch + new Vector2(R(-2.2f, 2.2f), R(-4.8f, 3.2f));
+                    float along = count == 1 ? 1f : 1f - j / (float)count;          // spread back along the segment from the node
+                    Vector2 onBranch = end - dir * (segLen * (1f - along) * 0.95f);
+                    float hang = 1.9f + R(-0.3f, 0.7f) + (j % 2) * 1.5f;           // alternate rows just under the stem
+                    Vector2 cp = onBranch + perp * hang;
                     float ripe = R(0f, 1f) * 0.55f + cherryBias * 0.25f;
                     Color cherry = ripe < 0.6f ? new Color(0.88f, 0.06f, 0.1f) : ripe < 0.82f ? new Color(0.95f, 0.42f, 0.08f) : new Color(0.62f, 0.74f, 0.16f);
-                    c.Line(onBranch, cp, 0.8f, Wood);
-                    c.Cherry(cp, R(2.5f, 3.1f), cherry);
+                    c.Line(onBranch, cp, 0.7f, Wood);
+                    c.Cherry(cp, R(2.3f, 2.8f), cherry);
                 }
             }
 
@@ -359,43 +369,68 @@ namespace Studio.Pacman
                 }
             }
 
-            /// <summary>A pointed, glossy leaf rooted at a point and pointing along an angle (degrees, 0 = right, 90 = up).</summary>
+            /// <summary>
+            /// A Coffea arabica leaf rooted at a point and pointing along an angle (degrees, 0 = right, 90 = up): elliptic-lanceolate,
+            /// widest a little before the middle, a short wedge at the base and a long drawn-out tip, a gently wavy margin, a slight
+            /// arc, a pale midrib with forward-sweeping side veins, and a dark glossy blade with a sheen along one side.
+            /// </summary>
             public void Leaf(Vector2 root, float angleDegrees, float length, float width, Color baseColour, float roundness = 1f)
             {
                 float rad = angleDegrees * Mathf.Deg2Rad;
                 Vector2 dir = new Vector2(Mathf.Cos(rad), Mathf.Sin(rad));
                 Vector2 perp = new Vector2(-dir.y, dir.x);
-                Vector2 centre = root + dir * (length * 0.5f);
-                float a = length * 0.5f;
-                float b = width * 0.5f;
-                int reach = Mathf.CeilToInt(length) + 2;
+                float halfWidth = width * 0.5f;
+                float hash = Mathf.Abs(Mathf.Sin(root.x * 12.9898f + root.y * 78.233f + angleDegrees * 0.37f));
+                float bend = (hash - 0.5f) * 0.3f;                 // the blade arcs a little to one side
+                float phase = hash * 6.28f;
+                const float peak = 0.38f;                           // where the blade is widest, as a fraction of its length
+                float norm = 1f / (Mathf.Pow(peak, 0.55f) * Mathf.Pow(1f - peak, 0.95f));
+                int reach = Mathf.CeilToInt(length) + 3;
+                int sideVeins = 6;
                 for (int y = Mathf.Max(0, (int)root.y - reach); y <= Mathf.Min(h - 1, (int)root.y + reach); y++)
                 {
                     for (int x = Mathf.Max(0, (int)root.x - reach); x <= Mathf.Min(w - 1, (int)root.x + reach); x++)
                     {
-                        Vector2 p = new Vector2(x + 0.5f, y + 0.5f) - centre;
-                        float u = Vector2.Dot(p, dir);
-                        float v = Vector2.Dot(p, perp);
-                        float k = u / a;
-                        if (k < -1f || k > 1f)
+                        Vector2 p = new Vector2(x + 0.5f, y + 0.5f) - root;
+                        float t = Vector2.Dot(p, dir) / length;
+                        if (t < 0f || t > 1f)
                         {
                             continue;
                         }
-                        float limit = b * Mathf.Pow(1f - k * k, roundness);
+                        float v = Vector2.Dot(p, perp) - bend * t * t * length;
+                        float profile = Mathf.Pow(t, 0.55f) * Mathf.Pow(1f - t, 0.95f) * norm;
+                        float limit = halfWidth * profile * (1f + 0.07f * Mathf.Sin(t * 22f + phase));
                         float cov = Mathf.Clamp01(limit - Mathf.Abs(v) + 0.5f);
                         if (cov <= 0f)
                         {
                             continue;
                         }
-                        // Shading: the upper side of the leaf catches the light, the rim is darker, a pale midrib runs along it.
-                        float up = Mathf.Clamp01(0.5f + (y + 0.5f - centre.y) / (b * 2.2f));
-                        Color col = Color.Lerp(baseColour * 0.75f, baseColour * 1.3f, up);
-                        float rim = Mathf.Clamp01((Mathf.Abs(v) - (limit - 1f)) * 0.6f);
-                        col = Color.Lerp(col, LeafDark, rim * 0.5f);
-                        if (Mathf.Abs(v) < 0.55f)
+                        // Dark glossy blade: lighter towards the side facing the sun, darker at the rim, sheen along one side of the midrib.
+                        float side = Mathf.Clamp01(0.5f + v / Mathf.Max(0.5f, limit) * 0.5f);
+                        Color col = Color.Lerp(baseColour * 0.8f, baseColour * 1.22f, side);
+                        float rim = Mathf.Clamp01((Mathf.Abs(v) - (limit - 1.1f)) * 0.7f);
+                        col = Color.Lerp(col, LeafDark, rim * 0.55f);
+                        float sheen = Mathf.Exp(-Mathf.Pow((v - limit * 0.35f) / Mathf.Max(0.6f, limit * 0.22f), 2f)) * Mathf.Sin(t * Mathf.PI);
+                        col = Color.Lerp(col, new Color(0.62f, 0.85f, 0.55f), 0.32f * sheen);
+                        // Midrib and side veins, slightly paler than the blade.
+                        float vein = 0f;
+                        if (Mathf.Abs(v) < 0.5f)
                         {
-                            col = Color.Lerp(col, new Color(0.55f, 0.78f, 0.35f), 0.45f * (1f - Mathf.Abs(k)));
+                            vein = 0.5f * (1f - t * 0.6f);
                         }
+                        else if (t > 0.12f && t < 0.9f)
+                        {
+                            float spacing = 0.78f / sideVeins;
+                            float tv = (t - 0.12f) / spacing;
+                            float nearest = Mathf.Round(tv);
+                            float along = (tv - nearest) * spacing * length;           // distance along the blade from the vein's start
+                            float expected = Mathf.Abs(v) * 0.7f;                       // veins sweep forward from the midrib
+                            if (Mathf.Abs(along - expected) < 0.45f && Mathf.Abs(v) < limit - 0.8f && nearest >= 0f && nearest <= sideVeins)
+                            {
+                                vein = 0.22f;
+                            }
+                        }
+                        col = Color.Lerp(col, new Color(0.5f, 0.74f, 0.4f), vein);
                         col.a = 1f;
                         Blend(x, y, col, cov);
                     }
