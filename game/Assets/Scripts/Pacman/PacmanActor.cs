@@ -14,7 +14,7 @@ namespace Studio.Pacman
         /// <summary>0..1 progress from Tile toward Tile + Dir.</summary>
         public float Progress { get; protected set; }
 
-        public void Place(Vector2Int tile)
+        public virtual void Place(Vector2Int tile)
         {
             Tile = tile;
             Dir = Vector2Int.zero;
@@ -88,6 +88,14 @@ namespace Studio.Pacman
                 }
             }
 
+            UpdateTransform();
+        }
+
+        /// <summary>Moves the actor back to a tile centre and sets its heading, keeping it on that tile. For turn forgiveness.</summary>
+        protected void SnapTurn(Vector2Int heading)
+        {
+            Progress = 0f;
+            Dir = heading;
             UpdateTransform();
         }
 

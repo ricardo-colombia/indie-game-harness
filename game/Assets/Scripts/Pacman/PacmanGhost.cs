@@ -26,6 +26,9 @@ namespace Studio.Pacman
         public GhostKind Kind => kind;
         public GhostMode Mode { get; private set; }
 
+        /// <summary>Chase by walking distance instead of straight-line distance. Set by the game.</summary>
+        public bool PathChase { get; set; } = true;
+
         // A ghost still inside the house when a power pellet is eaten turns blue too. It keeps leaving the
         // house (Exiting) and becomes a normal frightened ghost the moment it steps out.
         private bool scaredInHouse;
@@ -128,33 +131,19 @@ namespace Studio.Pacman
 
         protected override Vector2Int ChooseDirection(Vector2Int tile, Vector2Int current)
         {
-            options.Clear();
-            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
-            foreach (Vector2Int d in all)
+            // Eyes going home and ghosts leaving the house walk the shortest way: straight-line steering
+            // used to leave them orbiting a block forever from some tiles.
+            if (Mode == GhostMode.Eaten || Mode == GhostMode.Exiting)
             {
-                if (current != Vector2Int.zero && d == -current)
+                Vector2Int home = PacmanPaths.HomeStep(tile, CurrentTarget());
+                if (home != Vector2Int.zero)
                 {
-                    continue;
+                    return home;
                 }
-                Vector2Int next = tile + d;
-                if (PacmanMaze.IsWall(next))
-                {
-                    continue;
-                }
-                // Only ghosts that are leaving the house, or eyes going home, may use the gate.
-                bool mayEnterHouse = Mode == GhostMode.Eaten || Mode == GhostMode.Exiting;
-                if (!mayEnterHouse && PacmanMaze.IsGhostHouse(next))
-                {
-                    continue;
-                }
-                // Chasing and scattering ghosts may not turn up at the four classic no-up junctions.
-                if (d == PacmanMaze.Up && (Mode == GhostMode.Scatter || Mode == GhostMode.Chase)
-                    && PacmanMaze.IsNoUpTile(tile))
-                {
-                    continue;
-                }
-                options.Add(d);
             }
+
+            bool noUp = Mode == GhostMode.Scatter || Mode == GhostMode.Chase;
+            PacmanPaths.LegalMoves(tile, current, Mode == GhostMode.Eaten || Mode == GhostMode.Exiting, noUp, options);
 
             if (options.Count == 0)
             {
@@ -177,6 +166,16 @@ namespace Studio.Pacman
             }
 
             Vector2Int target = CurrentTarget();
+            if (PathChase && Mode == GhostMode.Chase)
+            {
+                // Real walking distance, so a target on the far side of a wall is reached the short way round.
+                Vector2Int step = PacmanPaths.ChaseChoice(tile, options, target);
+                if (step != Vector2Int.zero)
+                {
+                    return step;
+                }
+            }
+
             Vector2Int best = options[0];
             long bestScore = long.MaxValue;
             foreach (Vector2Int d in options)
