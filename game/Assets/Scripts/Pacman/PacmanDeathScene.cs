@@ -45,10 +45,10 @@ namespace Studio.Pacman
             switch (byKind)
             {
                 case GhostKind.Blinky:
-                    PacmanUi.Show(by.position + up, "¡IMPUESTOS!", new Color(1f, 0.85f, 0.3f));
+                    PacmanUi.Show(by.position + up, "IMPUESTOS", new Color(1f, 0.85f, 0.3f));
                     break;
                 case GhostKind.Inky:
-                    PacmanUi.Show(by.position + up, "¡TE COMPRO LA FINCA!", new Color(0.6f, 0.95f, 0.5f));
+                    PacmanUi.Show(by.position + up, "UNA OFERTA…", new Color(0.85f, 0.9f, 0.7f));
                     break;
             }
         }
@@ -139,12 +139,12 @@ namespace Studio.Pacman
             killer.position = killerHome - dir * recoil;
         }
 
-        /// <summary>A rain of notes falls on the picker.</summary>
+        /// <summary>A few notes drift down on the picker: a quiet offer, not a deluge.</summary>
         private void Cash()
         {
             if (time >= nextSpawn && time < duration * 0.9f)
             {
-                nextSpawn = time + 0.05f;
+                nextSpawn = time + 0.14f;
                 Vector3 top = victim.position + new Vector3(Random.Range(-0.5f, 0.5f), 1.1f, 0f);
                 AddFlyer(top, victim.position + new Vector3(Random.Range(-0.15f, 0.15f), -0.3f, 0f), 0.6f, Bill(), 0f);
             }
