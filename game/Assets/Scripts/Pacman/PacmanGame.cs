@@ -18,8 +18,8 @@ namespace Studio.Pacman
         [SerializeField] private float fullSpeed = 6f;
         [Tooltip("Tiles per second for eaten ghosts returning home (not in the Dossier table).")]
         [SerializeField] private float eatenGhostSpeed = 10f;
-        [Tooltip("Tunnel tiles at each end of row 8 where ghosts slow down (the Dossier's tunnel speed).")]
-        [SerializeField] private int tunnelSlowColumns = 4;
+        [Tooltip("Tunnel tiles at each end of the tunnel row where ghosts slow down (the Dossier's tunnel speed).")]
+        [SerializeField] private int tunnelSlowColumns = 6;
         [Tooltip("Frames Pac-Man stops after eating a dot (Dossier: one frame at 60 fps).")]
         [SerializeField] private int dotPauseFrames = 1;
         [Tooltip("Frames Pac-Man stops after eating a power pellet (Dossier: three frames at 60 fps).")]
@@ -1020,6 +1020,12 @@ namespace Studio.Pacman
             fruitRow = new GameObject("FruitRow").transform;
             fruitRow.SetParent(mazeRoot, false);
 
+            // The house holds three starts side by side: Pinky in the middle, Inky on the left, Clyde on the right.
+            ghostSpawns.Sort((a, b) => a.x.CompareTo(b.x));
+            if (ghostSpawns.Count == 3)
+            {
+                ghostSpawns = new List<Vector2Int> { ghostSpawns[1], ghostSpawns[0], ghostSpawns[2] };
+            }
             ghostStarts = ghostSpawns.ToArray();
             blinkyStart = PacmanMaze.BlinkyStart;
         }
@@ -1101,10 +1107,10 @@ namespace Studio.Pacman
             // (Blinky top-right, Pinky top-left, Inky bottom-right, Clyde bottom-left).
             Vector2Int[] corners =
             {
-                new Vector2Int(PacmanMaze.Width + 2, -3),
-                new Vector2Int(-3, -3),
-                new Vector2Int(PacmanMaze.Width + 2, PacmanMaze.Height + 2),
-                new Vector2Int(-3, PacmanMaze.Height + 2),
+                new Vector2Int(PacmanMaze.Width - 3, -3),
+                new Vector2Int(2, -3),
+                new Vector2Int(PacmanMaze.Width - 1, PacmanMaze.Height),
+                new Vector2Int(0, PacmanMaze.Height),
             };
             GhostKind[] kinds = { GhostKind.Blinky, GhostKind.Pinky, GhostKind.Inky, GhostKind.Clyde };
             for (int i = 0; i < kinds.Length; i++)
