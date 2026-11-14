@@ -5,7 +5,7 @@ using UnityEngine.Serialization;
 
 namespace Studio.Pacman
 {
-    public enum PacmanState { Title, Ready, Playing, Paused, Dying, LevelClear, GameOver, Story }
+    public enum PacmanState { Title, Ready, Playing, Paused, Dying, LevelClear, GameOver, Story, Cast }
 
     /// <summary>
     /// Game bootstrap and rules: builds the maze, owns scoring, lives, ghost mode timing and state flow.
@@ -134,14 +134,32 @@ namespace Studio.Pacman
         private bool storyReplay;
         private float storyHold;
 
+        // The cast sheets (PERSONAJES), and the name tag each character gets the first time they appear.
+        private const string MetKey = "studio.pacman.met";
+        private const float TagSeconds = 2.4f;
+        private int castIndex;
+        private int metMask;
+        private readonly Queue<CastMember> tagQueue = new Queue<CastMember>();
+        private CastMember tagMember;
+        private float tagTimer;
+
+        /// <summary>The character whose sheet shows while <see cref="State"/> is Cast.</summary>
+        public CastMember CastCurrent => PacmanCast.Members[PacmanCast.Wrap(castIndex)];
+        public int CastIndex => PacmanCast.Wrap(castIndex);
+
+        /// <summary>The character whose name tag is on screen (first time they appear), or null.</summary>
+        public CastMember TagMember => tagMember;
+        /// <summary>0 to 1: fade of the name tag (it eases in and out).</summary>
+        public float TagAlpha => tagMember == null ? 0f : Mathf.Clamp01(Mathf.Min(tagTimer, TagSeconds - tagTimer) / 0.35f);
+
         /// <summary>The comic being shown while <see cref="State"/> is Story, otherwise null.</summary>
         public PacmanStoryPlayer Story => State == PacmanState.Story ? story : null;
 
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "STORY", "OPTIONS" };
+        private static readonly string[] TitleItems = { "START", "STORY", "CAST", "OPTIONS" };
 #else
-        private static readonly string[] TitleItems = { "START", "STORY", "OPTIONS", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "STORY", "CAST", "OPTIONS", "QUIT" };
 #endif
         private static readonly string[] PauseItems = { "RESUME", "OPTIONS", "QUIT TO TITLE" };
 
@@ -245,6 +263,7 @@ namespace Studio.Pacman
             BuildMaze();
             BuildActors();
             CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
+            metMask = PlayerPrefs.GetInt(MetKey, 0);
             player.SetShoe(CurrentShoe);
             SetupCamera();
             audioSource = gameObject.AddComponent<AudioSource>();
@@ -277,6 +296,66 @@ namespace Studio.Pacman
             State = PacmanState.Title;
             menuIndex = 0;
             inOptions = false;
+            tagQueue.Clear();
+            tagMember = null;
+        }
+
+        /// <summary>Opens the character sheets from the title.</summary>
+        public void BeginCast()
+        {
+            castIndex = 0;
+            State = PacmanState.Cast;
+            menuIndex = 0;
+        }
+
+        private void ExitCast()
+        {
+            ShowTitle();
+            menuIndex = System.Array.IndexOf(TitleItems, "CAST");
+            PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
+        }
+
+        private void StepCast(int delta)
+        {
+            castIndex = PacmanCast.Wrap(castIndex + delta);
+            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+        }
+
+        /// <summary>
+        /// A character comes out for the first time on this install: their name tag is queued (one tag at a time,
+        /// never blocking play). Not in batch mode, where scenarios drive the game.
+        /// </summary>
+        private void Meet(int member)
+        {
+            int bit = 1 << member;
+            if ((metMask & bit) != 0)
+            {
+                return;
+            }
+            metMask |= bit;
+            PlayerPrefs.SetInt(MetKey, metMask);
+            PlayerPrefs.Save();
+            if (!Application.isBatchMode)
+            {
+                tagQueue.Enqueue(PacmanCast.Members[member]);
+            }
+        }
+
+        private void TickTag(float dt)
+        {
+            if (tagMember != null)
+            {
+                tagTimer += dt;
+                if (tagTimer >= TagSeconds)
+                {
+                    tagMember = null;
+                }
+            }
+            if (tagMember == null && tagQueue.Count > 0 && State == PacmanState.Playing)
+            {
+                tagMember = tagQueue.Dequeue();
+                tagTimer = 0f;
+            }
         }
 
         /// <summary>Starts the prologue comic. A replay returns to the title when it ends; the first showing starts the game.</summary>
@@ -343,6 +422,7 @@ namespace Studio.Pacman
             post?.SetPower(FrightenedActive && State == PacmanState.Playing ? 1f : 0f);
             post?.SetGloom(State == PacmanState.Dying || State == PacmanState.GameOver ? 1f : 0f);
             ReadInput();
+            TickTag(Time.unscaledDeltaTime);
 
             switch (State)
             {
@@ -389,6 +469,7 @@ namespace Studio.Pacman
                 case PacmanState.Title:
                 case PacmanState.Paused:
                 case PacmanState.GameOver:
+                case PacmanState.Cast:
                     break;
 
                 case PacmanState.Story:
@@ -535,6 +616,19 @@ namespace Studio.Pacman
                 return;
             }
 
+            if (State == PacmanState.Cast)
+            {
+                if (pressed && ui != null && ui.OnSkipButton(gui))
+                {
+                    ExitCast();
+                }
+                else if (pressed)
+                {
+                    StepCast(1);
+                }
+                return;
+            }
+
             if (State == PacmanState.Story)
             {
                 if (pressed && ui != null && ui.OnSkipButton(gui))
@@ -653,7 +747,7 @@ namespace Studio.Pacman
             float aspect = (float)Screen.width / Screen.height;
             float centreX = PacmanMaze.Width * 0.5f - 0.5f;
             float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
-            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && player != null;
+            bool close = closeView && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && State != PacmanState.Cast && player != null;
             float targetSize = close ? Mathf.Min(fullSize, Mathf.Max(6f, 5.4f / aspect)) : fullSize;
             Vector2 target = new Vector2(centreX, centreY);
             if (close)
@@ -730,6 +824,21 @@ namespace Studio.Pacman
                     }
                     return;
 
+                case PacmanState.Cast:
+                    if (input.Back)
+                    {
+                        ExitCast();
+                    }
+                    else if (input.Confirm || input.Down)
+                    {
+                        StepCast(1);
+                    }
+                    else if (input.Up)
+                    {
+                        StepCast(-1);
+                    }
+                    return;
+
                 case PacmanState.Story:
                     if (input.Back)
                     {
@@ -795,6 +904,9 @@ namespace Studio.Pacman
                     break;
                 case "STORY":
                     BeginStory(true);
+                    break;
+                case "CAST":
+                    BeginCast();
                     break;
                 case "RESUME":
                     State = PacmanState.Playing;
@@ -911,6 +1023,7 @@ namespace Studio.Pacman
 
             playTime += dt;
             release.Tick(dt);
+            Meet(0);
             for (int i = 0; i < ghosts.Count; i++)
             {
                 PacmanGhost ghost = ghosts[i];
@@ -918,6 +1031,7 @@ namespace Studio.Pacman
                 {
                     continue;
                 }
+                Meet(System.Array.IndexOf(PacmanCast.Members, PacmanCast.For(ghost.Kind)));
 
                 float speed;
                 if (ghost.Mode == GhostMode.Eaten)
