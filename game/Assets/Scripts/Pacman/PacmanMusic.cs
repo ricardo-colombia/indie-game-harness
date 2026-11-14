@@ -10,24 +10,16 @@ namespace Studio.Pacman
     public class PacmanMusic
     {
         public AudioClip Title { get; private set; }
-        public AudioClip Chase { get; private set; }
+        private AudioClip chase;
+
+        /// <summary>The gameplay loop (~97 s). Rendered the first time it is asked for, so the title screen shows before the synth works on it.</summary>
+        public AudioClip Chase => chase != null ? chase : (chase = BuildChase());
+
+        public bool ChaseReady => chase != null;
         public AudioClip Frightened { get; private set; }
         public AudioClip Intro { get; private set; }
 
-        // Bambuco: 6/8 against 3/4 (the "sesquialtera"), A minor with a lift to the relative major (C - G) and back through E.
-        // Eight bars of Am - E - Am - Dm - C - G - E - Am. Each bar is six eighths = twelve sixteenth steps.
-        private static readonly float[] Roots = { 45f, 40f, 45f, 38f, 48f, 43f, 40f, 45f };
-        private static readonly float[][] Strum =
-        {
-            new[] { 57f, 60f, 64f },
-            new[] { 56f, 59f, 64f },
-            new[] { 57f, 60f, 64f },
-            new[] { 57f, 62f, 65f },
-            new[] { 55f, 60f, 64f },
-            new[] { 55f, 59f, 62f },
-            new[] { 56f, 59f, 64f },
-            new[] { 57f, 60f, 64f },
-        };
+        // Bambuco: 6/8 against 3/4 (the "sesquialtera"), A minor with a lift to the relative major. Chord tables are in the chase form below.
 
         // Lead melody, a sung pasillo-style line: pairs of MIDI pitch (0 = rest) and length in eighths, six eighths per bar.
         private static readonly int[][] Melody =
@@ -48,15 +40,13 @@ namespace Studio.Pacman
         public PacmanMusic()
         {
             Title = BuildTitle();
-            Chase = BuildChase();
             Frightened = BuildFrightened();
             Intro = BuildIntro();
         }
 
         /// <summary>The note a diatonic third below, so the lead sings in the parallel thirds of the tiple duets.</summary>
-        private static float ThirdBelow(int midi, int bar)
+        private static float ThirdBelow(int midi, bool dominant)
         {
-            bool dominant = bar == 1 || bar == 6;
             for (int drop = 3; drop <= 4; drop++)
             {
                 int pc = ((midi - drop) % 12 + 12) % 12;
@@ -166,10 +156,114 @@ namespace Studio.Pacman
             return PacmanSynth.ToClip("music_title", melodic, true);
         }
 
+        // ---- Chase form: six sections of sixteen bars (~97 s) so the loop is long enough not to be noticed:
+        // A (the original tune), B (a new tune in the relative major), C (breakdown and build-up),
+        // A' and B' (the same tunes in the bright voice, an octave up), then a soft reprise of A that falls back into the start.
+        private struct ChaseBar
+        {
+            public string Chord;
+            public int[] Melody;
+            public bool Bright;
+            public bool Lift;
+            public bool Busy;
+            public bool Fill;
+        }
+
+        private static readonly string[] ChordsA = { "Am", "E", "Am", "Dm", "C", "G", "E", "Am" };
+        private static readonly string[] ChordsB = { "C", "G", "Am", "Em", "F", "C", "Dm", "E" };
+        private static readonly string[] ChordsC = { "Am", "Am", "Dm", "Dm", "E", "E", "Am", "E" };
+
+        private static readonly int[][] MelodyB =
+        {
+            new[] { 76, 2, 79, 1, 76, 1, 72, 2 },
+            new[] { 74, 2, 71, 1, 74, 1, 79, 2 },
+            new[] { 81, 2, 79, 1, 76, 1, 72, 2 },
+            new[] { 76, 3, 71, 1, 74, 1, 76, 1 },
+            new[] { 77, 2, 81, 1, 77, 1, 72, 2 },
+            new[] { 79, 2, 76, 1, 72, 1, 76, 2 },
+            new[] { 74, 2, 77, 1, 81, 1, 77, 2 },
+            new[] { 80, 2, 76, 1, 71, 1, 76, 2 },
+        };
+
+        private static readonly int[][] MelodyC =
+        {
+            new[] { 76, 3, 72, 1, 69, 2 },
+            new[] { 72, 2, 76, 2, 81, 2 },
+            new[] { 77, 3, 74, 1, 69, 2 },
+            new[] { 74, 2, 77, 2, 81, 2 },
+            new[] { 80, 2, 76, 2, 71, 2 },
+            new[] { 83, 3, 80, 1, 76, 2 },
+            new[] { 81, 3, 76, 1, 72, 2 },
+            new[] { 80, 4, 0, 2 },
+        };
+
+        private static float ChordRoot(string chord)
+        {
+            switch (chord)
+            {
+                case "Am": return 45f;
+                case "E": return 40f;
+                case "Dm": return 38f;
+                case "C": return 48f;
+                case "G": return 43f;
+                case "Em": return 40f;
+                default: return 41f; // F
+            }
+        }
+
+        private static float[] ChordStrum(string chord)
+        {
+            switch (chord)
+            {
+                case "Am": return new[] { 57f, 60f, 64f };
+                case "E": return new[] { 56f, 59f, 64f };
+                case "Dm": return new[] { 57f, 62f, 65f };
+                case "C": return new[] { 55f, 60f, 64f };
+                case "G": return new[] { 55f, 59f, 62f };
+                case "Em": return new[] { 55f, 59f, 64f };
+                default: return new[] { 57f, 60f, 65f }; // F
+            }
+        }
+
+        private static void AddPass(System.Collections.Generic.List<ChaseBar> form, string[] chords, int[][] melody, bool bright, bool liftAll, bool busy, bool fillAtEnd = false)
+        {
+            for (int i = 0; i < 8; i++)
+            {
+                form.Add(new ChaseBar
+                {
+                    Chord = chords[i],
+                    Melody = melody != null ? melody[i] : null,
+                    Bright = bright,
+                    Lift = bright && (liftAll || i % 4 >= 2),
+                    Busy = busy,
+                    Fill = fillAtEnd && i == 7,
+                });
+            }
+        }
+
+        private static System.Collections.Generic.List<ChaseBar> ChaseForm()
+        {
+            var form = new System.Collections.Generic.List<ChaseBar>();
+            AddPass(form, ChordsA, Melody, false, false, false);      // A
+            AddPass(form, ChordsA, Melody, true, false, true);
+            AddPass(form, ChordsB, MelodyB, false, false, false);     // B
+            AddPass(form, ChordsB, MelodyB, true, false, true);
+            AddPass(form, ChordsC, null, false, false, true);         // C: breakdown (no lead), then the lead returns
+            AddPass(form, ChordsC, MelodyC, true, false, true, true);
+            AddPass(form, ChordsA, Melody, true, true, true);         // A', bright all the way
+            AddPass(form, ChordsA, Melody, true, false, true);
+            AddPass(form, ChordsB, MelodyB, true, false, true);       // B', bright
+            AddPass(form, ChordsB, MelodyB, true, true, true);
+            AddPass(form, ChordsA, Melody, false, false, false);      // soft reprise of A, back into the start
+            AddPass(form, ChordsA, Melody, false, false, false);
+            return form;
+        }
+
         private static AudioClip BuildChase()
         {
             const float eighth = 0.168f;
-            const int bars = 16;
+            var form = ChaseForm();
+            int bars = form.Count;
             float step = eighth / 2f;
             float barLength = eighth * 6f;
             float[] melodic = PacmanSynth.Buffer(barLength * bars);
@@ -177,12 +271,13 @@ namespace Studio.Pacman
 
             for (int bar = 0; bar < bars; bar++)
             {
-                int chord = bar % 8;
-                bool second = bar >= 8;
+                ChaseBar cb = form[bar];
+                bool second = cb.Bright;
                 // Every other bar the accents slide from 6/8 (two groups of three) to 3/4 (three groups of two).
                 bool hemiola = bar % 2 == 1;
                 float barStart = bar * barLength;
-                float root = Roots[chord];
+                float root = ChordRoot(cb.Chord);
+                float[] strum = ChordStrum(cb.Chord);
 
                 // Guitar bass: root on one, the fifth answering on the second group.
                 PacmanSynth.Note(rhythm, barStart, eighth * 2.6f, root, Wave.Triangle, 0.34f, 3.5f);
@@ -198,21 +293,21 @@ namespace Studio.Pacman
                 foreach (int hit in hits)
                 {
                     float t = barStart + hit * eighth;
-                    for (int n = 0; n < Strum[chord].Length; n++)
+                    for (int n = 0; n < strum.Length; n++)
                     {
-                        PacmanSynth.Note(rhythm, t + n * 0.011f, eighth * 1.1f, Strum[chord][n], Wave.Pulse125, hemiola ? 0.085f : 0.06f, 11f);
+                        PacmanSynth.Note(rhythm, t + n * 0.011f, eighth * 1.1f, strum[n], Wave.Pulse125, hemiola ? 0.085f : 0.06f, 11f);
                     }
                 }
 
-                // Tiple: a bright running arpeggio, busier the second time round.
+                // Tiple: a bright running arpeggio, busier in the bright passes.
                 for (int e = 0; e < 6; e++)
                 {
-                    if (!second && e % 2 == 1)
+                    if (!cb.Busy && e % 2 == 1)
                     {
                         continue;
                     }
-                    float midi = Strum[chord][e % 3] + 12f;
-                    PacmanSynth.Note(melodic, barStart + e * eighth, eighth * 1.3f, midi, Wave.Pulse25, second ? 0.06f : 0.045f, 14f);
+                    float midi = strum[e % 3] + 12f;
+                    PacmanSynth.Note(melodic, barStart + e * eighth, eighth * 1.3f, midi, Wave.Pulse25, cb.Busy ? 0.06f : 0.045f, 14f);
                 }
 
                 // Percussion: tambora kick on one (and four), a dry rim where the hemiola bites, shaker on every eighth.
@@ -226,20 +321,33 @@ namespace Studio.Pacman
                 {
                     PacmanSynth.Hat(rhythm, barStart + h * step, h % 2 == 0 ? 0.06f : 0.025f, false, bar * 13 + h);
                 }
+                if (cb.Fill)
+                {
+                    // The build-up before the bright reprise: a snare roll that grows over the last two eighths.
+                    for (int f = 0; f < 4; f++)
+                    {
+                        PacmanSynth.Snare(rhythm, barStart + (4f + f * 0.5f) * eighth, 0.05f + f * 0.03f, bar * 17 + f);
+                    }
+                }
 
-                // Lead in parallel thirds. First pass: soft triangle; second pass: a brighter pulse an octave up in places.
-                int[] notes = Melody[chord];
+                // Lead in parallel thirds. Soft passes: triangle; bright passes: a pulse, an octave up in places.
+                int[] notes = cb.Melody;
+                if (notes == null)
+                {
+                    continue;
+                }
+                bool dominant = cb.Chord == "E";
                 float cursor = barStart;
                 for (int n = 0; n < notes.Length; n += 2)
                 {
                     float length = notes[n + 1] * eighth;
                     if (notes[n] > 0)
                     {
-                        float lift = second && bar % 4 >= 2 ? 12f : 0f;
+                        float lift = cb.Lift ? 12f : 0f;
                         Wave wave = second ? Wave.Pulse25 : Wave.Triangle;
                         float gain = second ? 0.11f : 0.2f;
                         PacmanSynth.Note(melodic, cursor, length * 0.96f, notes[n] + lift, wave, gain, 1.8f, 5.5f, 0.2f);
-                        PacmanSynth.Note(melodic, cursor, length * 0.96f, ThirdBelow(notes[n], chord) + lift, wave, gain * 0.7f, 1.8f, 5.5f, 0.2f);
+                        PacmanSynth.Note(melodic, cursor, length * 0.96f, ThirdBelow(notes[n], dominant) + lift, wave, gain * 0.7f, 1.8f, 5.5f, 0.2f);
                     }
                     cursor += length;
                 }

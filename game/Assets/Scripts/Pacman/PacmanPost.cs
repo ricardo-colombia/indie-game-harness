@@ -26,6 +26,8 @@ namespace Studio.Pacman
         private float chroma;
         private float powerTarget;
         private float power;
+        private float gloomTarget;
+        private float gloom;
         private Bloom bloom;
         private ChromaticAberration chromatic;
         private Vignette vignetteEffect;
@@ -59,6 +61,12 @@ namespace Studio.Pacman
         public void SetPower(float target)
         {
             powerTarget = Mathf.Clamp01(target);
+        }
+
+        /// <summary>When the picker is caught the colour drains a little and the edges close in. Eased in and out.</summary>
+        public void SetGloom(float target)
+        {
+            gloomTarget = Mathf.Clamp01(target);
         }
 
         /// <summary>Changes the resting zoom, for when the screen shape changes.</summary>
@@ -148,9 +156,10 @@ namespace Studio.Pacman
             chromatic.intensity.value = chroma * 0.6f;
             bloom.intensity.value = bloomIntensity + punch * 0.6f + power * 0.25f;
             power = Mathf.MoveTowards(power, powerTarget, Time.unscaledDeltaTime * 3f);
-            gradeEffect.saturation.value = 14f + power * 22f;
+            gloom = Mathf.MoveTowards(gloom, gloomTarget, Time.unscaledDeltaTime * (gloomTarget > gloom ? 1.6f : 4f));
+            gradeEffect.saturation.value = 14f + power * 22f - gloom * 50f;
             gradeEffect.contrast.value = 14f + power * 8f;
-            vignetteEffect.intensity.value = vignette + power * 0.14f;
+            vignetteEffect.intensity.value = vignette + power * 0.14f + gloom * 0.16f;
             vignetteEffect.color.value = Color.Lerp(Color.black, new Color(0.16f, 0.04f, 0.3f), power);
 
             Vector3 offset = Vector3.zero;

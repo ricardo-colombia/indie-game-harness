@@ -25,6 +25,7 @@ namespace Studio.Pacman
         private Track track;
         private Track wanted;
         private float fade;
+        private int warmFrames;
 
         /// <summary>Name of the track currently playing. Probe for audio tests.</summary>
         public string CurrentTrack => track.ToString();
@@ -49,6 +50,11 @@ namespace Studio.Pacman
             }
 
             PacmanState state = game.State;
+            // Render the long gameplay loop a moment after the title screen is up, not before the first frame.
+            if (!music.ChaseReady && state == PacmanState.Title && ++warmFrames > 45)
+            {
+                AudioClip ignore = music.Chase;
+            }
             wanted = Pick(state);
             if (wanted != track)
             {
