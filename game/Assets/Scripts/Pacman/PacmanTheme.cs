@@ -62,7 +62,7 @@ namespace Studio.Pacman
                 return null;
             }
             string key = Current + "/" + name;
-            if (Cache.TryGetValue(key, out Sprite cached))
+            if (Cache.TryGetValue(key, out Sprite cached) && cached != null)
             {
                 return cached;
             }
@@ -76,7 +76,11 @@ namespace Studio.Pacman
                     Mathf.Max(texture.width, texture.height), 0, SpriteMeshType.FullRect);
                 sprite.name = key;
             }
-            Cache[key] = sprite;
+            // A missing sprite is not cached, so a file added while the editor is open is picked up on the next build.
+            if (sprite != null)
+            {
+                Cache[key] = sprite;
+            }
             return sprite;
         }
     }
