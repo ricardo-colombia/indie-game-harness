@@ -22,6 +22,10 @@ namespace Studio.Pacman
 
         private static Sprite streakSprite;
         private static Sprite rippleSprite;
+        private static Sprite puddleSprite;
+        private SpriteRenderer[] puddles;
+        [Tooltip("Chance that an open cell holds a puddle while it rains.")]
+        [SerializeField, Range(0f, 1f)] private float puddleChance = 0.2f;
         private Transform[] ripples;
         private SpriteRenderer[] rippleRenderers;
 
@@ -62,6 +66,38 @@ namespace Studio.Pacman
                 self.seedY[i] = PacmanToon.Hash(i, 503);
                 self.speed[i] = Mathf.Lerp(0.9f, 1.5f, PacmanToon.Hash(i, 505));
             }
+            var puddleList = new System.Collections.Generic.List<SpriteRenderer>();
+            for (int y = 0; y < PacmanMaze.Height; y++)
+            {
+                for (int x = 0; x < PacmanMaze.Width; x++)
+                {
+                    Vector2Int cell = new Vector2Int(x, y);
+                    if (PacmanMaze.IsWall(cell) || PacmanMaze.IsGhostHouse(cell))
+                    {
+                        continue;
+                    }
+                    int id = y * 64 + x;
+                    if (PacmanToon.Hash(id, 541) > self.puddleChance)
+                    {
+                        continue;
+                    }
+                    GameObject pg = new GameObject("Puddle");
+                    pg.transform.SetParent(root.transform, false);
+                    SpriteRenderer pr = pg.AddComponent<SpriteRenderer>();
+                    pr.sprite = puddleSprite;
+                    pr.sortingOrder = -4;
+                    pr.color = new Color(1f, 1f, 1f, 0f);
+                    float w = Mathf.Lerp(0.6f, 1.0f, PacmanToon.Hash(id, 543));
+                    pg.transform.position = new Vector3(
+                        x + (PacmanToon.Hash(id, 545) - 0.5f) * 0.5f,
+                        -y + (PacmanToon.Hash(id, 547) - 0.5f) * 0.5f - 0.18f, 0f);
+                    pg.transform.localScale = new Vector3(w, w, 1f);
+                    pg.SetActive(false);
+                    puddleList.Add(pr);
+                }
+            }
+            self.puddles = puddleList.ToArray();
+
             self.ripples = new Transform[Ripples];
             self.rippleRenderers = new SpriteRenderer[Ripples];
             for (int i = 0; i < Ripples; i++)
@@ -105,6 +141,10 @@ namespace Studio.Pacman
                     {
                         t.gameObject.SetActive(false);
                     }
+                    foreach (SpriteRenderer pd in puddles)
+                    {
+                        pd.gameObject.SetActive(false);
+                    }
                 }
                 return;
             }
@@ -115,6 +155,15 @@ namespace Studio.Pacman
             float length = height * 0.11f;
             float thickness = height * 0.0045f * 16f; // the sprite is 2 px wide at 32 px per unit
             UpdateRipples(height, width, centre);
+            float wet = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((amount - 0.15f) / 0.85f));
+            foreach (SpriteRenderer pd in puddles)
+            {
+                if (!pd.gameObject.activeSelf)
+                {
+                    pd.gameObject.SetActive(true);
+                }
+                pd.color = new Color(1f, 1f, 1f, wet);
+            }
             int visible = Mathf.CeilToInt(Streaks * amount);
             for (int i = 0; i < Streaks; i++)
             {
@@ -169,6 +218,33 @@ namespace Studio.Pacman
 
         private static void EnsureSprite()
         {
+            if (puddleSprite == null)
+            {
+                // A shallow puddle: dark wet ground with a pale sky reflection along its upper rim, soft at the edge.
+                const int pw = 48;
+                const int ph = 24;
+                Color[] pp = new Color[pw * ph];
+                for (int y = 0; y < ph; y++)
+                {
+                    for (int x = 0; x < pw; x++)
+                    {
+                        float dx = (x + 0.5f) / pw * 2f - 1f;
+                        float dy = (y + 0.5f) / ph * 2f - 1f;
+                        float d = Mathf.Sqrt(dx * dx + dy * dy);
+                        float edge = Mathf.Clamp01((1f - d) / 0.18f);
+                        float sky = Mathf.Clamp01(dy * 0.9f + 0.1f) * Mathf.Clamp01((1f - d) / 0.5f);
+                        Color c = Color.Lerp(new Color(0.1f, 0.12f, 0.17f), new Color(0.62f, 0.72f, 0.88f), sky * 0.75f);
+                        c.a = edge * Mathf.Lerp(0.6f, 0.8f, sky);
+                        pp[y * pw + x] = c;
+                    }
+                }
+                Texture2D pt = new Texture2D(pw, ph, TextureFormat.RGBA32, false);
+                pt.filterMode = FilterMode.Bilinear;
+                pt.wrapMode = TextureWrapMode.Clamp;
+                pt.SetPixels(pp);
+                pt.Apply();
+                puddleSprite = Sprite.Create(pt, new Rect(0, 0, pw, ph), new Vector2(0.5f, 0.5f), pw);
+            }
             if (rippleSprite == null)
             {
                 // A thin ring, 1 unit wide, squashed vertically by the caller to read as lying on the ground.
