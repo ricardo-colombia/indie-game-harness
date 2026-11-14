@@ -33,6 +33,7 @@ namespace Studio.Pacman
 
         private PacmanGame game;
         private Font font;
+        private bool customFont;
         private Texture2D[] pacIcons;
         private Texture2D hatIcon;
         private GUIStyle label;
@@ -59,6 +60,13 @@ namespace Studio.Pacman
             instance = this;
             hatIcon = MakeHatIcon(64);
             pacIcons = new[] { MakePacIcon(64, 0.7f), MakePacIcon(64, 0.35f), MakePacIcon(64, 0.05f) };
+            // The label-poster face that ships with the game (Abril Fatface, SIL Open Font License); it works in browsers too.
+            font = Resources.Load<Font>("Fonts/AbrilFatface-Regular");
+            customFont = font != null;
+            if (customFont)
+            {
+                return;
+            }
 #if UNITY_WEBGL
             // Browsers have no OS fonts to load, so use the font that ships with Unity.
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -442,7 +450,7 @@ namespace Studio.Pacman
             }
             label = new GUIStyle(GUI.skin.label)
             {
-                fontStyle = FontStyle.Bold,
+                fontStyle = customFont ? FontStyle.Normal : FontStyle.Bold,
                 wordWrap = false,
                 clipping = TextClipping.Overflow,
             };
