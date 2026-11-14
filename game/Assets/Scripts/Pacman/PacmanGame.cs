@@ -1198,14 +1198,29 @@ namespace Studio.Pacman
         /// <summary>The wooden bar across the pest house gate. Cosmetic: the maze grid decides who may pass.</summary>
         private static void CreateGate(Transform parent, Vector2Int tile)
         {
-            GameObject bar = new GameObject("Gate");
-            bar.transform.SetParent(parent, false);
-            bar.transform.position = PacmanMaze.ToWorld(tile);
-            bar.transform.localScale = new Vector3(1f, 0.16f, 1f);
-            SpriteRenderer renderer = bar.AddComponent<SpriteRenderer>();
+            GameObject gate = new GameObject("Gate");
+            gate.transform.SetParent(parent, false);
+            gate.transform.position = PacmanMaze.ToWorld(tile);
+            Color wood = new Color(0.72f, 0.5f, 0.25f);
+            Color dark = new Color(0.34f, 0.2f, 0.09f);
+            // Two rails with a darker underside, and a post at each end, like a farm gate.
+            AddGatePart(gate.transform, dark, new Vector2(0f, -0.04f), new Vector3(1f, 0.2f, 1f), 2);
+            AddGatePart(gate.transform, wood, new Vector2(0f, 0.01f), new Vector3(0.96f, 0.11f, 1f), 3);
+            AddGatePart(gate.transform, wood, new Vector2(0f, -0.09f), new Vector3(0.96f, 0.05f, 1f), 3);
+            AddGatePart(gate.transform, dark, new Vector2(-0.48f, 0f), new Vector3(0.1f, 0.34f, 1f), 3);
+            AddGatePart(gate.transform, dark, new Vector2(0.48f, 0f), new Vector3(0.1f, 0.34f, 1f), 3);
+        }
+
+        private static void AddGatePart(Transform parent, Color colour, Vector2 position, Vector3 scale, int order)
+        {
+            GameObject part = new GameObject("Part");
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = position;
+            part.transform.localScale = scale;
+            SpriteRenderer renderer = part.AddComponent<SpriteRenderer>();
             renderer.sprite = PacmanSprites.Square;
-            renderer.color = new Color(0.72f, 0.5f, 0.25f);
-            renderer.sortingOrder = 2;
+            renderer.color = colour;
+            renderer.sortingOrder = order;
         }
 
         private void BuildActors()
