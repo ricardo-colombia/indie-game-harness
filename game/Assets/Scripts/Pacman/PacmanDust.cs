@@ -18,7 +18,7 @@ namespace Studio.Pacman
         [Tooltip("Offset of the feet from the object's centre, in tiles.")]
         [SerializeField] private Vector2 feet = new Vector2(0f, -0.3f);
         [Tooltip("Dust colour; alpha is the strongest opacity.")]
-        [SerializeField] private Color dust = new Color(0.82f, 0.66f, 0.45f, 0.5f);
+        [SerializeField] private Color dust = new Color(0.86f, 0.7f, 0.5f, 0.75f);
 
         private static Sprite puffSprite;
 
@@ -95,7 +95,7 @@ namespace Studio.Pacman
                     puffs[i].gameObject.SetActive(false);
                     continue;
                 }
-                float scale = Mathf.Lerp(0.18f, 0.5f, 1f - (1f - t) * (1f - t));
+                float scale = Mathf.Lerp(0.2f, 0.65f, 1f - (1f - t) * (1f - t));
                 puffs[i].localScale = new Vector3(scale, scale, 1f);
                 puffs[i].position += new Vector3(drift[i].x, drift[i].y, 0f) * Time.deltaTime;
                 Color c = dust;
