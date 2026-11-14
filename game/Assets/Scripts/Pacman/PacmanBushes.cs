@@ -186,6 +186,7 @@ namespace Studio.Pacman
             Color lightGreen = Color.Lerp(LeafLight, OliveLight, olive);
             bool flowering = seed % 4 == 1;
             float cherryBias = R(0f, 1f);
+            float flush = seed % 5 < 2 ? R(0.35f, 0.7f) : 0f;   // a flush of bronze new leaves on some plants
             // How heavy the harvest is: bare-ish, medium or loaded, so neighbouring plants differ the way real ones do.
             float load = seed % 3 == 0 ? R(0.1f, 0.25f) : seed % 3 == 1 ? R(0.35f, 0.5f) : R(0.6f, 0.8f);
             var fruitSegments = new System.Collections.Generic.List<Vector3>();   // x,y = branch point, z = side (+1/-1)
@@ -250,7 +251,9 @@ namespace Studio.Pacman
                         // The terminal leaf, pointing straight on.
                         if (n == nodes)
                         {
-                            c.Leaf(pos, heading - side * 8f, len * 0.9f, wid * 0.95f, midGreen, 0.6f);
+                            // New growth: the youngest pair at a branch tip is paler and bronze-tinted on many plants, as on a real cafeto.
+                            Color tip = flush > 0f ? Color.Lerp(lightGreen, new Color(0.62f, 0.42f, 0.16f), flush) : midGreen;
+                            c.Leaf(pos, heading - side * 8f, len * 0.9f, wid * 0.95f, tip, 0.6f);
                         }
                         Vector2 prevBefore = prev;
                         prev = pos;
