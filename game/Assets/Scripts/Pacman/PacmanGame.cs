@@ -1278,7 +1278,7 @@ namespace Studio.Pacman
                 renderer.color = (h >> 20) % 7 == 0
                     ? new Color(1f, 0.95f, 0.55f)
                     : new Color(1f, 0.82f + 0.18f * ripe, 0.8f + 0.2f * ripe);
-                AddPelletShadow(pellet.transform);
+                AddPelletShadow(pellet.transform, themed);
                 return pellet;
             }
             if (!power)
@@ -1289,7 +1289,7 @@ namespace Studio.Pacman
                 renderer.color = light ? PelletUnripeColour : PelletColour;
                 pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
                 AddPelletPart(pellet.transform, new Color(0.22f, 0.1f, 0.04f), new Vector2(0f, 0f), new Vector3(0.1f, 0.74f, 1f), 0f, 2, PacmanSprites.Square);
-                AddPelletShadow(pellet.transform);
+                AddPelletShadow(pellet.transform, PacmanSprites.Bean);
                 return pellet;
             }
 
@@ -1320,7 +1320,7 @@ namespace Studio.Pacman
         }
 
         /// <summary>A contact shadow, the bean's own silhouette nudged below-right, so it lies on the earth and not painted on it.</summary>
-        private static void AddPelletShadow(Transform pellet)
+        private static void AddPelletShadow(Transform pellet, Sprite silhouette)
         {
             GameObject shadow = new GameObject("Shadow");
             shadow.transform.SetParent(pellet, false);
@@ -1328,8 +1328,8 @@ namespace Studio.Pacman
             shadow.transform.localRotation = Quaternion.identity;
             shadow.transform.localScale = Vector3.one * 1.08f;
             SpriteRenderer renderer = shadow.AddComponent<SpriteRenderer>();
-            renderer.sprite = PacmanSprites.Bean;
-            renderer.color = new Color(0.04f, 0.02f, 0.008f, 0.6f);
+            renderer.sprite = silhouette;
+            renderer.color = new Color(0.04f, 0.02f, 0.008f, 0.62f);
             renderer.sortingOrder = 0;
         }
 
