@@ -14,29 +14,35 @@ namespace Studio.Pacman
         private const float MaxMouth = 0.72f;
         private const float BodyScale = 1.15f;
 
-        private static readonly Color Shirt = new Color(0.96f, 0.95f, 0.9f);
-        private static readonly Color Sleeve = new Color(0.88f, 0.87f, 0.82f);
-        private static readonly Color Jeans = new Color(0.25f, 0.38f, 0.62f);
-        private static readonly Color Skin = new Color(0.78f, 0.52f, 0.34f);
-        private static readonly Color Dark = new Color(0.12f, 0.08f, 0.06f);
-        private static readonly Color Boot = new Color(0.2f, 0.12f, 0.07f);
-        private static readonly Color BrimStraw = new Color(0.86f, 0.7f, 0.42f);
-        private static readonly Color CrownStraw = new Color(0.94f, 0.82f, 0.55f);
-        private static readonly Color BasketColour = new Color(0.7f, 0.45f, 0.4f);
-        private static readonly Color Cherry = new Color(0.88f, 0.1f, 0.14f);
-
         [Tooltip("Walk cycles per second while moving.")]
         [SerializeField] private float chompRate = 3.2f;
 
         private enum View { Side, Front, Back }
+
+        /// <summary>The bones of one view that the walk cycle moves.</summary>
+        private sealed class Rig
+        {
+            public Transform Upper;
+            public Transform Head;
+            public Transform Hat;
+            public Transform Basket;
+            public Transform[] Thigh = new Transform[2];
+            public Transform[] Shin = new Transform[2];
+            public Transform[] Arm = new Transform[2];
+            public Transform[] Fore = new Transform[2];
+            public Vector3[] ThighHome = new Vector3[2];
+            public Vector3 UpperHome;
+            public Vector3 HeadHome;
+        }
 
         private PacmanGame game;
         private Vector2Int desired;
         private Transform body;
         private Transform farmer;
         private Transform[] views = new Transform[3];
-        private Transform[][] legs = new Transform[3][];
-        private Transform[][] arms = new Transform[3][];
+        private Rig[] rigs = new Rig[3];
+        private float gait;
+        private float moveBlend;
         private View view = View.Side;
         private float facing = -1f;
         private float raise;
@@ -66,7 +72,7 @@ namespace Studio.Pacman
             bodyObject.transform.SetParent(transform, false);
             body = bodyObject.transform;
             body.localScale = Vector3.one * BodyScale;
-            Prim(body, PacmanSprites.Disc, new Color(0f, 0f, 0f, 0.4f), new Vector2(0f, -0.5f), new Vector2(0.55f, 0.13f), 0f, 4);
+            Prim(body, PacmanFarmerArt.Shadow(), new Color(0f, 0f, 0f, 0.4f), new Vector2(0f, -0.5f), Vector2.one, 0f, 4);
             BuildFarmer();
             PacmanGlow.Attach(transform, new Color(1f, 0.85f, 0.45f), 3.2f, 0.2f);
 
@@ -102,32 +108,56 @@ namespace Studio.Pacman
             return go.transform;
         }
 
+        private const float HipY = -0.14f;
+
+        private static Transform Group(Transform parent, string name, Vector2 position)
+        {
+            GameObject go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = position;
+            return go.transform;
+        }
+
+        /// <summary>Arm: the upper arm hangs from the shoulder and the forearm from its elbow.</summary>
+        private static void BuildArm(Transform parent, Rig rig, int index, Vector2 shoulder, ref int o)
+        {
+            Transform arm = Prim(parent, PacmanFarmerArt.UpperArm(), Color.white, shoulder, Vector2.one, 0f, o++);
+            Transform fore = Prim(arm, PacmanFarmerArt.Forearm(), Color.white, new Vector2(0f, -0.17f), Vector2.one, 0f, o++);
+            rig.Arm[index] = arm;
+            rig.Fore[index] = fore;
+        }
+
+        private static void BuildLeg(Transform parent, Rig rig, int index, Vector2 hip, bool front, ref int o)
+        {
+            Transform thigh = Prim(parent, PacmanFarmerArt.Thigh(), Color.white, hip, Vector2.one, 0f, o++);
+            Transform shin = Prim(thigh, PacmanFarmerArt.Shin(front), Color.white, new Vector2(0f, -0.14f), Vector2.one, 0f, o++);
+            rig.Thigh[index] = thigh;
+            rig.Shin[index] = shin;
+            rig.ThighHome[index] = thigh.localPosition;
+        }
+
         private void BuildSide()
         {
             Transform t = NewView(View.Side);
+            Rig rig = new Rig();
             int o = 0;
-            Transform backArm = Limb(t, new Vector2(0f, 0.14f), Sleeve, 0.27f, 0.1f, ref o, true);
-            Transform backLeg = Limb(t, new Vector2(0f, -0.14f), new Color(0.2f, 0.3f, 0.5f), 0.34f, 0.14f, ref o, false);
-            // Canasto on the back: a woven basket full of cherries.
-            Prim(t, PacmanSprites.Disc, BasketColour, new Vector2(-0.22f, -0.02f), new Vector2(0.3f, 0.38f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, new Color(0.32f, 0.18f, 0.1f), new Vector2(-0.22f, 0.16f), new Vector2(0.28f, 0.1f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Cherry, new Vector2(-0.27f, 0.18f), new Vector2(0.09f, 0.09f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Cherry, new Vector2(-0.18f, 0.19f), new Vector2(0.09f, 0.09f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Cherry, new Vector2(-0.22f, 0.21f), new Vector2(0.08f, 0.08f), 0f, o++);
-            // Torso, belt and the strap of the basket.
-            Prim(t, PacmanSprites.Disc, Shirt, new Vector2(0f, 0.02f), new Vector2(0.34f, 0.44f), 0f, o++);
-            Prim(t, PacmanSprites.Square, Dark, new Vector2(0f, -0.14f), new Vector2(0.28f, 0.04f), 0f, o++);
-            Prim(t, PacmanSprites.Square, new Color(0.5f, 0.3f, 0.2f), new Vector2(-0.06f, 0.05f), new Vector2(0.05f, 0.4f), 25f, o++);
-            Transform frontLeg = Limb(t, new Vector2(0f, -0.14f), Jeans, 0.34f, 0.14f, ref o, false);
-            // Head in profile: skin, nose, eye and moustache.
-            Prim(t, PacmanSprites.Disc, Skin, new Vector2(0.04f, 0.3f), new Vector2(0.27f, 0.27f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Skin, new Vector2(0.17f, 0.28f), new Vector2(0.08f, 0.08f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Dark, new Vector2(0.11f, 0.33f), new Vector2(0.045f, 0.045f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Dark, new Vector2(0.13f, 0.235f), new Vector2(0.12f, 0.045f), 0f, o++);
-            Transform frontArm = Limb(t, new Vector2(0.02f, 0.14f), Shirt, 0.27f, 0.11f, ref o, true);
-            AddHat(t, new Vector2(0.03f, 0f), 0.66f, ref o);
-            legs[(int)View.Side] = new[] { backLeg, frontLeg };
-            arms[(int)View.Side] = new[] { backArm, frontArm };
+            // Everything above the hips hangs from one "upper" bone so the torso can lean and sway as he steps.
+            BuildLeg(t, rig, 0, new Vector2(0f, HipY), false, ref o);
+            Transform upper = Group(t, "Upper", new Vector2(0f, HipY));
+            rig.Upper = upper;
+            rig.UpperHome = upper.localPosition;
+            // The upper bone's origin is the hips, so parts on it are placed relative to them.
+            BuildArm(upper, rig, 0, new Vector2(0f, 0.28f), ref o);
+            rig.Basket = Prim(upper, PacmanFarmerArt.BasketSide(), Color.white, new Vector2(-0.21f, 0.2f), Vector2.one, 0f, o++);
+            Prim(upper, PacmanFarmerArt.TorsoSide(), Color.white, new Vector2(0f, 0.16f), Vector2.one, 0f, o++);
+            BuildLeg(t, rig, 1, new Vector2(0f, HipY), false, ref o);
+            Transform head = Group(upper, "Head", new Vector2(0.03f, 0.44f));
+            rig.Head = head;
+            rig.HeadHome = head.localPosition;
+            Prim(head, PacmanFarmerArt.HeadSide(), Color.white, Vector2.zero, Vector2.one, 0f, o++);
+            BuildArm(upper, rig, 1, new Vector2(0.02f, 0.28f), ref o);
+            rig.Hat = Prim(head, PacmanFarmerArt.Hat(0.66f), Color.white, new Vector2(0f, 0.23f), Vector2.one, 0f, o++);
+            rigs[(int)View.Side] = rig;
         }
 
         /// <summary>Front view (walking down: face and moustache) or back view (walking up: the canasto).</summary>
@@ -135,63 +165,32 @@ namespace Studio.Pacman
         {
             View v = back ? View.Back : View.Front;
             Transform t = NewView(v);
+            Rig rig = new Rig();
             int o = 0;
+            BuildLeg(t, rig, 0, new Vector2(-0.085f, HipY), true, ref o);
+            BuildLeg(t, rig, 1, new Vector2(0.085f, HipY), true, ref o);
+            Transform upper = Group(t, "Upper", new Vector2(0f, HipY));
+            rig.Upper = upper;
+            rig.UpperHome = upper.localPosition;
             if (!back)
             {
                 // The basket peeks out behind his shoulders.
-                Prim(t, PacmanSprites.Disc, BasketColour, new Vector2(0f, 0.12f), new Vector2(0.52f, 0.34f), 0f, o++);
+                rig.Basket = Prim(upper, PacmanFarmerArt.BasketRound(true), Color.white, new Vector2(0f, 0.3f), Vector2.one, 0f, o++);
             }
-            Transform legL = Limb(t, new Vector2(-0.08f, -0.14f), Jeans, 0.34f, 0.14f, ref o, false);
-            Transform legR = Limb(t, new Vector2(0.08f, -0.14f), Jeans, 0.34f, 0.14f, ref o, false);
-            Transform armL = Limb(t, new Vector2(-0.2f, 0.15f), Shirt, 0.27f, 0.1f, ref o, true);
-            Transform armR = Limb(t, new Vector2(0.2f, 0.15f), Shirt, 0.27f, 0.1f, ref o, true);
-            Prim(t, PacmanSprites.Disc, Shirt, new Vector2(0f, 0.02f), new Vector2(0.4f, 0.44f), 0f, o++);
-            Prim(t, PacmanSprites.Square, Dark, new Vector2(0f, -0.14f), new Vector2(0.34f, 0.04f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, Skin, new Vector2(0f, 0.3f), new Vector2(0.28f, 0.28f), 0f, o++);
-            if (!back)
+            BuildArm(upper, rig, 0, new Vector2(-0.21f, 0.29f), ref o);
+            BuildArm(upper, rig, 1, new Vector2(0.21f, 0.29f), ref o);
+            Prim(upper, PacmanFarmerArt.TorsoFront(back), Color.white, new Vector2(0f, 0.16f), Vector2.one, 0f, o++);
+            if (back)
             {
-                Prim(t, PacmanSprites.Disc, Dark, new Vector2(-0.06f, 0.32f), new Vector2(0.045f, 0.045f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, Dark, new Vector2(0.06f, 0.32f), new Vector2(0.045f, 0.045f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, Dark, new Vector2(0f, 0.24f), new Vector2(0.15f, 0.045f), 0f, o++);
+                // The canasto covers his back.
+                rig.Basket = Prim(upper, PacmanFarmerArt.BasketRound(false), Color.white, new Vector2(0f, 0.17f), Vector2.one, 0f, o++);
             }
-            else
-            {
-                // The canasto covers his back; hair shows under the hat.
-                Prim(t, PacmanSprites.Disc, Dark, new Vector2(0f, 0.33f), new Vector2(0.28f, 0.2f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, BasketColour, new Vector2(0f, 0.0f), new Vector2(0.44f, 0.44f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, new Color(0.32f, 0.18f, 0.1f), new Vector2(0f, 0.0f), new Vector2(0.34f, 0.34f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, Cherry, new Vector2(-0.07f, 0.04f), new Vector2(0.09f, 0.09f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, Cherry, new Vector2(0.06f, 0.0f), new Vector2(0.09f, 0.09f), 0f, o++);
-                Prim(t, PacmanSprites.Disc, Cherry, new Vector2(0f, -0.07f), new Vector2(0.08f, 0.08f), 0f, o++);
-            }
-            AddHat(t, Vector2.zero, 0.72f, ref o);
-            legs[(int)v] = new[] { legL, legR };
-            arms[(int)v] = new[] { armL, armR };
-        }
-
-        private static void AddHat(Transform t, Vector2 offset, float brim, ref int o)
-        {
-            Prim(t, PacmanSprites.Disc, BrimStraw, offset + new Vector2(0f, 0.43f), new Vector2(brim, 0.15f), 0f, o++);
-            Prim(t, PacmanSprites.Disc, CrownStraw, offset + new Vector2(-0.02f, 0.51f), new Vector2(0.34f, 0.3f), 0f, o++);
-            Prim(t, PacmanSprites.Square, Dark, offset + new Vector2(-0.02f, 0.44f), new Vector2(0.32f, 0.07f), 0f, o++);
-        }
-
-        /// <summary>An arm or leg: a pivot at the joint with a bar hanging down from it and a hand or boot at the end.</summary>
-        private static Transform Limb(Transform parent, Vector2 joint, Color colour, float length, float width, ref int order, bool arm)
-        {
-            GameObject pivot = new GameObject(arm ? "Arm" : "Leg");
-            pivot.transform.SetParent(parent, false);
-            pivot.transform.localPosition = joint;
-            Prim(pivot.transform, PacmanSprites.Square, colour, new Vector2(0f, -length * 0.5f), new Vector2(width, length), 0f, order++);
-            if (arm)
-            {
-                Prim(pivot.transform, PacmanSprites.Disc, Skin, new Vector2(0f, -length), new Vector2(0.11f, 0.11f), 0f, order++);
-            }
-            else
-            {
-                Prim(pivot.transform, PacmanSprites.Disc, Boot, new Vector2(0.03f, -length), new Vector2(0.2f, 0.1f), 0f, order++);
-            }
-            return pivot.transform;
+            Transform head = Group(upper, "Head", new Vector2(0f, 0.44f));
+            rig.Head = head;
+            rig.HeadHome = head.localPosition;
+            Prim(head, PacmanFarmerArt.HeadFront(back), Color.white, Vector2.zero, Vector2.one, 0f, o++);
+            rig.Hat = Prim(head, PacmanFarmerArt.Hat(0.72f), Color.white, new Vector2(0f, 0.23f), Vector2.one, 0f, o++);
+            rigs[(int)v] = rig;
         }
 
         private static Transform Prim(Transform parent, Sprite sprite, Color colour, Vector2 position, Vector2 size, float angle, int order)
@@ -301,9 +300,12 @@ namespace Studio.Pacman
                 return;
             }
 
-            raise = Mathf.MoveTowards(raise, 0f, Time.deltaTime * 6f);
-            if (Dir != Vector2Int.zero)
+            raise = Mathf.MoveTowards(raise, 0f, Time.deltaTime * 5f);
+            bool moving = Dir != Vector2Int.zero;
+            moveBlend = Mathf.MoveTowards(moveBlend, moving ? 1f : 0f, Time.deltaTime * 7f);
+            if (moving)
             {
+                gait = Mathf.Repeat(gait + Time.deltaTime * chompRate * 2f * Mathf.PI, 2f * Mathf.PI);
                 phase = Mathf.Repeat(phase + Time.deltaTime * chompRate * 2f * Mathf.PI, 2f * Mathf.PI);
                 float open = 0.5f + 0.5f * Mathf.Sin(phase);
                 SetMouth(Mathf.Lerp(MinMouth, MaxMouth, open * open));
@@ -316,28 +318,67 @@ namespace Studio.Pacman
             Animate();
         }
 
-        /// <summary>Walk cycle: legs and arms swing, the body bobs. A grabbed bean raises the front arm.</summary>
+        /// <summary>
+        /// Walk cycle driven by one continuous phase: the legs swing and bend at the knee, the arms swing against
+        /// them, the body bobs twice per cycle, and the torso, head, hat and canasto follow a beat behind. The pose
+        /// blends in and out with movement instead of snapping, and he breathes when standing.
+        /// </summary>
         private void Animate()
         {
-            bool moving = Dir != Vector2Int.zero;
-            float s = moving ? Mathf.Sin(phase) : 0f;
-            farmer.localPosition = new Vector3(0f, moving ? Mathf.Abs(s) * 0.035f : 0f, 0f);
-            Transform[] l = legs[(int)view];
-            Transform[] a = arms[(int)view];
+            Rig rig = rigs[(int)view];
+            float amp = moveBlend;
+            float p = gait;
+            float breathe = Mathf.Sin(Time.time * 2.4f) * (1f - amp);
+            float step = Mathf.Cos(p);
+            farmer.localPosition = new Vector3(0f, amp * 0.034f * step * step + breathe * 0.004f, 0f);
+
             if (view == View.Side)
             {
-                l[0].localRotation = Quaternion.Euler(0f, 0f, 38f * s);
-                l[1].localRotation = Quaternion.Euler(0f, 0f, -38f * s);
-                a[0].localRotation = Quaternion.Euler(0f, 0f, -30f * s);
-                a[1].localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(30f * s, 100f, raise));
+                for (int i = 0; i < 2; i++)
+                {
+                    float pp = p + i * Mathf.PI;
+                    float swing = Mathf.Sin(pp);
+                    float lift = Mathf.Pow(Mathf.Max(0f, Mathf.Cos(pp)), 1.4f);
+                    rig.Thigh[i].localRotation = Quaternion.Euler(0f, 0f, 31f * swing * amp);
+                    rig.Shin[i].localRotation = Quaternion.Euler(0f, 0f, -52f * lift * amp);
+                    // Arms swing against the leg on their own side; the elbow bends as the arm comes forward.
+                    float armSwing = -swing * 24f * amp;
+                    rig.Arm[i].localRotation = Quaternion.Euler(0f, 0f, armSwing + (i == 1 ? raise * 95f : 0f) - breathe * 1.5f);
+                    rig.Fore[i].localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(8f + Mathf.Max(0f, armSwing) * 0.9f, 55f, i == 1 ? raise : 0f));
+                }
+                rig.Upper.localRotation = Quaternion.Euler(0f, 0f, (-3.5f + 1.8f * Mathf.Sin(p)) * amp);
+                rig.Upper.localPosition = rig.UpperHome + new Vector3(0f, breathe * 0.004f, 0f);
+                rig.Head.localRotation = Quaternion.Euler(0f, 0f, 2.2f * Mathf.Sin(p - 0.8f) * amp + breathe * 0.8f);
+                rig.Head.localPosition = rig.HeadHome + new Vector3(0f, 0.008f * Mathf.Sin(2f * p + 0.7f) * amp, 0f);
+                rig.Hat.localRotation = Quaternion.Euler(0f, 0f, 3.5f * Mathf.Sin(2f * p - 1.1f) * amp);
+                rig.Basket.localRotation = Quaternion.Euler(0f, 0f, -5f * Mathf.Sin(p - 1f) * amp);
             }
             else
             {
-                // Facing the camera or away from it: a foot lifts alternately and the arms swing in and out.
-                l[0].localScale = new Vector3(1f, 1f - 0.2f * Mathf.Max(0f, s), 1f);
-                l[1].localScale = new Vector3(1f, 1f - 0.2f * Mathf.Max(0f, -s), 1f);
-                a[0].localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-10f * s, -75f, raise));
-                a[1].localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(10f * s, 75f, raise));
+                for (int i = 0; i < 2; i++)
+                {
+                    float pp = p + i * Mathf.PI;
+                    float swing = Mathf.Sin(pp);
+                    float lift = Mathf.Max(0f, swing);
+                    // A foot lifts and the knee bends while the other plants.
+                    rig.Thigh[i].localPosition = rig.ThighHome[i] + new Vector3(0f, 0.032f * lift * amp, 0f);
+                    rig.Thigh[i].localRotation = Quaternion.Euler(0f, 0f, (i == 0 ? -1f : 1f) * 5f * lift * amp);
+                    rig.Shin[i].localRotation = Quaternion.Euler(0f, 0f, (i == 0 ? 1f : -1f) * 12f * lift * amp);
+                    rig.Shin[i].localScale = new Vector3(1f, 1f - 0.12f * lift * amp, 1f);
+                    float outward = (i == 0 ? 1f : -1f);
+                    float armSwing = swing * 12f * amp;
+                    rig.Arm[i].localRotation = Quaternion.Euler(0f, 0f, outward * (4f - armSwing) + (raise > 0f ? outward * -raise * 80f : 0f));
+                    rig.Fore[i].localRotation = Quaternion.Euler(0f, 0f, outward * (-6f - 8f * Mathf.Max(0f, -swing) * amp));
+                }
+                rig.Upper.localRotation = Quaternion.Euler(0f, 0f, -2.5f * Mathf.Sin(p) * amp);
+                rig.Upper.localPosition = rig.UpperHome + new Vector3(0.012f * Mathf.Sin(p) * amp, breathe * 0.004f, 0f);
+                rig.Head.localRotation = Quaternion.Euler(0f, 0f, 2f * Mathf.Sin(p - 0.6f) * amp + breathe * 0.8f);
+                rig.Head.localPosition = rig.HeadHome + new Vector3(0f, 0.008f * Mathf.Sin(2f * p + 0.7f) * amp, 0f);
+                rig.Hat.localRotation = Quaternion.Euler(0f, 0f, 3f * Mathf.Sin(2f * p - 1.1f) * amp);
+                if (rig.Basket != null)
+                {
+                    rig.Basket.localRotation = Quaternion.Euler(0f, 0f, -3f * Mathf.Sin(p - 1f) * amp);
+                }
             }
         }
 

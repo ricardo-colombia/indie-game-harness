@@ -7,8 +7,9 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanSfx
     {
-        public AudioClip WakaA { get; private set; }
-        public AudioClip WakaB { get; private set; }
+        /// <summary>Two alternating footsteps through the plantation: soil crunch plus a leaf rustle.</summary>
+        public AudioClip StepA { get; private set; }
+        public AudioClip StepB { get; private set; }
         public AudioClip Pellet { get; private set; }
         public AudioClip Power { get; private set; }
         public AudioClip GhostEaten { get; private set; }
@@ -25,8 +26,8 @@ namespace Studio.Pacman
 
         public PacmanSfx()
         {
-            WakaA = Waka("waka_a", 52f, 64f);
-            WakaB = Waka("waka_b", 64f, 52f);
+            StepA = Footstep("step_a", 3, 1f);
+            StepB = Footstep("step_b", 11, 0.86f);
             Pellet = Pickup("pellet", 83f, 88f, 0.05f, 0.14f);
             Power = BuildPower();
             Death = BuildDeath();
@@ -61,11 +62,19 @@ namespace Studio.Pacman
             }
         }
 
-        private static AudioClip Waka(string name, float fromMidi, float toMidi)
+        /// <summary>
+        /// One boot step on soft earth between the coffee rows: a dull thud, a crunch of grit, and the brush of
+        /// glossy leaves against clothes. Two seeds and pitches make the left and right foot differ.
+        /// </summary>
+        private static AudioClip Footstep(string name, int seed, float pitch)
         {
-            float[] buf = PacmanSynth.Buffer(0.12f);
-            PacmanSynth.Tone(buf, 0f, 0.1f, PacmanSynth.Hz(fromMidi), PacmanSynth.Hz(toMidi), Wave.Pulse25, 0.22f, 6f, 0.003f, 0.03f);
-            PacmanSynth.Tone(buf, 0f, 0.1f, PacmanSynth.Hz(fromMidi - 12f), PacmanSynth.Hz(toMidi - 12f), Wave.Triangle, 0.18f, 6f, 0.003f, 0.03f);
+            float[] buf = PacmanSynth.Buffer(0.24f);
+            PacmanSynth.Tone(buf, 0f, 0.09f, 95f * pitch, 48f * pitch, Wave.Triangle, 0.3f, 38f, 0.002f, 0.02f);
+            PacmanSynth.Noise(buf, 0f, 0.11f, 0.3f, 42f, 0.28f * pitch, seed);
+            PacmanSynth.Noise(buf, 0.028f, 0.03f, 0.1f, 160f, 0.9f, seed + 1);
+            PacmanSynth.Noise(buf, 0.052f, 0.03f, 0.08f, 160f, 0.9f, seed + 2);
+            PacmanSynth.Noise(buf, 0.015f, 0.2f, 0.1f, 14f, 0.75f, seed + 5);
+            PacmanSynth.Limit(buf);
             return PacmanSynth.ToClip(name, buf);
         }
 

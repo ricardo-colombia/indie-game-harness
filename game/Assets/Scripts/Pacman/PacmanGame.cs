@@ -604,7 +604,7 @@ namespace Studio.Pacman
                 {
                     wakaTimer = wakaInterval;
                     wakaFlip = !wakaFlip;
-                    PacmanSfx.Play(audioSource, wakaFlip ? sfx?.WakaA : sfx?.WakaB, soundOn);
+                    PacmanSfx.Play(audioSource, wakaFlip ? sfx?.StepA : sfx?.StepB, soundOn);
                 }
             }
             else
@@ -1025,6 +1025,25 @@ namespace Studio.Pacman
             pellet.transform.localScale = Vector3.one * (power ? PowerPelletSize : PelletSize);
             SpriteRenderer renderer = pellet.AddComponent<SpriteRenderer>();
             renderer.sortingOrder = 1;
+            Sprite themed = PacmanTheme.Get(power ? "mug" : "bean");
+            if (!power && themed != null)
+            {
+                // A themed bean: its own sprite, each tilted a little differently.
+                // Every cherry differs: free rotation, mirror, size and ripeness (from deep red to a few still-yellow ones).
+                renderer.sprite = themed;
+                int h = (tile.x * 73856093) ^ (tile.y * 19349663);
+                h ^= h >> 13;
+                h *= 1274126177;
+                h ^= h >> 16;
+                float size = 0.82f + ((h >> 3) & 15) * 0.02f;
+                pellet.transform.localScale = new Vector3(((h >> 7) & 1) == 0 ? size : -size, size, 1f) * PelletSize;
+                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((h >> 8) & 255) / 255f * 360f);
+                float ripe = ((h >> 16) & 15) / 15f;
+                renderer.color = (h >> 20) % 7 == 0
+                    ? new Color(1f, 0.95f, 0.55f)
+                    : new Color(1f, 0.82f + 0.18f * ripe, 0.8f + 0.2f * ripe);
+                return pellet;
+            }
             if (!power)
             {
                 // A coffee bean: caramel body with a dark crease, each tilted a little differently.
@@ -1040,9 +1059,14 @@ namespace Studio.Pacman
             // the picker chase the pests. The root disc is a warm glow behind it.
             renderer.sprite = PacmanSprites.Disc;
             renderer.color = PowerPelletColour;
+            Transform t = pellet.transform;
+            if (themed != null)
+            {
+                AddPelletPart(t, Color.white, Vector2.zero, Vector3.one * 0.92f, 0f, 3, themed);
+                return pellet;
+            }
             Color cream = new Color(0.95f, 0.91f, 0.8f);
             Color dark = new Color(0.07f, 0.04f, 0.025f);
-            Transform t = pellet.transform;
             AddPelletPart(t, cream, new Vector2(0.27f, -0.08f), new Vector3(0.36f, 0.36f, 1f), 0f, 2);
             AddPelletPart(t, dark, new Vector2(0.28f, -0.08f), new Vector3(0.16f, 0.16f, 1f), 0f, 3);
             AddPelletPart(t, cream, new Vector2(-0.1f, -0.08f), new Vector3(0.58f, 0.5f, 1f), 0f, 3, PacmanSprites.Square);

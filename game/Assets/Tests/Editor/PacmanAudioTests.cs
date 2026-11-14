@@ -30,8 +30,8 @@ namespace Studio.Pacman.Tests
         public void Sfx_AllClipsAreAudibleAndFinite()
         {
             PacmanSfx sfx = new PacmanSfx();
-            AssertClean(sfx.WakaA, "WakaA");
-            AssertClean(sfx.WakaB, "WakaB");
+            AssertClean(sfx.StepA, "StepA");
+            AssertClean(sfx.StepB, "StepB");
             AssertClean(sfx.Pellet, "Pellet");
             AssertClean(sfx.Power, "Power");
             AssertClean(sfx.GhostEaten, "GhostEaten");
