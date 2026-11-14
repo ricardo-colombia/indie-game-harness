@@ -105,6 +105,7 @@ namespace Studio.Pacman
             floorRenderer.sortingOrder = -10;
 
             PacmanPath.Build(transform);
+            PacmanPatio.Build(transform);
 
             PacmanMazeArt.Get(out Sprite lineSprite, out Sprite fillSprite);
 
