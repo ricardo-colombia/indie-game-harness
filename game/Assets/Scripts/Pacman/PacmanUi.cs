@@ -579,6 +579,8 @@ namespace Studio.Pacman
                 case "START": return "A COSECHAR";
                 case "STORY": return "HISTORIA";
                 case "RESUME": return "SEGUIR";
+                case "OPTIONS": return "OPCIONES";
+                case "BACK": return "ATRÁS";
                 case "QUIT": return "SALIR";
                 case "QUIT TO TITLE": return "VOLVER AL INICIO";
                 default: return item;
