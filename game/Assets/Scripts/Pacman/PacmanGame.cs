@@ -330,6 +330,7 @@ namespace Studio.Pacman
         {
             FitCamera();
             UpdateView(1f - Mathf.Exp(-7f * Time.unscaledDeltaTime));
+            post?.SetPower(FrightenedActive && State == PacmanState.Playing ? 1f : 0f);
             ReadInput();
 
             switch (State)

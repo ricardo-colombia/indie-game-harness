@@ -24,6 +24,8 @@ namespace Studio.Pacman
         private float shakeDuration = 0.01f;
         private float punch;
         private float chroma;
+        private float powerTarget;
+        private float power;
         private Bloom bloom;
         private ChromaticAberration chromatic;
         private Vignette vignetteEffect;
@@ -51,6 +53,12 @@ namespace Studio.Pacman
             night = Mathf.Clamp01(night);
             gradeEffect.colorFilter.value = Color.Lerp(new Color(1f, 0.96f, 0.88f), new Color(0.66f, 0.76f, 1f), night);
             gradeEffect.postExposure.value = Mathf.Lerp(0.05f, -0.3f, night);
+        }
+
+        /// <summary>While the picker is powered up (pests frightened) the picture turns richer and the edges deepen to violet. Eased in and out.</summary>
+        public void SetPower(float target)
+        {
+            powerTarget = Mathf.Clamp01(target);
         }
 
         /// <summary>Changes the resting zoom, for when the screen shape changes.</summary>
@@ -138,7 +146,12 @@ namespace Studio.Pacman
             chroma = Mathf.MoveTowards(chroma, 0f, Time.unscaledDeltaTime * 1.8f);
             cam.orthographicSize = baseSize * (1f - 0.035f * punch * punch);
             chromatic.intensity.value = chroma * 0.6f;
-            bloom.intensity.value = bloomIntensity + punch * 0.6f;
+            bloom.intensity.value = bloomIntensity + punch * 0.6f + power * 0.25f;
+            power = Mathf.MoveTowards(power, powerTarget, Time.unscaledDeltaTime * 3f);
+            gradeEffect.saturation.value = 14f + power * 22f;
+            gradeEffect.contrast.value = 14f + power * 8f;
+            vignetteEffect.intensity.value = vignette + power * 0.14f;
+            vignetteEffect.color.value = Color.Lerp(Color.black, new Color(0.16f, 0.04f, 0.3f), power);
 
             Vector3 offset = Vector3.zero;
             if (shakeTime > 0f)
