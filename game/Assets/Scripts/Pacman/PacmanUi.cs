@@ -339,14 +339,16 @@ namespace Studio.Pacman
             float H = Screen.height;
             float aspect = W / Mathf.Max(1f, H);
             // Text is larger on tall screens, where the UI scale follows the narrow width.
-            float cs = s * Mathf.Lerp(1.6f, 1f, Mathf.InverseLerp(0.6f, 1.2f, aspect));
+            float cs = s * Mathf.Lerp(2.1f, 1f, Mathf.InverseLerp(0.5f, 1.2f, aspect));
             StoryPanel panel = story.Current;
 
             Fill(new Rect(0f, 0f, W, H), new Color(0.07f, 0.045f, 0.025f, 1f));
 
             float margin = 20f * s;
-            float pictureWidth = Mathf.Min(W - 2f * margin, (H * 0.58f) * 1.6f);
-            float pictureHeight = pictureWidth / 1.6f;
+            // Tall screens get a squarer picture (the sides are cropped) so the characters stay big.
+            float pictureAspect = Mathf.Lerp(1.15f, 1.6f, Mathf.InverseLerp(0.55f, 1.2f, aspect));
+            float pictureWidth = Mathf.Min(W - 2f * margin, (H * 0.56f) * pictureAspect);
+            float pictureHeight = pictureWidth / pictureAspect;
             Rect picture = new Rect((W - pictureWidth) * 0.5f, 56f * s + margin * 0.3f, pictureWidth, pictureHeight);
             float border = 6f * s;
             Fill(new Rect(picture.x - border - 3f * s, picture.y - border - 3f * s, picture.width + 2f * (border + 3f * s), picture.height + 2f * (border + 3f * s)), new Color(0.97f, 0.9f, 0.7f, 1f), 6f * s);
@@ -355,7 +357,7 @@ namespace Studio.Pacman
             storyView.Show(panel.Scene, story.Time, story.Progress);
             if (storyView.Texture != null)
             {
-                GUI.DrawTexture(picture, storyView.Texture, ScaleMode.StretchToFill, false);
+                GUI.DrawTexture(picture, storyView.Texture, ScaleMode.ScaleAndCrop, false);
             }
             // Each panel "pops" in from darkness, like turning a page.
             float pop = 1f - Mathf.Clamp01(story.Time / 0.35f);
