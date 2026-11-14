@@ -3,7 +3,7 @@ using UnityEngine;
 namespace Studio.Pacman
 {
     /// <summary>
-    /// A few butterflies (yellow, orange and morpho blue) that wander lazily over the plantation. Each flaps by
+    /// A few butterflies (yellow, orange and white; never blue, so they are not mistaken for a ghost) that wander lazily over the plantation. Each flaps by
     /// squeezing its wings and flies along a slow looping path, turning toward where it is going. One procedural
     /// sprite tinted per butterfly; small, sparse and below the characters.
     /// </summary>
@@ -42,7 +42,7 @@ namespace Studio.Pacman
             self.last = new Vector3[Count];
             Color[] tints =
             {
-                new Color(1f, 0.86f, 0.25f), new Color(1f, 0.55f, 0.18f), new Color(0.3f, 0.6f, 1f), new Color(1f, 0.92f, 0.5f),
+                new Color(1f, 0.86f, 0.25f), new Color(1f, 0.55f, 0.18f), new Color(0.97f, 0.97f, 0.92f), new Color(1f, 0.92f, 0.5f),
             };
             for (int i = 0; i < Count; i++)
             {
