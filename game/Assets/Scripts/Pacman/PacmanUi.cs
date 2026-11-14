@@ -377,6 +377,12 @@ namespace Studio.Pacman
             float pulse = 1f + 0.06f * Mathf.Sin(Time.unscaledTime * pulseRate * 2f * Mathf.PI);
             float size = 76f * s * pulse;
             Rect r = new Rect(0, Screen.height * 0.5f - size * 0.1f, Screen.width, size * 1.3f);
+            // A dark ribbon with thin gold rules, like the game-over screen, so the word reads over the busy maze.
+            float ribbonTop = r.y + size * 0.08f;
+            float ribbonHeight = size * 1.14f;
+            Fill(new Rect(0, ribbonTop, Screen.width, ribbonHeight), new Color(0.04f, 0.025f, 0.01f, 0.7f));
+            Fill(new Rect(0, ribbonTop, Screen.width, 3f * s), new Color(Gold.r, Gold.g, Gold.b, 0.7f));
+            Fill(new Rect(0, ribbonTop + ribbonHeight - 3f * s, Screen.width, 3f * s), new Color(Gold.r, Gold.g, Gold.b, 0.7f));
             Text(r, message, size, colour, TextAnchor.MiddleCenter, new Vector2(0f, 5f * s), 0f, new Color(0f, 0f, 0f, 0.85f));
         }
 
