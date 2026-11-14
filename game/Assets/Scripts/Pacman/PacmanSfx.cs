@@ -77,30 +77,33 @@ namespace Studio.Pacman
         /// </summary>
         private static AudioClip BuildStep(Shoe shoe, bool flip)
         {
-            float[] buf = PacmanSynth.Buffer(0.2f);
+            // Phone speakers cannot play anything below ~120 Hz, so every shoe lives in the mid range and differs
+            // in timbre, not only in pitch: dull thud, wet slap, dry rustle, double smack.
+            float[] buf = PacmanSynth.Buffer(0.22f);
             int seed = flip ? 2 : 1;
-            float drift = flip ? -2f : 0f;
+            float drift = flip ? 0.88f : 1f;
             switch (shoe)
             {
                 case Shoe.RubberBoots:
-                    PacmanSynth.Tone(buf, 0f, 0.11f, PacmanSynth.Hz(41f + drift), PacmanSynth.Hz(31f + drift), Wave.Sine, 0.24f, 26f, 0.002f, 0.03f);
-                    PacmanSynth.Noise(buf, 0f, 0.12f, 0.2f, 24f, 0.2f, seed);
-                    PacmanSynth.Noise(buf, 0.03f, 0.05f, 0.1f, 70f, 0.55f, seed + 10);
+                    PacmanSynth.Tone(buf, 0f, 0.09f, 260f * drift, 120f * drift, Wave.Sine, 0.34f, 30f, 0.001f, 0.02f);
+                    PacmanSynth.Noise(buf, 0f, 0.05f, 0.4f, 70f, 0.75f, seed);
+                    PacmanSynth.Noise(buf, 0.04f, 0.12f, 0.22f, 22f, 0.3f, seed + 10);
                     break;
                 case Shoe.Espadrilles:
-                    PacmanSynth.Tone(buf, 0f, 0.07f, PacmanSynth.Hz(36f + drift), PacmanSynth.Hz(30f + drift), Wave.Sine, 0.07f, 40f, 0.003f, 0.02f);
-                    PacmanSynth.Noise(buf, 0f, 0.1f, 0.15f, 55f, 0.1f, seed);
+                    PacmanSynth.Noise(buf, 0f, 0.13f, 0.34f, 24f, 0.4f, seed);
+                    PacmanSynth.Noise(buf, 0.05f, 0.08f, 0.16f, 30f, 0.25f, seed + 10);
                     break;
                 case Shoe.FlipFlops:
-                    PacmanSynth.Tone(buf, 0f, 0.05f, PacmanSynth.Hz(44f + drift), PacmanSynth.Hz(38f + drift), Wave.Sine, 0.08f, 50f, 0.002f, 0.02f);
-                    PacmanSynth.Noise(buf, 0f, 0.04f, 0.2f, 90f, 0.5f, seed);
-                    PacmanSynth.Noise(buf, 0.07f, 0.05f, 0.12f, 80f, 0.4f, seed + 10);
+                    PacmanSynth.Noise(buf, 0f, 0.03f, 0.5f, 140f, 1f, seed);
+                    PacmanSynth.Tone(buf, 0f, 0.03f, 700f * drift, 420f * drift, Wave.Triangle, 0.1f, 80f, 0.001f, 0.01f);
+                    PacmanSynth.Noise(buf, 0.075f, 0.03f, 0.38f, 140f, 1f, seed + 10);
                     break;
                 default:
-                    PacmanSynth.Tone(buf, 0f, 0.12f, PacmanSynth.Hz(37f + drift), PacmanSynth.Hz(27f + drift), Wave.Sine, 0.3f, 28f, 0.002f, 0.03f);
-                    PacmanSynth.Noise(buf, 0f, 0.09f, 0.14f, 45f, 0.07f, seed);
+                    PacmanSynth.Tone(buf, 0f, 0.12f, 150f * drift, 70f * drift, Wave.Sine, 0.55f, 24f, 0.002f, 0.03f);
+                    PacmanSynth.Noise(buf, 0f, 0.08f, 0.22f, 40f, 0.2f, seed);
                     break;
             }
+            PacmanSynth.Limit(buf);
             return PacmanSynth.ToClip("step_" + shoe + (flip ? "_b" : "_a"), buf);
         }
 

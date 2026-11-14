@@ -225,7 +225,8 @@ namespace Studio.Pacman
         public static Sprite Shin(bool front, Color? bootColour = null)
         {
             Color boot = bootColour ?? Boot;
-            return Toon.Make(front ? "FarmerShinFront" : "FarmerShinSide", 0.26f, 0.28f,
+            string tint = bootColour.HasValue ? ColorUtility.ToHtmlStringRGB(boot) : "";
+            return Toon.Make((front ? "FarmerShinFront" : "FarmerShinSide") + tint, 0.26f, 0.28f,
                 (x, y) =>
                 {
                     float leg = Toon.Capsule(x, y, new Vector2(0f, 0.1f), new Vector2(0f, -0.05f), 0.062f, 0.05f);
