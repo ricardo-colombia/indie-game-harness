@@ -17,6 +17,9 @@ namespace Studio.Pacman
         [Tooltip("Walk cycles per second while moving.")]
         [SerializeField] private float chompRate = 3.2f;
 
+        [Tooltip("How far past a junction centre, in tiles, a late turn is still accepted. 0 turns it off.")]
+        [SerializeField, Range(0f, 0.5f)] private float turnForgiveness = 0.3f;
+
         private enum View { Side, Front, Back }
 
         /// <summary>The bones of one view that the walk cycle moves.</summary>
@@ -37,6 +40,7 @@ namespace Studio.Pacman
 
         private PacmanGame game;
         private Vector2Int desired;
+        private bool freshRequest;
         private Transform body;
         private Transform farmer;
         private Transform[] views = new Transform[3];
@@ -65,6 +69,29 @@ namespace Studio.Pacman
         public void Gobble()
         {
             raise = 1f;
+        }
+
+        private static readonly System.Collections.Generic.Dictionary<int, Sprite> ShoeSprites = new System.Collections.Generic.Dictionary<int, Sprite>();
+
+        /// <summary>Repaints the shoes on every view of the farmer (the shin sprite carries the boot).</summary>
+        public void SetShoe(Shoe shoe)
+        {
+            Color colour = PacmanShoes.Colour(shoe);
+            foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                bool front = renderer.name == "ShinFront";
+                if (!front && renderer.name != "ShinSide")
+                {
+                    continue;
+                }
+                int key = (int)shoe * 2 + (front ? 1 : 0);
+                if (!ShoeSprites.TryGetValue(key, out Sprite sprite) || sprite == null)
+                {
+                    sprite = PacmanFarmerArt.Shin(front, colour);
+                    ShoeSprites[key] = sprite;
+                }
+                renderer.sprite = sprite;
+            }
         }
 
         public void Init(PacmanGame owner)
@@ -134,6 +161,7 @@ namespace Studio.Pacman
         {
             Transform thigh = Prim(parent, PacmanFarmerArt.Thigh(), Color.white, hip, Vector2.one, 0f, o++);
             Transform shin = Prim(thigh, PacmanFarmerArt.Shin(front), Color.white, new Vector2(0f, -0.14f), Vector2.one, 0f, o++);
+            shin.name = front ? "ShinFront" : "ShinSide";
             rig.Thigh[index] = thigh;
             rig.Shin[index] = shin;
             rig.ThighHome[index] = thigh.localPosition;
@@ -246,13 +274,27 @@ namespace Studio.Pacman
         {
             if (direction != Vector2Int.zero)
             {
+                freshRequest = direction != desired;
                 desired = direction;
             }
         }
 
+        /// <summary>A new game or life starts with no buffered input, so an old swipe cannot steer the first step.</summary>
+        public override void Place(Vector2Int tile)
+        {
+            base.Place(tile);
+            desired = Vector2Int.zero;
+            freshRequest = false;
+        }
+
         public void Tick(float tiles)
         {
+            ApplyFreshRequest();
             Advance(tiles);
+            if (body == null)
+            {
+                return;
+            }
             if (Dir.x != 0)
             {
                 facing = Dir.x > 0 ? 1f : -1f;
@@ -270,6 +312,38 @@ namespace Studio.Pacman
                 }
             }
             views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+        }
+
+        /// <summary>
+        /// Two forgiving rules for a new request. Reversing is instant, even between tiles, as in the arcade.
+        /// A turn asked for just after the junction centre was passed is still taken, by stepping back to it.
+        /// </summary>
+        private void ApplyFreshRequest()
+        {
+            if (!freshRequest)
+            {
+                return;
+            }
+            freshRequest = false;
+            if (Dir == Vector2Int.zero || desired == Dir)
+            {
+                return;
+            }
+
+            if (desired == -Dir)
+            {
+                // Reverse() keeps the world position; the tile behind is always open since we came from it.
+                if (!Blocked(Tile - Dir) || Progress > 0f)
+                {
+                    Reverse();
+                }
+                return;
+            }
+
+            if (Progress >= 0f && Progress <= turnForgiveness && !Blocked(Tile + desired))
+            {
+                SnapTurn(desired);
+            }
         }
 
         /// <summary>

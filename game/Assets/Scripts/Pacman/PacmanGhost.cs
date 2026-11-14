@@ -26,6 +26,9 @@ namespace Studio.Pacman
         public GhostKind Kind => kind;
         public GhostMode Mode { get; private set; }
 
+        /// <summary>Chase by walking distance instead of straight-line distance. Set by the game.</summary>
+        public bool PathChase { get; set; } = true;
+
         // A ghost still inside the house when a power pellet is eaten turns blue too. It keeps leaving the
         // house (Exiting) and becomes a normal frightened ghost the moment it steps out.
         private bool scaredInHouse;
@@ -126,103 +129,21 @@ namespace Studio.Pacman
             }
         }
 
-        // Distance, in tiles, from every open tile to a target. Eyes follow it downhill, so they always get home
-        // (the classic "aim at the target" rule gets stuck in this maze's loops).
-        private static readonly System.Collections.Generic.Dictionary<Vector2Int, int[,]> DistanceFields =
-            new System.Collections.Generic.Dictionary<Vector2Int, int[,]>();
-
-        private static int[,] DistanceTo(Vector2Int target)
-        {
-            if (DistanceFields.TryGetValue(target, out int[,] cached))
-            {
-                return cached;
-            }
-            int[,] dist = new int[PacmanMaze.Width, PacmanMaze.Height];
-            for (int y = 0; y < PacmanMaze.Height; y++)
-            {
-                for (int x = 0; x < PacmanMaze.Width; x++)
-                {
-                    dist[x, y] = int.MaxValue;
-                }
-            }
-            var queue = new System.Collections.Generic.Queue<Vector2Int>();
-            dist[target.x, target.y] = 0;
-            queue.Enqueue(target);
-            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
-            while (queue.Count > 0)
-            {
-                Vector2Int at = queue.Dequeue();
-                foreach (Vector2Int d in all)
-                {
-                    Vector2Int n = PacmanMaze.Wrap(at + d);
-                    if (n.x < 0 || n.y < 0 || n.x >= PacmanMaze.Width || n.y >= PacmanMaze.Height || PacmanMaze.IsWall(n) || dist[n.x, n.y] != int.MaxValue)
-                    {
-                        continue;
-                    }
-                    dist[n.x, n.y] = dist[at.x, at.y] + 1;
-                    queue.Enqueue(n);
-                }
-            }
-            DistanceFields[target] = dist;
-            return dist;
-        }
-
-        /// <summary>The step that gets eyes closest to their target. Eyes may turn back; they take the shortest way.</summary>
-        private Vector2Int HomewardStep(Vector2Int tile)
-        {
-            int[,] dist = DistanceTo(CurrentTarget());
-            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
-            Vector2Int best = Vector2Int.zero;
-            int bestDistance = int.MaxValue;
-            foreach (Vector2Int d in all)
-            {
-                Vector2Int n = PacmanMaze.Wrap(tile + d);
-                if (n.x < 0 || n.y < 0 || n.x >= PacmanMaze.Width || n.y >= PacmanMaze.Height || PacmanMaze.IsWall(n))
-                {
-                    continue;
-                }
-                if (dist[n.x, n.y] < bestDistance)
-                {
-                    bestDistance = dist[n.x, n.y];
-                    best = d;
-                }
-            }
-            return best;
-        }
-
         protected override Vector2Int ChooseDirection(Vector2Int tile, Vector2Int current)
         {
-            if (Mode == GhostMode.Eaten)
+            // Eyes going home and ghosts leaving the house walk the shortest way: straight-line steering
+            // used to leave them orbiting a block forever from some tiles.
+            if (Mode == GhostMode.Eaten || Mode == GhostMode.Exiting)
             {
-                return HomewardStep(tile);
+                Vector2Int home = PacmanPaths.HomeStep(tile, CurrentTarget());
+                if (home != Vector2Int.zero)
+                {
+                    return home;
+                }
             }
-            options.Clear();
-            Vector2Int[] all = { PacmanMaze.Up, PacmanMaze.Left, PacmanMaze.Down, PacmanMaze.Right };
-            foreach (Vector2Int d in all)
-            {
-                if (current != Vector2Int.zero && d == -current)
-                {
-                    continue;
-                }
-                Vector2Int next = tile + d;
-                if (PacmanMaze.IsWall(next))
-                {
-                    continue;
-                }
-                // Only ghosts that are leaving the house, or eyes going home, may use the gate.
-                bool mayEnterHouse = Mode == GhostMode.Eaten || Mode == GhostMode.Exiting;
-                if (!mayEnterHouse && PacmanMaze.IsGhostHouse(next))
-                {
-                    continue;
-                }
-                // Chasing and scattering ghosts may not turn up at the four classic no-up junctions.
-                if (d == PacmanMaze.Up && (Mode == GhostMode.Scatter || Mode == GhostMode.Chase)
-                    && PacmanMaze.IsNoUpTile(tile))
-                {
-                    continue;
-                }
-                options.Add(d);
-            }
+
+            bool noUp = Mode == GhostMode.Scatter || Mode == GhostMode.Chase;
+            PacmanPaths.LegalMoves(tile, current, Mode == GhostMode.Eaten || Mode == GhostMode.Exiting, noUp, options);
 
             if (options.Count == 0)
             {
@@ -245,6 +166,16 @@ namespace Studio.Pacman
             }
 
             Vector2Int target = CurrentTarget();
+            if (PathChase && Mode == GhostMode.Chase)
+            {
+                // Real walking distance, so a target on the far side of a wall is reached the short way round.
+                Vector2Int step = PacmanPaths.ChaseChoice(tile, options, target);
+                if (step != Vector2Int.zero)
+                {
+                    return step;
+                }
+            }
+
             Vector2Int best = options[0];
             long bestScore = long.MaxValue;
             foreach (Vector2Int d in options)

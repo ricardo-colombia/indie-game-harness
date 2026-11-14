@@ -222,23 +222,24 @@ namespace Studio.Pacman
         }
 
         /// <summary>Shin and boot, pivot at the knee. The side-view boot points forward (+X); the front boot is symmetrical.</summary>
-        public static Sprite Shin(bool front)
+        public static Sprite Shin(bool front, Color? bootColour = null)
         {
+            Color boot = bootColour ?? Boot;
             return Toon.Make(front ? "FarmerShinFront" : "FarmerShinSide", 0.26f, 0.28f,
                 (x, y) =>
                 {
                     float leg = Toon.Capsule(x, y, new Vector2(0f, 0.1f), new Vector2(0f, -0.05f), 0.062f, 0.05f);
-                    float boot = front
+                    float bootShape = front
                         ? Toon.Box(x, y, 0f, -0.095f, 0.065f, 0.042f, 0.03f)
                         : Toon.Capsule(x, y, new Vector2(-0.02f, -0.092f), new Vector2(0.08f, -0.092f), 0.045f, 0.04f);
-                    return Toon.Blend(leg, boot, 0.015f);
+                    return Toon.Blend(leg, bootShape, 0.015f);
                 },
                 Jeans,
                 (x, y) =>
                 {
                     Color c = Jeans;
-                    c = Toon.Over(c, Boot, -0.065f - y);
-                    c = Toon.Over(c, Toon.Shade(Boot, 0.45f), -0.118f - y);
+                    c = Toon.Over(c, boot, -0.065f - y);
+                    c = Toon.Over(c, Toon.Shade(boot, 0.45f), -0.118f - y);
                     return c;
                 },
                 0.05f, 0.017f, new Vector2(0.5f, 0.5f + 0.1f / 0.28f));

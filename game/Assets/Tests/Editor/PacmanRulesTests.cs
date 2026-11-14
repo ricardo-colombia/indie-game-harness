@@ -43,14 +43,14 @@ namespace Studio.Pacman.Tests
         [Test]
         public void NoUpTiles_AreTheFourJunctionsAndOpen()
         {
-            Vector2Int[] tiles = { new Vector2Int(7, 7), new Vector2Int(13, 7), new Vector2Int(9, 18), new Vector2Int(11, 18) };
+            Vector2Int[] tiles = { new Vector2Int(12, 11), new Vector2Int(15, 11), new Vector2Int(12, 23), new Vector2Int(15, 23) };
             foreach (Vector2Int t in tiles)
             {
                 Assert.IsTrue(PacmanMaze.IsNoUpTile(t), t.ToString());
                 Assert.IsFalse(PacmanMaze.IsWall(t), t.ToString());
             }
-            Assert.IsFalse(PacmanMaze.IsNoUpTile(new Vector2Int(10, 7)));
-            Assert.IsFalse(PacmanMaze.IsNoUpTile(new Vector2Int(3, 7)));
+            Assert.IsFalse(PacmanMaze.IsNoUpTile(new Vector2Int(13, 11)));
+            Assert.IsFalse(PacmanMaze.IsNoUpTile(new Vector2Int(3, 14)));
         }
 
         [Test]

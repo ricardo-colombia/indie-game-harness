@@ -48,8 +48,8 @@ namespace Studio.Pacman.Tests
         [Test]
         public void Layout_HasExpectedSizeAndPelletCount()
         {
-            Assert.AreEqual(21, PacmanMaze.Width);
-            Assert.AreEqual(23, PacmanMaze.Height);
+            Assert.AreEqual(28, PacmanMaze.Width);
+            Assert.AreEqual(31, PacmanMaze.Height);
             int pellets = 0, power = 0;
             foreach (string row in PacmanMaze.Rows)
             {
@@ -59,23 +59,19 @@ namespace Studio.Pacman.Tests
                     if (c == 'o') power++;
                 }
             }
-            Assert.AreEqual(216, pellets);
+            Assert.AreEqual(240, pellets);
             Assert.AreEqual(4, power);
         }
 
         [Test]
-        public void Layout_WallsAreOneTileThick()
+        public void Layout_IsTheArcadeMaze()
         {
-            // Walls are the same width as the corridors: no 2 x 2 block of wall tiles anywhere.
-            for (int y = 0; y < PacmanMaze.Height - 1; y++)
-            {
-                for (int x = 0; x < PacmanMaze.Width - 1; x++)
-                {
-                    bool block = PacmanMaze.Cell(x, y) == '#' && PacmanMaze.Cell(x + 1, y) == '#'
-                        && PacmanMaze.Cell(x, y + 1) == '#' && PacmanMaze.Cell(x + 1, y + 1) == '#';
-                    Assert.IsFalse(block, $"2x2 wall block at ({x},{y})");
-                }
-            }
+            // 240 dots and 4 power pellets make the arcade's 244; the tunnel row, the two-tile gate and the
+            // 8-wide house are what the original has, so a layout edit that drifts from it fails here.
+            Assert.AreEqual(14, PacmanMaze.TunnelRow);
+            Assert.AreEqual("      .   #GhGhGh#   .      ", PacmanMaze.Rows[14]);
+            Assert.AreEqual("######.## ###--### ##.######", PacmanMaze.Rows[12]);
+            Assert.AreEqual('P', PacmanMaze.Cell(13, 23));
         }
 
         [Test]
@@ -138,7 +134,7 @@ namespace Studio.Pacman.Tests
             Assert.IsFalse(PacmanMaze.IsGhostHouse(PacmanMaze.HouseExit));
             Assert.IsFalse(PacmanMaze.IsWall(PacmanMaze.HouseExit));
             Assert.IsFalse(PacmanMaze.IsWall(PacmanMaze.BlinkyStart));
-            Assert.AreEqual(PacmanMaze.TunnelRow, 7);
+            Assert.AreEqual(PacmanMaze.TunnelRow, 14);
             Assert.AreEqual('P', PacmanMaze.Cell(PacmanMaze.Find('P').x, PacmanMaze.Find('P').y));
         }
 
@@ -206,9 +202,10 @@ namespace Studio.Pacman.Tests
         [Test]
         public void IsGhostHouse_CoversHouseInteriorNotCorridors()
         {
-            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(10, 10)));
-            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(10, 8)), "the gate belongs to the house");
-            Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(10, 7)));
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(13, 14)));
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(13, 12)), "the gate belongs to the house");
+            Assert.IsTrue(PacmanMaze.IsGhostHouse(new Vector2Int(14, 12)), "the gate is two tiles wide");
+            Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(13, 11)));
             Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(9, PacmanMaze.TunnelRow)));
             Assert.IsFalse(PacmanMaze.IsGhostHouse(new Vector2Int(1, 1)));
         }

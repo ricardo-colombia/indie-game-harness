@@ -283,11 +283,11 @@ namespace Studio.Pacman
                 // Tall screens put the menu over the maze, so give it a backing panel to stay readable.
                 float panelWidth = Mathf.Min(580f * s, Screen.width * 0.94f);
                 float panelHeight = game.ActiveMenu.Length * RowHeight(game.ActiveMenu.Length) * s + 24f * s;
-                Rect backing = new Rect((Screen.width - panelWidth) * 0.5f, Screen.height * (game.ActiveMenu.Length >= 5 ? 0.49f : 0.52f) - 16f * s, panelWidth, panelHeight);
+                Rect backing = new Rect((Screen.width - panelWidth) * 0.5f, Screen.height * MenuTop(game.ActiveMenu.Length) - 16f * s, panelWidth, panelHeight);
                 Fill(new Rect(backing.x - 3f * s, backing.y - 3f * s, backing.width + 6f * s, backing.height + 6f * s), new Color(Leaf.r, Leaf.g, Leaf.b, 0.4f), 20f * s);
                 Fill(backing, Panel, 16f * s);
             }
-            DrawMenuItems(s, Screen.height * (game.ActiveMenu.Length >= 5 ? 0.49f : 0.52f));
+            DrawMenuItems(s, Screen.height * MenuTop(game.ActiveMenu.Length));
 
             if (game.HighScore > 0)
             {
@@ -567,9 +567,14 @@ namespace Studio.Pacman
         }
 
         /// <summary>Menus with five or more rows are packed a little tighter so they still fit above the title's chase strip.</summary>
+        private static float MenuTop(int count)
+        {
+            return count >= 6 ? 0.45f : (count >= 5 ? 0.49f : 0.52f);
+        }
+
         private static float RowHeight(int count)
         {
-            return count >= 5 ? 52f : 64f;
+            return count >= 6 ? 46f : (count >= 5 ? 52f : 64f);
         }
 
         private void DrawMenuItems(float s, float top)
@@ -582,6 +587,7 @@ namespace Studio.Pacman
                 string text = items[i] == "SOUND" ? "SONIDO:  " + (game.SoundOn ? "SÍ" : "NO")
                     : items[i] == "THEME" ? "ESTILO:  " + (game.ThemeId == PacmanTheme.Vintage ? "VINTAGE" : "CLÁSICO")
                     : items[i] == "VIEW" ? "VISTA:  " + (game.CloseView ? "CERCA" : "COMPLETA")
+                    : items[i] == "SHOES" ? "ZAPATOS:  " + PacmanShoes.Label(game.CurrentShoe)
                     : MenuLabel(items[i]);
                 float width = Mathf.Min(520f * s, Screen.width * 0.9f);
                 Rect row = new Rect((Screen.width - width) * 0.5f, top + i * rowHeight, width, rowHeight - 8f * s);
@@ -593,7 +599,7 @@ namespace Studio.Pacman
                     Fill(new Rect(row.x, row.y, 6f * s, row.height), Gold, 3f * s);
                     GUI.DrawTexture(new Rect(row.x + 18f * s, row.y + row.height * 0.5f - 16f * s, 36f * s, 36f * s), hatIcon, ScaleMode.StretchToFill, true);
                 }
-                Text(row, text, (items.Length >= 5 ? 34f : 38f) * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
+                Text(row, text, (items.Length >= 6 ? 30f : (items.Length >= 5 ? 34f : 38f)) * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
             }
         }
 

@@ -7,10 +7,7 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanSfx
     {
-        /// <summary>Two alternating footsteps through the plantation: soil crunch plus a leaf rustle.</summary>
-        public AudioClip StepA { get; private set; }
-        public AudioClip StepB { get; private set; }
-        public AudioClip Pellet { get; private set; }
+                public AudioClip Pellet { get; private set; }
         public AudioClip Power { get; private set; }
         public AudioClip GhostEaten { get; private set; }
         public AudioClip Death { get; private set; }
@@ -23,11 +20,16 @@ namespace Studio.Pacman
         public AudioClip GameOver { get; private set; }
 
         private AudioClip[] ghostChain;
+        private AudioClip[] steps;
 
         public PacmanSfx()
         {
-            StepA = Footstep("step_a", 3, 1f);
-            StepB = Footstep("step_b", 11, 0.86f);
+            steps = new AudioClip[PacmanShoes.Count * 2];
+            for (int shoe = 0; shoe < PacmanShoes.Count; shoe++)
+            {
+                steps[shoe * 2] = BuildStep((Shoe)shoe, false);
+                steps[shoe * 2 + 1] = BuildStep((Shoe)shoe, true);
+            }
             Pellet = Pickup("pellet", 83f, 88f, 0.05f, 0.14f);
             Power = BuildPower();
             Death = BuildDeath();
@@ -62,20 +64,44 @@ namespace Studio.Pacman
             }
         }
 
-        /// <summary>
-        /// One boot step on soft earth between the coffee rows: a dull thud, a crunch of grit, and the brush of
-        /// glossy leaves against clothes. Two seeds and pitches make the left and right foot differ.
-        /// </summary>
-        private static AudioClip Footstep(string name, int seed, float pitch)
+        /// <summary>The footstep for a shoe. The two feet (flip) differ a little so a walk does not sound like a machine.</summary>
+        public AudioClip StepFor(Shoe shoe, bool flip)
         {
-            float[] buf = PacmanSynth.Buffer(0.24f);
-            PacmanSynth.Tone(buf, 0f, 0.09f, 95f * pitch, 48f * pitch, Wave.Triangle, 0.3f, 38f, 0.002f, 0.02f);
-            PacmanSynth.Noise(buf, 0f, 0.11f, 0.3f, 42f, 0.28f * pitch, seed);
-            PacmanSynth.Noise(buf, 0.028f, 0.03f, 0.1f, 160f, 0.9f, seed + 1);
-            PacmanSynth.Noise(buf, 0.052f, 0.03f, 0.08f, 160f, 0.9f, seed + 2);
-            PacmanSynth.Noise(buf, 0.015f, 0.2f, 0.1f, 14f, 0.75f, seed + 5);
-            PacmanSynth.Limit(buf);
-            return PacmanSynth.ToClip(name, buf);
+            int index = Mathf.Clamp((int)shoe, 0, PacmanShoes.Count - 1) * 2 + (flip ? 1 : 0);
+            return steps[index];
+        }
+
+        /// <summary>
+        /// One footfall on packed earth, low and soft. Leather boots are a deep dull thump; rubber boots add a wet
+        /// slap and a longer tail; espadrilles are almost only a dark rustle; flip-flops are a light double slap.
+        /// </summary>
+        private static AudioClip BuildStep(Shoe shoe, bool flip)
+        {
+            float[] buf = PacmanSynth.Buffer(0.2f);
+            int seed = flip ? 2 : 1;
+            float drift = flip ? -2f : 0f;
+            switch (shoe)
+            {
+                case Shoe.RubberBoots:
+                    PacmanSynth.Tone(buf, 0f, 0.11f, PacmanSynth.Hz(41f + drift), PacmanSynth.Hz(31f + drift), Wave.Sine, 0.24f, 26f, 0.002f, 0.03f);
+                    PacmanSynth.Noise(buf, 0f, 0.12f, 0.2f, 24f, 0.2f, seed);
+                    PacmanSynth.Noise(buf, 0.03f, 0.05f, 0.1f, 70f, 0.55f, seed + 10);
+                    break;
+                case Shoe.Espadrilles:
+                    PacmanSynth.Tone(buf, 0f, 0.07f, PacmanSynth.Hz(36f + drift), PacmanSynth.Hz(30f + drift), Wave.Sine, 0.07f, 40f, 0.003f, 0.02f);
+                    PacmanSynth.Noise(buf, 0f, 0.1f, 0.15f, 55f, 0.1f, seed);
+                    break;
+                case Shoe.FlipFlops:
+                    PacmanSynth.Tone(buf, 0f, 0.05f, PacmanSynth.Hz(44f + drift), PacmanSynth.Hz(38f + drift), Wave.Sine, 0.08f, 50f, 0.002f, 0.02f);
+                    PacmanSynth.Noise(buf, 0f, 0.04f, 0.2f, 90f, 0.5f, seed);
+                    PacmanSynth.Noise(buf, 0.07f, 0.05f, 0.12f, 80f, 0.4f, seed + 10);
+                    break;
+                default:
+                    PacmanSynth.Tone(buf, 0f, 0.12f, PacmanSynth.Hz(37f + drift), PacmanSynth.Hz(27f + drift), Wave.Sine, 0.3f, 28f, 0.002f, 0.03f);
+                    PacmanSynth.Noise(buf, 0f, 0.09f, 0.14f, 45f, 0.07f, seed);
+                    break;
+            }
+            return PacmanSynth.ToClip("step_" + shoe + (flip ? "_b" : "_a"), buf);
         }
 
         private static AudioClip Pickup(string name, float fromMidi, float toMidi, float seconds, float volume)

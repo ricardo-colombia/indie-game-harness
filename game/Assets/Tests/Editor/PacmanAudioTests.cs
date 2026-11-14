@@ -27,11 +27,43 @@ namespace Studio.Pacman.Tests
         }
 
         [Test]
+        public void Shoes_CycleThroughEveryPairAndComeBack()
+        {
+            Shoe shoe = Shoe.LeatherBoots;
+            for (int i = 0; i < PacmanShoes.Count; i++)
+            {
+                shoe = PacmanShoes.Next(shoe);
+            }
+            Assert.AreEqual(Shoe.LeatherBoots, shoe);
+        }
+
+        [Test]
+        public void Shoes_EachPairSoundsDifferent()
+        {
+            PacmanSfx sfx = new PacmanSfx();
+            for (int a = 0; a < PacmanShoes.Count; a++)
+            {
+                for (int b = a + 1; b < PacmanShoes.Count; b++)
+                {
+                    CollectionAssert.AreNotEqual(
+                        Samples(sfx.StepFor((Shoe)a, false)), Samples(sfx.StepFor((Shoe)b, false)),
+                        (Shoe)a + " and " + (Shoe)b + " sound the same");
+                }
+                CollectionAssert.AreNotEqual(
+                    Samples(sfx.StepFor((Shoe)a, false)), Samples(sfx.StepFor((Shoe)a, true)),
+                    (Shoe)a + " left and right feet sound the same");
+            }
+        }
+
+        [Test]
         public void Sfx_AllClipsAreAudibleAndFinite()
         {
             PacmanSfx sfx = new PacmanSfx();
-            AssertClean(sfx.StepA, "StepA");
-            AssertClean(sfx.StepB, "StepB");
+            for (int shoe = 0; shoe < PacmanShoes.Count; shoe++)
+            {
+                AssertClean(sfx.StepFor((Shoe)shoe, false), "Step " + (Shoe)shoe + " a");
+                AssertClean(sfx.StepFor((Shoe)shoe, true), "Step " + (Shoe)shoe + " b");
+            }
             AssertClean(sfx.Pellet, "Pellet");
             AssertClean(sfx.Power, "Power");
             AssertClean(sfx.GhostEaten, "GhostEaten");
