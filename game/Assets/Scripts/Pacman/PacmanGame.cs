@@ -828,7 +828,9 @@ namespace Studio.Pacman
                 {
                     State = PacmanState.Dying;
                     stateTimer = deathDuration;
-                    player.StartDeath(deathDuration);
+                    float away = Mathf.Sign(pacPos.x - ghost.transform.position.x);
+                    player.StartDeath(deathDuration, ghost.Kind, away == 0f ? 1f : away);
+                    PacmanDeathScene.Play(ghost.Kind, ghost.transform, player.transform, deathDuration);
                     PacmanSfx.Play(audioSource, sfx?.Death, soundOn);
                     post?.Shake(0.3f, 0.35f);
                     post?.Punch(0.4f);
