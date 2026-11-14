@@ -9,7 +9,8 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanMist : MonoBehaviour
     {
-        private const int Clouds = 7;
+        private const int Clouds = 10;          // the last few are cloud shadows on the ground, the rest is mist
+        private const int Shadows = 3;
 
         [Tooltip("Highest opacity of a cloud (0..1). Kept low so the maze always stays readable.")]
         [SerializeField] private float opacity = 0.1f;
@@ -41,9 +42,10 @@ namespace Studio.Pacman
             self.baseY = new float[Clouds];
             for (int i = 0; i < Clouds; i++)
             {
-                GameObject cloud = new GameObject("Cloud");
+                bool shadow = i >= Clouds - Shadows;
+                GameObject cloud = new GameObject(shadow ? "CloudShadow" : "Cloud");
                 cloud.transform.SetParent(root.transform, false);
-                float width = Mathf.Lerp(9f, 15f, PacmanToon.Hash(i, 3));
+                float width = shadow ? Mathf.Lerp(11f, 18f, PacmanToon.Hash(i, 3)) : Mathf.Lerp(9f, 15f, PacmanToon.Hash(i, 3));
                 float height = width * Mathf.Lerp(0.28f, 0.45f, PacmanToon.Hash(i, 5));
                 cloud.transform.localScale = new Vector3(width / 8f, height / 4f, 1f); // the sprite is 8 x 4 units
                 float y = -Mathf.Lerp(1.5f, PacmanMaze.Height - 1.5f, (i + PacmanToon.Hash(i, 7) * 0.6f) / Clouds);
@@ -51,8 +53,10 @@ namespace Studio.Pacman
                 cloud.transform.localPosition = new Vector3(x, y, 0f);
                 SpriteRenderer renderer = cloud.AddComponent<SpriteRenderer>();
                 renderer.sprite = cloudSprite;
-                renderer.sortingOrder = -1;
-                renderer.color = new Color(0.86f, 0.93f, 0.9f, self.opacity * Mathf.Lerp(0.6f, 1f, PacmanToon.Hash(i, 11)));
+                renderer.sortingOrder = shadow ? 9 : -1;   // shadows fall over the plants and the characters, under the butterflies
+                renderer.color = shadow
+                    ? new Color(0.02f, 0.06f, 0.05f, 0.17f * Mathf.Lerp(0.75f, 1f, PacmanToon.Hash(i, 11)))
+                    : new Color(0.86f, 0.93f, 0.9f, self.opacity * Mathf.Lerp(0.6f, 1f, PacmanToon.Hash(i, 11)));
                 self.clouds[i] = cloud.transform;
                 self.speeds[i] = Mathf.Lerp(self.speed.x, self.speed.y, PacmanToon.Hash(i, 13)) * (PacmanToon.Hash(i, 15) < 0.25f ? -1f : 1f);
                 self.bobPhase[i] = PacmanToon.Hash(i, 17) * 6.283f;
