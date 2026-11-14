@@ -60,7 +60,7 @@ namespace Studio.Pacman
         // Pellets are coffee cherries on the bush: mostly ripe red, some still orange-yellow (pinton).
         private static readonly Color PelletColour = new Color(0.72f, 0.42f, 0.2f);
         private static readonly Color PelletUnripeColour = new Color(0.88f, 0.66f, 0.36f);
-        private static readonly Color PowerPelletColour = new Color(1f, 0.65f, 0.25f, 0.2f);
+        private static readonly Color PowerPelletColour = new Color(1f, 0.65f, 0.25f, 0.4f);
         private static readonly Color LeafColour = new Color(0.3f, 0.8f, 0.25f);
         // The four pests, in ghost order: the DIAN agent (steel blue suit), the guerrilla fighter (olive), the narco
         // (cream linen) and the coral snake (red).
@@ -1158,7 +1158,7 @@ namespace Studio.Pacman
 
             // The espresso: a mug in side view with black coffee, a handle and steam. Drinking it is what lets
             // the picker chase the pests. The root disc is a warm glow behind it.
-            renderer.sprite = PacmanSprites.Disc;
+            renderer.sprite = PacmanSprites.SoftDisc;
             renderer.color = PowerPelletColour;
             Transform t = pellet.transform;
             if (themed != null)

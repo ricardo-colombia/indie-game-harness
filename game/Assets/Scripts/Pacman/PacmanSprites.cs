@@ -24,6 +24,7 @@ namespace Studio.Pacman
         private static Sprite frightFace;
         private static Sprite frightFaceVintage;
         private static Sprite gridTile;
+        private static Sprite softDisc;
         private static Sprite mountain;
         private static Sprite mountainVintage;
         private static Sprite gridTileVintage;
@@ -39,6 +40,23 @@ namespace Studio.Pacman
                     disc = Make("PacDisc", 32, (x, y) => 0.5f - Mathf.Sqrt(x * x + y * y));
                 }
                 return disc;
+            }
+        }
+
+        /// <summary>A disc whose opacity fades smoothly from the centre to nothing at the edge: a halo with no rim.</summary>
+        public static Sprite SoftDisc
+        {
+            get
+            {
+                if (softDisc == null)
+                {
+                    softDisc = Make("PacSoftDisc", 64, (x, y) =>
+                    {
+                        float t = Mathf.Clamp01(1f - Mathf.Sqrt(x * x + y * y) / 0.5f);
+                        return (t * t * (3f - 2f * t) - 0.5f) / 64f;
+                    });
+                }
+                return softDisc;
             }
         }
 
