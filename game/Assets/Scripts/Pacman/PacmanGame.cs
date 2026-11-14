@@ -1214,6 +1214,7 @@ namespace Studio.Pacman
             playerObject.transform.SetParent(transform, false);
             player = playerObject.AddComponent<PacmanPlayer>();
             player.Init(this);
+            playerObject.AddComponent<PacmanDust>();
 
             // Scatter targets sit in the dead space above and below the maze, as in the original
             // (Blinky top-right, Pinky top-left, Inky bottom-right, Clyde bottom-left).
