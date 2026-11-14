@@ -50,7 +50,7 @@ namespace Studio.Pacman
                 go.transform.SetParent(root.transform, false);
                 SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
                 renderer.sprite = wingSprite;
-                renderer.sortingOrder = 20;
+                renderer.sortingOrder = 40;
                 renderer.color = tints[i % tints.Length];
                 self.bodies[i] = go.transform;
                 self.renderers[i] = renderer;

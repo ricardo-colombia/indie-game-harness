@@ -90,13 +90,13 @@ namespace Studio.Pacman
                     PacmanSynth.Noise(buf, 0.04f, 0.12f, 0.22f, 22f, 0.3f, seed + 10);
                     break;
                 case Shoe.Espadrilles:
-                    PacmanSynth.Noise(buf, 0f, 0.13f, 0.34f, 24f, 0.4f, seed);
-                    PacmanSynth.Noise(buf, 0.05f, 0.08f, 0.16f, 30f, 0.25f, seed + 10);
+                    PacmanSynth.Noise(buf, 0f, 0.13f, 0.85f, 24f, 0.4f, seed);
+                    PacmanSynth.Noise(buf, 0.05f, 0.08f, 0.4f, 30f, 0.25f, seed + 10);
                     break;
                 case Shoe.FlipFlops:
-                    PacmanSynth.Noise(buf, 0f, 0.03f, 0.5f, 140f, 1f, seed);
-                    PacmanSynth.Tone(buf, 0f, 0.03f, 700f * drift, 420f * drift, Wave.Triangle, 0.1f, 80f, 0.001f, 0.01f);
-                    PacmanSynth.Noise(buf, 0.075f, 0.03f, 0.38f, 140f, 1f, seed + 10);
+                    PacmanSynth.Noise(buf, 0f, 0.03f, 0.8f, 140f, 1f, seed);
+                    PacmanSynth.Tone(buf, 0f, 0.03f, 700f * drift, 420f * drift, Wave.Triangle, 0.16f, 80f, 0.001f, 0.01f);
+                    PacmanSynth.Noise(buf, 0.075f, 0.03f, 0.65f, 140f, 1f, seed + 10);
                     break;
                 default:
                     PacmanSynth.Tone(buf, 0f, 0.12f, 150f * drift, 70f * drift, Wave.Sine, 0.55f, 24f, 0.002f, 0.03f);
