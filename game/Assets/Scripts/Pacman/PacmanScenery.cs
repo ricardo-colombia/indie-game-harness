@@ -102,6 +102,7 @@ namespace Studio.Pacman
             outline.enabled = false;
 
             PacmanBushes.Build(transform);
+            PacmanMist.Build(transform);
             BuildMountains();
             BuildPortals();
             BuildStars(centre);
