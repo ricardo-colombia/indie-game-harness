@@ -62,6 +62,19 @@ namespace Studio.Pacman
             raise = 1f;
         }
 
+        /// <summary>Recolours the shoes on every view of the farmer.</summary>
+        public void SetShoe(Shoe shoe)
+        {
+            Color colour = PacmanShoes.Colour(shoe);
+            foreach (SpriteRenderer renderer in GetComponentsInChildren<SpriteRenderer>(true))
+            {
+                if (renderer.name == "Boot")
+                {
+                    renderer.color = colour;
+                }
+            }
+        }
+
         public void Init(PacmanGame owner)
         {
             game = owner;
@@ -193,7 +206,7 @@ namespace Studio.Pacman
             }
             else
             {
-                Prim(pivot.transform, PacmanSprites.Disc, Boot, new Vector2(0.03f, -length), new Vector2(0.2f, 0.1f), 0f, order++);
+                Prim(pivot.transform, PacmanSprites.Disc, Boot, new Vector2(0.03f, -length), new Vector2(0.2f, 0.1f), 0f, order++).name = "Boot";
             }
             return pivot.transform;
         }

@@ -98,6 +98,7 @@ namespace Studio.Pacman
         private PacmanScenery scenery;
         private PacmanPost post;
         private const string HighScoreKey = "studio.pacman.highscore";
+        private const string ShoeKey = "studio.pacman.shoe";
         private AudioSource audioSource;
         private PacmanSfx sfx;
         private bool soundOn = true;
@@ -121,14 +122,17 @@ namespace Studio.Pacman
 
 #if UNITY_WEBGL
         // A web page cannot quit, so the title has no Quit row there.
-        private static readonly string[] TitleItems = { "START", "SOUND" };
+        private static readonly string[] TitleItems = { "START", "SOUND", "SHOES" };
 #else
-        private static readonly string[] TitleItems = { "START", "SOUND", "QUIT" };
+        private static readonly string[] TitleItems = { "START", "SOUND", "SHOES", "QUIT" };
 #endif
-        private static readonly string[] PauseItems = { "RESUME", "SOUND", "QUIT TO TITLE" };
+        private static readonly string[] PauseItems = { "RESUME", "SOUND", "SHOES", "QUIT TO TITLE" };
 
         /// <summary>True while the player is using a touch screen: the UI shows touch hints and a pause button.</summary>
         public bool TouchMode { get; private set; }
+
+        /// <summary>The shoes the farmer wears: they change his footsteps and are kept between runs.</summary>
+        public Shoe CurrentShoe { get; private set; }
 
         /// <summary>Sound toggle probe for autotest scenarios.</summary>
         public bool SoundOn => soundOn;
@@ -194,6 +198,8 @@ namespace Studio.Pacman
             HighScore = PlayerPrefs.GetInt(HighScoreKey, 0);
             BuildMaze();
             BuildActors();
+            CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
+            player.SetShoe(CurrentShoe);
             SetupCamera();
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.playOnAwake = false;
@@ -580,6 +586,14 @@ namespace Studio.Pacman
                 case "SOUND":
                     soundOn = !soundOn;
                     break;
+                case "SHOES":
+                    CurrentShoe = PacmanShoes.Next(CurrentShoe);
+                    player.SetShoe(CurrentShoe);
+                    PlayerPrefs.SetInt(ShoeKey, (int)CurrentShoe);
+                    PlayerPrefs.Save();
+                    // Let the director hear the new pair straight away.
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, false), soundOn);
+                    return;
                 case "QUIT":
                     Application.Quit();
                     break;
@@ -613,7 +627,7 @@ namespace Studio.Pacman
                 {
                     stepTimer = stepInterval;
                     stepFlip = !stepFlip;
-                    PacmanSfx.Play(audioSource, stepFlip ? sfx?.StepA : sfx?.StepB, soundOn);
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, stepFlip), soundOn);
                 }
             }
             else
