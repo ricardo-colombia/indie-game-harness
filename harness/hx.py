@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """hx — one entry point for humans and agents.
 
-  hx verify [--scenarios a b]        build + EditMode + PlayMode + autotest on this checkout
+  hx verify [--scenarios a b]        build + release + EditMode + PlayMode + autotest on this checkout
+            [--only build editmode]  just those gates (quick check between edits); [--metrics] to print metric stats
   hx build | hx test EditMode|PlayMode | hx autotest smoke drive_straight
   hx web [--serve]                   browser (WebGL) build in game/Builds/Web; --serve plays it on localhost:8000
   hx capture marketing/takes/launch.json
@@ -37,7 +38,10 @@ if _venv_py.exists() and Path(sys.prefix).resolve() != _venv.resolve():
 
 sys.path.insert(0, str(Path(__file__).parent))
 import unity  # noqa: E402
-from core import BACKLOG, LEDGER, REPORTS, ROOT, STATES, list_cards, load_config, parse_card  # noqa: E402
+from core import BACKLOG, LEDGER, REPORTS, ROOT, STATES, list_cards, load_config, parse_card, slim  # noqa: E402
+
+
+GATES = ["build", "release", "editmode", "playmode", "autotest"]
 
 
 def _out(name: str) -> Path:
@@ -46,8 +50,10 @@ def _out(name: str) -> Path:
     return p
 
 
-def _print(ok, summary):
-    print(json.dumps({"ok": ok, **({"result": summary} if not isinstance(summary, dict) else summary)}, indent=1, default=str))
+def _print(ok, summary, metrics=False):
+    body = slim({"ok": ok, **({"result": summary} if not isinstance(summary, dict) else summary)}, metrics=metrics)
+    # one line when it passed (nothing to read), indented when it failed
+    print(json.dumps(body, default=str, **({"separators": (",", ":")} if ok else {"indent": 1})))
     return 0 if ok else 1
 
 
@@ -55,11 +61,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="hx")
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("verify"); v.add_argument("--scenarios", nargs="*", default=[])
+    v.add_argument("--only", nargs="*", choices=GATES, help="run just these gates (default: all five, in order)")
+    v.add_argument("--metrics", action="store_true", help="print metric stats too")
     rl = sub.add_parser("release"); rl.add_argument("--to-steam", action="store_true")
     sub.add_parser("build")
     w = sub.add_parser("web"); w.add_argument("--serve", action="store_true"); w.add_argument("--port", type=int, default=8000)
     t = sub.add_parser("test"); t.add_argument("platform", choices=["EditMode", "PlayMode"])
     at = sub.add_parser("autotest"); at.add_argument("scenarios", nargs="+")
+    at.add_argument("--metrics", action="store_true", help="print metric stats too")
     cp = sub.add_parser("capture"); cp.add_argument("takes")
     c = sub.add_parser("card"); c.add_argument("action", choices=["new", "ready"]); c.add_argument("arg")
     c.add_argument("--type", default="feature")
@@ -95,20 +104,22 @@ def main(argv=None) -> int:
     if a.cmd == "test":
         return _print(*unity.tests(cfg, project, _out("test"), a.platform))
     if a.cmd == "autotest":
-        return _print(*unity.autotest(cfg, project, _out("autotest"), a.scenarios))
+        return _print(*unity.autotest(cfg, project, _out("autotest"), a.scenarios), metrics=a.metrics)
     if a.cmd == "capture":
         return _print(*unity.capture(cfg, project, ROOT / a.takes, ROOT / cfg["marketing"]["out_dir"] / "raw" / Path(a.takes).stem))
     if a.cmd == "verify":
         out, res = _out("verify"), {}
-        for name, fn in [("build", lambda: unity.build(cfg, project, out)),
-                         ("release", lambda: unity.build(cfg, project, out, release=True)),
-                         ("editmode", lambda: unity.tests(cfg, project, out, "EditMode")),
-                         ("playmode", lambda: unity.tests(cfg, project, out, "PlayMode")),
-                         ("autotest", lambda: unity.autotest(cfg, project, out, ["smoke", *a.scenarios]))]:
-            ok, res[name] = fn()
+        gates = {"build": lambda: unity.build(cfg, project, out),
+                 "release": lambda: unity.build(cfg, project, out, release=True),
+                 "editmode": lambda: unity.tests(cfg, project, out, "EditMode"),
+                 "playmode": lambda: unity.tests(cfg, project, out, "PlayMode"),
+                 "autotest": lambda: unity.autotest(cfg, project, out, ["smoke", *a.scenarios])}
+        for name in a.only or GATES:
+            ok, res[name] = gates[name]()
             if not ok:
-                return _print(False, {"failed_gate": name, **res, "out": str(out)})
-        return _print(True, {**res, "out": str(out)})
+                return _print(False, {"failed_gate": name, **res, "out": str(out)}, a.metrics)
+            res[name] = {"ok": True, **(res[name] if isinstance(res[name], dict) else {"result": res[name]})}
+        return _print(True, {**res, "out": str(out)}, a.metrics)
 
     if a.cmd == "release":
         dirty = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True).stdout.strip()

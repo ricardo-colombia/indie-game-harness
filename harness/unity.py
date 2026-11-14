@@ -76,6 +76,8 @@ def build(cfg, project: Path, out: Path, release: bool = False, binary: Path | N
     errors = [l for l in r.stdout.splitlines() if "error CS" in l][:20]
     ok = r.returncode == 0 and binary.exists() and (not web or (binary / "index.html").exists())
     summary = {"rc": r.returncode, "binary": str(binary), "compile_errors": errors, "log": str(log)}
+    if not ok and not errors:   # no C# error to show: give the end of the log so nobody has to open it
+        summary["log_tail"] = [l[:200] for l in r.stdout.splitlines()[-12:]]
     if ok and release:
         leaks = scan_for_harness(binary)
         summary["harness_leaks"] = leaks
@@ -134,7 +136,11 @@ def tests(cfg, project: Path, out: Path, platform_: str):
     if results.exists():
         root = ET.parse(results).getroot()
         summary.update({k: root.get(k) for k in ("total", "passed", "failed", "skipped")})
-        summary["failed_tests"] = [t.get("fullname") for t in root.iter("test-case") if t.get("result") == "Failed"][:20]
+        def why(t):   # the first line of the assertion message is usually the whole story
+            m = t.find("failure/message")
+            return ((m.text or "").strip().splitlines() or [""])[0][:200] if m is not None else ""
+        summary["failed_tests"] = [f"{t.get('fullname')}: {why(t)}".rstrip(": ")
+                                   for t in root.iter("test-case") if t.get("result") == "Failed"][:20]
     return r.returncode == 0 and results.exists(), summary
 
 

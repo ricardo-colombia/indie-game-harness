@@ -534,6 +534,23 @@ class Offline(unittest.TestCase):
         self.assertEqual(player_exe(app), app / "Contents/MacOS/My")
         self.assertEqual(player_exe(self.tmp / "Builds/game.exe"), self.tmp / "Builds/game.exe")
 
+    def test_passing_output_is_small_and_failures_keep_their_details(self):
+        from core import slim
+        stats = {"min": 1, "max": 2, "avg": 1.5, "last": 1, "p95": 2, "count": 9}
+        ok = slim({"ok": True, "smoke": {"ok": True, "rc": 0, "fails": [], "metrics": {"frame.ms": stats}, "log": "/x/log"}})
+        self.assertEqual(ok, {"ok": True, "smoke": {"ok": True}})       # a pass says only that it passed
+        bad = slim({"ok": False, "build": {"rc": 1, "compile_errors": ["error CS0103"], "log": "/x/log"}})
+        self.assertEqual(bad["build"], {"rc": 1, "compile_errors": ["error CS0103"], "log": "/x/log"})
+        self.assertIn("metrics", slim({"ok": True, "metrics": {"a": stats}}, metrics=True))
+
+    def test_sh_returns_when_the_command_exits_even_if_a_child_keeps_running(self):
+        import time
+        from core import sh
+        t = time.time()                                                   # Unity leaves a package server like this
+        r = sh(["sh", "-c", "sleep 25 & echo done"], timeout=20)
+        self.assertLess(time.time() - t, 10)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, "done"))
+
     def test_web_build_pieces_exist(self):
         page = (REPO / "packages/com.studio.harness/WebGLTemplates~/Harness/index.html").read_text()
         self.assertIn("{{{ LOADER_FILENAME }}}", page)                # a real Unity WebGL template, not a stub

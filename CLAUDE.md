@@ -17,7 +17,6 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 - `scenarios/*.json` autotest scripts + metric thresholds (the "feel contract"). Protected; the runner reads them from main.
 - `design/PILLARS.md` human-owned vision — read, never edit. `design/TASTE_LOG.md` decisions with reasons.
 - `art/manifest.yaml` asset pipeline state (optional). `marketing/` takes, shorts, posting schedule. `steam/` store + depot.
-- `harness/hx.py` the only CLI you need: `setup|doctor|verify|build|web|test|autotest|capture|cards|cost`.
 
 ## Code contract (Unity / C#)
 - **Game code never references the harness** (`using Harness` is forbidden; it's stripped from release builds). The harness drives and observes the game from outside.
@@ -40,9 +39,13 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 ## Verify before claiming done
 `./hx verify --scenarios <relevant>` must pass (close the editor first). In an interactive session with the editor open, use `unity test --mode EditMode`, enter play mode, simulate and screenshot through `unity command` instead.
 
-## Cost discipline
-- Default model is Sonnet; Opus only for cards marked `difficulty: hard`. Use the `Explore` subagent (cheap, read-only) for codebase searches instead of reading many files.
-- Read files in parts; grep before reading. Keep cards small (≤ 1 system, ≤ ~300 lines changed).
+## Cost discipline (tokens are the budget: every tool call re-sends the whole conversation)
+- **Inner loop, editor open:** write a whole change in one or two edits → `unity test --mode EditMode` (seconds) → only if something visible changed, ONE screenshot. `./hx verify` once, right before saying done (editor closed; `--only editmode` for a quick pass). Never loop `verify` to "see if it works".
+- **Fewer, bigger calls.** One `script eval` that sets up, samples and prints a compact table beats five small ones. Wait with `unity status --until-ready`, not by polling. Don't re-read a file you just edited or re-run a command to confirm what its output already said.
+- **Outputs are small on purpose:** `./hx` prints one line when a step passes and the error excerpt when it fails (add `--metrics` only if you need the numbers). Never `cat` a log: the failure summary already has the errors; if you need more, `grep`/`tail` the log path it gives.
+- **Measure before you look.** Read state through probes/fields first; screenshots (images are expensive) only for look/feel questions, at most one per change, small.
+- **Subagents start cold and re-read everything:** don't spawn one for a task you can do in ~5 calls. Use them for genuinely broad sweeps or work that must run in parallel.
+- Read files in parts; grep before reading. Keep cards small (≤ 1 system, ≤ ~300 lines changed). Default model is Sonnet; Opus only for cards marked `difficulty: hard`.
 - $0 is the normal mode: agents run on the plan quota, and art providers default to manual/ComfyUI. Paid APIs (Anthropic API key, Magnific, Tripo) are used only when config or the card says so; they are logged as `billed: api` in `harness/ledger.jsonl`.
 
 ## Never

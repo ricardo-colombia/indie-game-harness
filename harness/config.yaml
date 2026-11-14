@@ -54,9 +54,9 @@ runner:
                 AWS_SESSION_TOKEN, AWS_BEARER_TOKEN_BEDROCK, GOOGLE_APPLICATION_CREDENTIALS]
   defaults:
     model: sonnet                      # sonnet is the workhorse; opus only for cards tagged hard
-    budget_usd: 3.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating your quota
-    timeout_min: 45
-    max_turns: 80
+    budget_usd: 2.0                    # per-card cap (Claude's estimate). On plan quota: stops one card eating your quota
+    timeout_min: 30                    # cards are small (≤ 1 system); a card that needs more should be split, or raise these in its front matter
+    max_turns: 50
     gates: [build, release, editmode, playmode, autotest, review]   # release = build without HARNESS + scan
   models:                              # card `difficulty` -> model alias
     trivial: haiku

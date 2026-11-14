@@ -151,6 +151,17 @@ def sh(cmd: list[str], cwd: Path | None = None, timeout: float | None = None,
     return subprocess.CompletedProcess(cmd, rc, out, "")
 
 
+def slim(o, ok=True, metrics=False):
+    """Keep command output cheap to read: no empty fields, no per-metric stats (`--metrics` brings them back), and no
+    log/binary paths for a passing step. Failures keep their paths and error excerpts."""
+    if isinstance(o, dict):
+        ok_here = o.get("ok", ok)
+        return {k: slim(v, ok_here, metrics) for k, v in o.items()
+                if v not in ([], {}, None, "") and not (k == "rc" and v == 0)
+                and (metrics or k != "metrics") and not (ok_here is True and k in ("log", "binary"))}
+    return [slim(x, ok, metrics) for x in o] if isinstance(o, list) else o
+
+
 def kill_tree(p: subprocess.Popen) -> None:
     try:
         if os.name == "nt":
