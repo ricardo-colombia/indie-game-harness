@@ -75,6 +75,7 @@ namespace Studio.Pacman
         private readonly List<PacmanGhost> ghosts = new List<PacmanGhost>();
         private readonly List<GameObject> powerPelletObjects = new List<GameObject>();
         private GameObject[] pelletObjects;
+        private GameObject[] harvestMarks;
         private bool[] pelletLeft;
         private PacmanPlayer player;
         private Vector2Int playerStart;
@@ -831,6 +832,10 @@ namespace Studio.Pacman
             pelletLeft[index] = false;
             pelletCount--;
             pelletObjects[index].SetActive(false);
+            if (harvestMarks[index] != null)
+            {
+                harvestMarks[index].SetActive(true);
+            }
 
             player.Gobble();
             PacmanVfx.Burst(pelletObjects[index].transform.position, IsPowerPellet(index) ? new Color(0.8f, 0.5f, 0.2f) : new Color(0.85f, 0.55f, 0.3f), IsPowerPellet(index) ? 16 : 6);
@@ -965,6 +970,10 @@ namespace Studio.Pacman
                 {
                     pelletLeft[i] = true;
                     pelletObjects[i].SetActive(true);
+                    if (harvestMarks[i] != null)
+                    {
+                        harvestMarks[i].SetActive(false);
+                    }
                 }
             }
             pelletCount = 0;
@@ -1055,6 +1064,7 @@ namespace Studio.Pacman
             int width = PacmanMaze.Width;
             int height = PacmanMaze.Height;
             pelletObjects = new GameObject[width * height];
+            harvestMarks = new GameObject[width * height];
             pelletLeft = new bool[width * height];
 
             Transform mazeRoot = new GameObject("Maze").transform;
@@ -1076,6 +1086,7 @@ namespace Studio.Pacman
                             pelletCount++;
                             GameObject pellet = CreatePellet(mazeRoot, tile, c == 'o');
                             pelletObjects[index] = pellet;
+                            harvestMarks[index] = PacmanPath.CreateHarvestMark(mazeRoot, tile);
                             if (c == 'o')
                             {
                                 powerPelletObjects.Add(pellet);

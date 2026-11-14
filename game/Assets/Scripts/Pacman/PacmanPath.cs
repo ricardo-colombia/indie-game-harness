@@ -98,6 +98,53 @@ namespace Studio.Pacman
             renderer.sortingOrder = -9;
         }
 
+        private static Sprite markSprite;
+
+        /// <summary>
+        /// A patch of trampled, darker earth on a tile whose coffee has been picked, hidden until then. The trail
+        /// wears down as the farmer harvests, so the level's progress can be read on the ground itself.
+        /// </summary>
+        public static GameObject CreateHarvestMark(Transform parent, Vector2Int tile)
+        {
+            if (markSprite == null)
+            {
+                const int n = 48;
+                Texture2D texture = new Texture2D(n, n, TextureFormat.RGBA32, false)
+                {
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear,
+                    name = "PacmanHarvestMark",
+                    hideFlags = HideFlags.DontSave,
+                };
+                Color[] pixels = new Color[n * n];
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        float u = (x + 0.5f) / n * 2f - 1f;
+                        float v = (y + 0.5f) / n * 2f - 1f;
+                        float d = Mathf.Sqrt(u * u + v * v) + (Noise(x * 0.16f, y * 0.16f) - 0.5f) * 0.35f;
+                        float a = (1f - Mathf.SmoothStep(0.4f, 0.9f, d)) * 0.8f;
+                        float flake = PacmanToon.Hash(x, y) > 0.93f ? 0.12f : 0f;
+                        pixels[y * n + x] = new Color(0.1f, 0.055f, 0.03f, Mathf.Clamp01(a + (a > 0.05f ? flake : 0f)));
+                    }
+                }
+                texture.SetPixels(pixels);
+                texture.Apply(false);
+                markSprite = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), n, 0, SpriteMeshType.FullRect);
+                markSprite.hideFlags = HideFlags.DontSave;
+            }
+            GameObject mark = new GameObject("HarvestMark");
+            mark.transform.SetParent(parent, false);
+            mark.transform.position = new Vector3(tile.x, -tile.y, 0f);
+            mark.transform.localScale = Vector3.one * 0.95f;
+            SpriteRenderer renderer = mark.AddComponent<SpriteRenderer>();
+            renderer.sprite = markSprite;
+            renderer.sortingOrder = -8;
+            mark.SetActive(false);
+            return mark;
+        }
+
         /// <summary>Distance in cells from a point to the nearest path cell centre or to the segment joining two adjacent path cells.</summary>
         private static float Distance(bool[,] path, float fx, float fy, int w, int h)
         {
