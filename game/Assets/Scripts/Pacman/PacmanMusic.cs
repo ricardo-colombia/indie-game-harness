@@ -59,7 +59,7 @@ namespace Studio.Pacman
             return midi - 3;
         }
 
-        // Title menu: a slow pasillo (3/4 waltz) in D minor, eight bars of Dm - Gm - A - Dm - Bb - F - A - Dm, played twice.
+        // Title menu: a slow pasillo (3/4 waltz): A = eight bars in D minor (Dm - Gm - A - Dm - Bb - F - A - Dm), B = eight bars in F major; A B then A B again doubled in thirds (~52 s).
         private static readonly float[] TitleRoots = { 38f, 43f, 45f, 38f, 46f, 41f, 45f, 38f };
         private static readonly float[][] TitleChords =
         {
@@ -84,10 +84,34 @@ namespace Studio.Pacman
             new[] { 74, 6 },
         };
 
-        /// <summary>The note a diatonic third below in D minor (the seventh is raised over the A chord).</summary>
-        private static float TitleThirdBelow(int midi, int bar)
+        // Title section B: a second tune in the relative major (F), Dm ends it so it falls back into A.
+        private static readonly float[] TitleRootsB = { 41f, 48f, 38f, 46f, 41f, 48f, 45f, 38f };
+        private static readonly float[][] TitleChordsB =
         {
-            bool dominant = bar == 2 || bar == 6;
+            new[] { 60f, 65f, 69f },
+            new[] { 60f, 64f, 67f },
+            new[] { 62f, 65f, 69f },
+            new[] { 58f, 62f, 65f },
+            new[] { 60f, 65f, 69f },
+            new[] { 60f, 64f, 67f },
+            new[] { 61f, 64f, 69f },
+            new[] { 62f, 65f, 69f },
+        };
+        private static readonly int[][] TitleMelodyB =
+        {
+            new[] { 77, 2, 81, 2, 79, 1, 77, 1 },
+            new[] { 76, 3, 72, 2, 74, 1 },
+            new[] { 74, 2, 77, 2, 81, 2 },
+            new[] { 82, 3, 81, 2, 77, 1 },
+            new[] { 79, 2, 77, 2, 72, 2 },
+            new[] { 76, 2, 79, 2, 84, 2 },
+            new[] { 81, 3, 79, 2, 73, 1 },
+            new[] { 74, 6 },
+        };
+
+        /// <summary>The note a diatonic third below in D minor / F major (the seventh is raised over the A chord).</summary>
+        private static float TitleThirdBelow(int midi, bool dominant)
+        {
             for (int drop = 3; drop <= 4; drop++)
             {
                 int pc = ((midi - drop) % 12 + 12) % 12;
@@ -103,7 +127,7 @@ namespace Studio.Pacman
         private static AudioClip BuildTitle()
         {
             const float eighth = 0.27f;
-            const int bars = 16;
+            const int bars = 32;
             float barLength = eighth * 6f;
             float[] melodic = PacmanSynth.Buffer(barLength * bars);
             float[] rhythm = PacmanSynth.Buffer(barLength * bars);
@@ -111,9 +135,12 @@ namespace Studio.Pacman
             for (int bar = 0; bar < bars; bar++)
             {
                 int chord = bar % 8;
-                bool second = bar >= 8;
+                bool second = bar >= 16;
+                bool sectionB = (bar / 8) % 2 == 1;
+                bool dominant = chord == 6 || (!sectionB && chord == 2);
+                float[][] chords = sectionB ? TitleChordsB : TitleChords;
                 float barStart = bar * barLength;
-                float root = TitleRoots[chord];
+                float root = sectionB ? TitleRootsB[chord] : TitleRoots[chord];
 
                 // Waltz bass: the root on one, a softer fifth on the second beat.
                 PacmanSynth.Note(rhythm, barStart, eighth * 3.2f, root, Wave.Triangle, 0.32f, 3f);
@@ -123,7 +150,7 @@ namespace Studio.Pacman
                 int[] order = { 0, 1, 2, 1, 2 };
                 for (int e = 1; e < 6; e++)
                 {
-                    PacmanSynth.Note(rhythm, barStart + e * eighth, eighth * 1.5f, TitleChords[chord][order[e - 1]], Wave.Pulse125, 0.07f, 9f);
+                    PacmanSynth.Note(rhythm, barStart + e * eighth, eighth * 1.5f, chords[chord][order[e - 1]], Wave.Pulse125, 0.07f, 9f);
                 }
 
                 // Barely there percussion: a soft thump on one and a shaker on the beats.
@@ -134,7 +161,7 @@ namespace Studio.Pacman
                 }
 
                 // Sung melody; the second time round it doubles in thirds with a brighter voice.
-                int[] notes = TitleMelody[chord];
+                int[] notes = (sectionB ? TitleMelodyB : TitleMelody)[chord];
                 float cursor = barStart;
                 for (int n = 0; n < notes.Length; n += 2)
                 {
@@ -144,7 +171,7 @@ namespace Studio.Pacman
                     PacmanSynth.Note(melodic, cursor, length * 0.97f, notes[n], wave, gain, 1.4f, 5f, 0.25f);
                     if (second)
                     {
-                        PacmanSynth.Note(melodic, cursor, length * 0.97f, TitleThirdBelow(notes[n], chord), wave, gain * 0.7f, 1.4f, 5f, 0.25f);
+                        PacmanSynth.Note(melodic, cursor, length * 0.97f, TitleThirdBelow(notes[n], dominant), wave, gain * 0.7f, 1.4f, 5f, 0.25f);
                     }
                     cursor += length;
                 }
@@ -363,34 +390,60 @@ namespace Studio.Pacman
         private static AudioClip BuildFrightened()
         {
             const float bpm = 168f;
-            const int bars = 4;
+            const int bars = 16;
             float step = 60f / bpm / 4f;
             float[] buf = PacmanSynth.Buffer(step * 16 * bars);
 
-            // A creeping chromatic bass line with a wobbling stab above it.
-            float[] roots = { 33f, 34f, 35f, 36f };
+            // Four phrases of four bars so the loop is ~23 s: the chromatic bass creeps up, falls back, stalls and climbs higher,
+            // while the stab and the drums change shape every phrase.
+            float[][] phraseRoots =
+            {
+                new[] { 33f, 34f, 35f, 36f },
+                new[] { 36f, 35f, 34f, 33f },
+                new[] { 33f, 33f, 36f, 35f },
+                new[] { 38f, 37f, 36f, 35f },
+            };
             for (int bar = 0; bar < bars; bar++)
             {
+                int phrase = bar / 4;
                 float barStart = bar * 16 * step;
-                float root = roots[bar];
+                float root = phraseRoots[phrase][bar % 4];
                 for (int e = 0; e < 8; e++)
                 {
                     float midi = root + (e % 2 == 1 ? 12f : 0f);
+                    if (phrase == 2 && e % 4 == 3)
+                    {
+                        midi = root + 7f;
+                    }
                     PacmanSynth.Note(buf, barStart + e * 2 * step, step * 1.8f, midi, Wave.Triangle, 0.32f, 5f);
                 }
                 for (int s = 0; s < 16; s++)
                 {
-                    if (s % 4 == 2)
+                    bool stab = phrase switch
                     {
-                        PacmanSynth.Note(buf, barStart + s * step, step * 2.2f, root + 36f + (s == 10 ? 1f : 0f), Wave.Pulse125, 0.1f, 6f, 9f, 0.5f);
+                        0 => s % 4 == 2,
+                        1 => s % 4 == 2 || s == 15,
+                        2 => s % 4 == 3,
+                        _ => s % 2 == 0 && s >= 8,
+                    };
+                    if (stab)
+                    {
+                        float pitch = root + 36f + (s == 10 ? 1f : 0f) + (phrase == 3 ? 12f : 0f);
+                        PacmanSynth.Note(buf, barStart + s * step, step * 2.2f, pitch, Wave.Pulse125, 0.1f, 6f, 9f, 0.5f);
                     }
-                    PacmanSynth.Hat(buf, barStart + s * step, s % 2 == 0 ? 0.06f : 0.03f, false, bar * 19 + s);
+                    PacmanSynth.Hat(buf, barStart + s * step, s % 2 == 0 ? 0.06f : 0.03f, phrase == 3 && s % 4 == 3, bar * 19 + s);
                 }
-                foreach (int k in new[] { 0, 4, 8, 12 })
+                int[] kicks = phrase == 2 ? new[] { 0, 6, 8, 12 } : new[] { 0, 4, 8, 12 };
+                foreach (int k in kicks)
                 {
                     PacmanSynth.Kick(buf, barStart + k * step, 0.42f);
                 }
                 PacmanSynth.Snare(buf, barStart + 8 * step, 0.12f, bar + 40);
+                if (phrase == 3)
+                {
+                    PacmanSynth.Snare(buf, barStart + 4 * step, 0.08f, bar + 90);
+                    PacmanSynth.Snare(buf, barStart + 14 * step, 0.08f, bar + 120);
+                }
             }
             PacmanSynth.Echo(buf, step * 3f, 0.3f, 0.3f, true);
             PacmanSynth.Limit(buf, 0.9f);
