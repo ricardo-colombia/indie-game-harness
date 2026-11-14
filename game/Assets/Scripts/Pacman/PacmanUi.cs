@@ -384,6 +384,12 @@ namespace Studio.Pacman
         {
             Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, Mathf.Clamp01(stateAge * 1.2f) * 0.6f));
             float a = Mathf.Clamp01(stateAge * 1.5f);
+            // A dark ribbon with thin gold rules behind the words, so they read over the busy maze.
+            float bandTop = Screen.height * 0.25f;
+            float bandHeight = Screen.height * 0.52f;
+            Fill(new Rect(0, bandTop, Screen.width, bandHeight), new Color(0.04f, 0.025f, 0.01f, 0.72f * a));
+            Fill(new Rect(0, bandTop, Screen.width, 3f * s), new Color(Gold.r, Gold.g, Gold.b, 0.7f * a));
+            Fill(new Rect(0, bandTop + bandHeight - 3f * s, Screen.width, 3f * s), new Color(Gold.r, Gold.g, Gold.b, 0.7f * a));
             Color red = new Color(1f, 0.25f, 0.3f, a);
             Text(new Rect(0, Screen.height * 0.28f, Screen.width, 140f * s), "FIN DE LA COSECHA", Mathf.Min(84f * s, Screen.width * 0.09f), red, TextAnchor.MiddleCenter, new Vector2(0f, 6f * s));
             Text(new Rect(0, Screen.height * 0.46f, Screen.width, 50f * s), "PUNTOS  " + game.Score.ToString("N0"), 44f * s, new Color(1f, 1f, 1f, a), TextAnchor.MiddleCenter);
