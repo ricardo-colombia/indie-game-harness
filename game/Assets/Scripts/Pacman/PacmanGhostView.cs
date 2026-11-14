@@ -79,6 +79,12 @@ namespace Studio.Pacman
             return root.transform;
         }
 
+        /// <summary>Which way an unbound view (the title-screen chase) faces.</summary>
+        public void SetLook(Vector2 direction)
+        {
+            look = direction;
+        }
+
         public void Bind(PacmanGhost owner, PacmanGame owningGame)
         {
             ghost = owner;

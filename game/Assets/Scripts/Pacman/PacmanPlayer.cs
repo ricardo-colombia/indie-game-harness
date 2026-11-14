@@ -52,6 +52,7 @@ namespace Studio.Pacman
         private float deathTimer;
         private float deathDuration = 1f;
         private float deathFrom;
+        private bool parade;
         private GhostKind deathBy;
         private float deathAway = 1f;
 
@@ -232,6 +233,15 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>The title-screen chase: the picker walks on the spot facing this way (+1 right, -1 left), with no maze or game.</summary>
+        public void ShowParade(float facingSign)
+        {
+            parade = true;
+            facing = facingSign < 0f ? -1f : 1f;
+            SetView(View.Side);
+            views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+        }
+
         public void Request(Vector2Int direction)
         {
             if (direction != Vector2Int.zero)
@@ -349,7 +359,7 @@ namespace Studio.Pacman
             }
 
             raise = Mathf.MoveTowards(raise, 0f, Time.deltaTime * 5f);
-            bool moving = Dir != Vector2Int.zero;
+            bool moving = Dir != Vector2Int.zero || parade;
             moveBlend = Mathf.MoveTowards(moveBlend, moving ? 1f : 0f, Time.deltaTime * 7f);
             if (moving)
             {
