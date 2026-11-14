@@ -505,6 +505,14 @@ namespace Studio.Pacman
                 c.a = alpha;
                 float size = 34f * s * pop;
                 Rect r = new Rect(screen.x - 120f * s, Screen.height - screen.y - size * 0.5f - rise, 240f * s, size * 1.2f);
+                // An ink outline first (four offsets), so the points read over leaves and cherries alike, like a label's lettering.
+                Color ink = new Color(0.07f, 0.035f, 0.015f, alpha * 0.95f);
+                float o = Mathf.Max(1.5f, 2.2f * s);
+                Vector2[] offsets = { new Vector2(o, 0f), new Vector2(-o, 0f), new Vector2(0f, o), new Vector2(0f, -o) };
+                foreach (Vector2 off in offsets)
+                {
+                    Text(new Rect(r.x + off.x, r.y + off.y, r.width, r.height), p.Text, size, ink, TextAnchor.MiddleCenter);
+                }
                 Text(r, p.Text, size, c, TextAnchor.MiddleCenter, new Vector2(0f, 2f * s));
             }
         }
