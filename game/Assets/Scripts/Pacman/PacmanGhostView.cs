@@ -93,6 +93,9 @@ namespace Studio.Pacman
             rig = new GameObject("Rig").transform;
             rig.SetParent(transform, false);
 
+            // A soft shadow on the ground, so the pests stand on the earth like the picker does.
+            NewPart("Shadow", PacmanFarmerArt.Shadow(), new Vector2(0f, snake ? -0.22f : -0.42f), Vector2.one * 0.9f, 3, transform).color = new Color(0f, 0f, 0f, 0.35f);
+
             if (snake)
             {
                 eyeSize = new Vector2(0.1f, 0.12f);
