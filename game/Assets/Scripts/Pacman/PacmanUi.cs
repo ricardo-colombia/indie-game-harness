@@ -334,6 +334,25 @@ namespace Studio.Pacman
             label.wordWrap = false;
         }
 
+        /// <summary>The largest font size, up to <paramref name="size"/>, at which a word-wrapped text fits a box.</summary>
+        private float FitWrapped(string text, float size, float width, float height)
+        {
+            label.wordWrap = true;
+            GUIContent content = new GUIContent(text);
+            float fitted = size;
+            for (int i = 0; i < 14; i++)
+            {
+                label.fontSize = Mathf.Max(8, Mathf.RoundToInt(fitted));
+                if (label.CalcHeight(content, width) <= height)
+                {
+                    break;
+                }
+                fitted *= 0.92f;
+            }
+            label.wordWrap = false;
+            return fitted;
+        }
+
         /// <summary>The largest font size, up to <paramref name="size"/>, at which a one-line text fits a width.</summary>
         private float FitFont(string text, float size, float width)
         {
@@ -396,15 +415,23 @@ namespace Studio.Pacman
             Rect caption = new Rect(picture.x, captionTop, picture.width, H - captionTop - 78f * s);
             Fill(caption, new Color(0.97f, 0.9f, 0.7f, 0.96f), 10f * s);
             float pad = 16f * cs;
+            float inner = caption.width - 2f * pad;
             Color ink = new Color(0.18f, 0.09f, 0.04f);
             float y = caption.y + pad * 0.6f;
             Text(new Rect(caption.x + pad, y, caption.width - 2f * pad, 52f * cs), panel.Title, FitFont(panel.Title, 40f * cs, caption.width - 2f * pad), new Color(0.62f, 0.14f, 0.1f), TextAnchor.MiddleLeft);
             y += 52f * cs;
-            float motiveHeight = string.IsNullOrEmpty(panel.Motive) ? 0f : 46f * cs;
-            TextWrapped(new Rect(caption.x + pad, y, caption.width - 2f * pad, caption.yMax - y - motiveHeight - pad * 0.5f), panel.Text, 29f * cs, ink, TextAnchor.UpperLeft);
-            if (motiveHeight > 0f)
+            // Same order as the character sheets: story first, then a rule and what the character wants (or the mission).
+            bool hasMotive = !string.IsNullOrEmpty(panel.Motive);
+            float motiveHeight = hasMotive ? 70f * cs : 0f;
+            float bodyHeight = caption.yMax - y - motiveHeight - pad * 0.6f;
+            TextWrapped(new Rect(caption.x + pad, y, inner, bodyHeight), panel.Text, FitWrapped(panel.Text, 26f * cs, inner, bodyHeight), ink, TextAnchor.UpperLeft);
+            if (hasMotive)
             {
-                Text(new Rect(caption.x + pad, caption.yMax - motiveHeight - pad * 0.4f, caption.width - 2f * pad, motiveHeight), panel.Motive, FitFont(panel.Motive, 27f * cs, caption.width - 2f * pad), new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
+                float ruleY = caption.yMax - motiveHeight - pad * 0.3f;
+                Fill(new Rect(caption.x + pad, ruleY, inner, Mathf.Max(2f, 2f * s)), new Color(0.18f, 0.09f, 0.04f, 0.25f));
+                Rect motiveRect = new Rect(caption.x + pad, ruleY + 6f * s, inner, caption.yMax - ruleY - 6f * s - pad * 0.3f);
+                Color motiveColour = panel.Motive.StartsWith("QUIERE") ? new Color(0.45f, 0.2f, 0.06f) : new Color(0.18f, 0.4f, 0.12f);
+                TextWrapped(motiveRect, panel.Motive, FitWrapped(panel.Motive, 26f * cs, inner, motiveRect.height), motiveColour, TextAnchor.UpperLeft);
             }
 
             // Progress dots and the control hint.
@@ -486,11 +513,11 @@ namespace Studio.Pacman
             Text(new Rect(sheet.x + pad, y, inner, 32f * cs), member.Role.ToUpperInvariant(), FitFont(member.Role, 24f * cs, inner), new Color(0.18f, 0.4f, 0.12f), TextAnchor.MiddleLeft);
             y += 36f * cs;
             float block = (sheet.yMax - y - pad * 0.4f) / 3.2f;
-            TextWrapped(new Rect(sheet.x + pad, y, inner, block * 1.2f), member.Context, 24f * cs, ink, TextAnchor.UpperLeft);
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block * 1.2f), member.Context, FitWrapped(member.Context, 24f * cs, inner, block * 1.2f), ink, TextAnchor.UpperLeft);
             y += block * 1.2f;
-            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "QUIERE: " + member.Wants, 24f * cs, new Color(0.45f, 0.2f, 0.06f), TextAnchor.UpperLeft);
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "QUIERE: " + member.Wants, FitWrapped("QUIERE: " + member.Wants, 24f * cs, inner, block), new Color(0.45f, 0.2f, 0.06f), TextAnchor.UpperLeft);
             y += block;
-            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "ENSEÑA: " + member.Lesson, 24f * cs, new Color(0.18f, 0.4f, 0.12f), TextAnchor.UpperLeft);
+            TextWrapped(new Rect(sheet.x + pad, y, inner, block), "ENSEÑA: " + member.Lesson, FitWrapped("ENSEÑA: " + member.Lesson, 24f * cs, inner, block), new Color(0.18f, 0.4f, 0.12f), TextAnchor.UpperLeft);
 
             float dot = 12f * s;
             float dotsWidth = PacmanCast.Count * dot * 2f;
