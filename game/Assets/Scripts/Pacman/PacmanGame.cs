@@ -662,7 +662,8 @@ namespace Studio.Pacman
             float aspect = (float)Screen.width / Screen.height;
             float centreX = PacmanMaze.Width * 0.5f - 0.5f;
             float centreY = -(PacmanMaze.Height * 0.5f - 0.5f);
-            bool close = closeView && introTimer <= 0f && State != PacmanState.Title && State != PacmanState.GameOver && State != PacmanState.Story && player != null;
+            // The harvest celebration pulls back to show the whole farm, like the opening does.
+            bool close = closeView && introTimer <= 0f && State != PacmanState.Title && State != PacmanState.LevelClear && State != PacmanState.GameOver && State != PacmanState.Story && player != null;
             float targetSize = close ? Mathf.Min(fullSize, Mathf.Max(6f, 5.4f / aspect)) : fullSize;
             Vector2 target = new Vector2(centreX, centreY);
             if (close)
