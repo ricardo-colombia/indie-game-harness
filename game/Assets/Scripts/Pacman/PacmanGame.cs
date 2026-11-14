@@ -215,7 +215,7 @@ namespace Studio.Pacman
         private void Awake()
         {
             HighScore = PlayerPrefs.GetInt(HighScoreKey, 0);
-            closeView = PlayerPrefs.GetInt(CloseViewKey, 0) == 1;
+            closeView = PlayerPrefs.GetInt(CloseViewKey, 1) == 1;
             BuildMaze();
             BuildActors();
             SetupCamera();
