@@ -17,9 +17,9 @@ namespace Studio.Pacman
     /// the farmer's sombrero and, from level 13, the golden bean.</summary>
     public static class PacmanFruit
     {
-        /// <summary>Where the fruit appears: on the farmer's start tile, below the pest house.</summary>
-        public const float SpawnX = 10f;
-        public const int SpawnRow = 19;
+        /// <summary>Where the fruit appears: in the corridor right below the pest house, between two tiles, as in the arcade.</summary>
+        public const float SpawnX = 13.5f;
+        public const int SpawnRow = 17;
 
         /// <summary>How many fruits one level offers.</summary>
         public const int PerLevel = 2;

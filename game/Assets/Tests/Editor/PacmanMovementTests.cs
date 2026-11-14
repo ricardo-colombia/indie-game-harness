@@ -186,7 +186,7 @@ namespace Studio.Pacman.Tests
             {
                 foreach (Vector2Int heading in Order)
                 {
-                    foreach (Vector2Int target in new[] { new Vector2Int(10, 7), new Vector2Int(1, 1), new Vector2Int(19, 21), new Vector2Int(-3, 7) })
+                    foreach (Vector2Int target in new[] { new Vector2Int(13, 11), new Vector2Int(1, 1), new Vector2Int(26, 29), new Vector2Int(-3, -3) })
                     {
                         Vector2Int d = PacmanPaths.ChaseStep(start, heading, target);
                         if (d == Vector2Int.zero)
@@ -232,7 +232,7 @@ namespace Studio.Pacman.Tests
         {
             Vector2Int snapped = PacmanPaths.NearestWalkable(new Vector2Int(-5, -5));
             Assert.IsTrue(PacmanPaths.Walkable(snapped));
-            Assert.AreEqual(new Vector2Int(10, 7), PacmanPaths.NearestWalkable(new Vector2Int(10, 7)));
+            Assert.AreEqual(new Vector2Int(13, 11), PacmanPaths.NearestWalkable(new Vector2Int(13, 11)));
             Assert.AreNotEqual(Vector2Int.zero, PacmanPaths.ChaseStep(new Vector2Int(1, 21), Vector2Int.left, new Vector2Int(40, -40)));
         }
 
