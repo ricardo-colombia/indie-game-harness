@@ -1029,8 +1029,19 @@ namespace Studio.Pacman
             if (!power && themed != null)
             {
                 // A themed bean: its own sprite, each tilted a little differently.
+                // Every cherry differs: free rotation, mirror, size and ripeness (from deep red to a few still-yellow ones).
                 renderer.sprite = themed;
-                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((tile.x * 31 + tile.y * 17) % 7 - 3) * 14f);
+                int h = (tile.x * 73856093) ^ (tile.y * 19349663);
+                h ^= h >> 13;
+                h *= 1274126177;
+                h ^= h >> 16;
+                float size = 0.82f + ((h >> 3) & 15) * 0.02f;
+                pellet.transform.localScale = new Vector3(((h >> 7) & 1) == 0 ? size : -size, size, 1f) * PelletSize;
+                pellet.transform.localRotation = Quaternion.Euler(0f, 0f, ((h >> 8) & 255) / 255f * 360f);
+                float ripe = ((h >> 16) & 15) / 15f;
+                renderer.color = (h >> 20) % 7 == 0
+                    ? new Color(1f, 0.95f, 0.55f)
+                    : new Color(1f, 0.82f + 0.18f * ripe, 0.8f + 0.2f * ripe);
                 return pellet;
             }
             if (!power)

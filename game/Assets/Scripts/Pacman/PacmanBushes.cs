@@ -10,7 +10,7 @@ namespace Studio.Pacman
     /// </summary>
     public class PacmanBushes : MonoBehaviour
     {
-        private const int Variants = 20;
+        private const int Variants = 36;
         private const int W = 104;
         private const int H = 92;
         private const float PixelsPerUnit = 86f;
@@ -62,8 +62,10 @@ namespace Studio.Pacman
 
                     GameObject bush = new GameObject("Bush");
                     bush.transform.SetParent(root.transform, false);
-                    float sx = 0.9f + ((hash >> 3) & 15) * 0.014f;
-                    float sy = 0.9f + ((hash >> 7) & 15) * 0.014f;
+                    // A few bushes are young (small), a few are old (big): the rows never read as one stamped pattern.
+                    float growth = (hash >> 27) % 6 == 0 ? 0.82f : (hash >> 27) % 6 == 1 ? 1.1f : 1f;
+                    float sx = (0.88f + ((hash >> 3) & 15) * 0.018f) * growth;
+                    float sy = (0.88f + ((hash >> 7) & 15) * 0.018f) * growth;
                     float lift = (((hash >> 11) & 7) - 3.5f) * 0.008f;
                     bush.transform.localPosition = new Vector3(x, -y - 0.53f + lift, 0f);
                     bush.transform.localScale = new Vector3(((hash >> 15) & 1) == 0 ? sx : -sx, sy, 1f);
@@ -71,9 +73,9 @@ namespace Studio.Pacman
                     renderer.sprite = sprites[variant];
                     renderer.sortingOrder = y;
                     // A slightly different green on each bush, as in a real plantation.
-                    float tr = 0.93f + ((hash >> 16) & 15) * 0.009f;
-                    float tg = 0.94f + ((hash >> 20) & 15) * 0.008f;
-                    float tb = 0.9f + ((hash >> 24) & 15) * 0.009f;
+                    float tr = 0.84f + ((hash >> 16) & 15) * 0.018f;
+                    float tg = 0.9f + ((hash >> 20) & 15) * 0.011f;
+                    float tb = 0.8f + ((hash >> 24) & 15) * 0.019f;
                     renderer.color = new Color(tr, tg, tb, 1f);
                     list.Add(bush.transform);
                     phaseList.Add(((hash >> 9) & 255) / 255f * 6.283f);
