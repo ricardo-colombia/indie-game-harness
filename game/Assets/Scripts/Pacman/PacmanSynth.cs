@@ -102,6 +102,58 @@ namespace Studio.Pacman
             }
         }
 
+        private static float Next(ref uint state)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            return state / (float)uint.MaxValue;
+        }
+
+        /// <summary>
+        /// Scattered micro-impacts, like grit or small stones under a sole. They bunch up near startSec and thin out
+        /// over spanSec. bright 0..1 darkens each grain (0.2 = soft dirt, 0.9 = dry gravel).
+        /// </summary>
+        public static void Grains(float[] buf, float startSec, float spanSec, int count, float vol, float bright, int seed)
+        {
+            uint state = (uint)(seed * 2246822519u + 977u);
+            for (int g = 0; g < count; g++)
+            {
+                float r = Next(ref state);
+                float at = startSec + spanSec * r * r;
+                float amp = vol * (0.25f + 0.75f * Next(ref state));
+                int len = Mathf.RoundToInt((0.002f + 0.005f * Next(ref state)) * SampleRate);
+                int st = Mathf.RoundToInt(at * SampleRate);
+                float last = 0f;
+                for (int i = 0; i < len; i++)
+                {
+                    float n = Next(ref state) * 2f - 1f;
+                    last += (n - last) * bright;
+                    Add(buf, st + i, last * Mathf.Exp(-5f * i / len) * amp);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Noise with a shaped envelope: it rises for peak (0..1) of its length, then falls. Good for scuffs,
+        /// rustles and the swish of a sole dragging over the ground.
+        /// </summary>
+        public static void Swish(float[] buf, float startSec, float lenSec, float vol, float peak, float lowpass, int seed)
+        {
+            int start = Mathf.RoundToInt(startSec * SampleRate);
+            int count = Mathf.Max(2, Mathf.RoundToInt(lenSec * SampleRate));
+            uint state = (uint)(seed * 2654435761u + 4321u);
+            float last = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                float p = (float)i / count;
+                float env = p < peak ? p / Mathf.Max(0.001f, peak) : Mathf.Pow(1f - (p - peak) / Mathf.Max(0.001f, 1f - peak), 1.6f);
+                float n = Next(ref state) * 2f - 1f;
+                last += (n - last) * lowpass;
+                Add(buf, start + i, last * env * vol);
+            }
+        }
+
         /// <summary>Sine kick with a fast downward pitch sweep.</summary>
         public static void Kick(float[] buf, float startSec, float vol)
         {
