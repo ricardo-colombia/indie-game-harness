@@ -24,6 +24,9 @@ namespace Studio.Pacman
         private static Sprite rippleSprite;
         private static Sprite puddleSprite;
         private SpriteRenderer[] puddles;
+        private SpriteRenderer overcast;
+        [Tooltip("Strength of the cool grey veil that makes the rainy afternoon look overcast.")]
+        [SerializeField, Range(0f, 0.4f)] private float overcastStrength = 0.14f;
         [Tooltip("Chance that an open cell holds a puddle while it rains.")]
         [SerializeField, Range(0f, 1f)] private float puddleChance = 0.2f;
         private Transform[] ripples;
@@ -98,6 +101,17 @@ namespace Studio.Pacman
             }
             self.puddles = puddleList.ToArray();
 
+            GameObject veil = new GameObject("Overcast");
+            veil.transform.SetParent(root.transform, false);
+            self.overcast = veil.AddComponent<SpriteRenderer>();
+            Texture2D vt = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+            vt.SetPixel(0, 0, Color.white);
+            vt.Apply();
+            self.overcast.sprite = Sprite.Create(vt, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
+            self.overcast.sortingOrder = 40; // over the world, under the rain and the interface
+            self.overcast.color = new Color(0.45f, 0.55f, 0.72f, 0f);
+            veil.SetActive(false);
+
             self.ripples = new Transform[Ripples];
             self.rippleRenderers = new SpriteRenderer[Ripples];
             for (int i = 0; i < Ripples; i++)
@@ -145,6 +159,7 @@ namespace Studio.Pacman
                     {
                         pd.gameObject.SetActive(false);
                     }
+                    overcast.gameObject.SetActive(false);
                 }
                 return;
             }
@@ -155,6 +170,13 @@ namespace Studio.Pacman
             float length = height * 0.11f;
             float thickness = height * 0.0045f * 16f; // the sprite is 2 px wide at 32 px per unit
             UpdateRipples(height, width, centre);
+            if (!overcast.gameObject.activeSelf)
+            {
+                overcast.gameObject.SetActive(true);
+            }
+            overcast.transform.position = new Vector3(centre.x, centre.y, 0f);
+            overcast.transform.localScale = new Vector3(width * 2.2f, height * 2.2f, 1f);
+            overcast.color = new Color(0.45f, 0.55f, 0.72f, overcastStrength * amount);
             float wet = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((amount - 0.15f) / 0.85f));
             foreach (SpriteRenderer pd in puddles)
             {
