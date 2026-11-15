@@ -60,6 +60,8 @@ namespace Studio.Pacman
         [Tooltip("Seconds between footstep sounds while the farmer is moving.")]
         [FormerlySerializedAs("stepInterval")]
         [SerializeField] private float stepInterval = 0.18f;
+        [Tooltip("Loudness of the footsteps, 0..1. They sit under the music and the pellet sounds.")]
+        [SerializeField] private float stepVolume = 0.3f;
 
         private const float PelletSize = 0.46f;
         private const float PowerPelletSize = 0.95f;
@@ -1004,7 +1006,7 @@ namespace Studio.Pacman
                     PlayerPrefs.SetInt(ShoeKey, (int)CurrentShoe);
                     PlayerPrefs.Save();
                     // Let the director hear the new pair straight away.
-                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, false), soundOn);
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, false), soundOn, stepVolume);
                     return;
                 case "QUIT":
                     Application.Quit();
@@ -1039,7 +1041,7 @@ namespace Studio.Pacman
                 {
                     stepTimer = stepInterval;
                     stepFlip = !stepFlip;
-                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, stepFlip), soundOn);
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, stepFlip), soundOn, stepVolume);
                 }
             }
             else

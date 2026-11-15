@@ -93,53 +93,51 @@ namespace Studio.Pacman
         /// </summary>
         private static AudioClip BuildStep(Shoe shoe, bool flip, int variant)
         {
-            // Phone speakers cannot play much below ~120 Hz, so the body lives in the low mids and the realism comes
-            // from the noise: contact transient, scuff and grit.
+            // No swept sines here: they sound like a synth drum. Every impact is a noise burst ringing through a few
+            // damped resonances (the body of the shoe and the ground), plus brush and grit, then a touch of room.
             float[] buf = PacmanSynth.Buffer(0.3f);
             int seed = 11 + variant * 7 + (flip ? 3 : 0) + (int)shoe * 101;
             uint r = (uint)(seed * 747796405u + 2891336453u);
             float J() { r ^= r << 13; r ^= r >> 17; r ^= r << 5; return r / (float)uint.MaxValue; }
-            float drift = (flip ? 0.9f : 1f) * (0.94f + 0.12f * J());
-            float roll = 0.05f + 0.03f * J(); // heel-to-toe delay
-            float level = 0.9f + 0.2f * J();
+            float tune = (flip ? 0.9f : 1f) * (0.92f + 0.16f * J());
+            float roll = 0.055f + 0.035f * J(); // heel-to-toe delay
+            float level = 0.85f + 0.3f * J();
 
             switch (shoe)
             {
                 case Shoe.RubberBoots:
-                    // Wet slap of the shaft, hollow boot body, squelch of mud.
-                    PacmanSynth.Tone(buf, 0f, 0.1f, 240f * drift, 110f * drift, Wave.Sine, 0.32f * level, 28f, 0.001f, 0.02f);
-                    PacmanSynth.Noise(buf, 0f, 0.04f, 0.55f * level, 80f, 0.7f, seed);
-                    PacmanSynth.Tone(buf, 0.002f, 0.06f, 520f * drift, 330f * drift, Wave.Triangle, 0.07f, 45f, 0.001f, 0.01f);
-                    PacmanSynth.Swish(buf, roll, 0.12f, 0.22f * level, 0.25f, 0.28f, seed + 1);
-                    PacmanSynth.Grains(buf, roll, 0.1f, 9, 0.2f, 0.3f, seed + 2);
-                    PacmanSynth.Noise(buf, roll + 0.01f, 0.04f, 0.2f, 70f, 0.8f, seed + 3);
+                    PacmanSynth.Modal(buf, 0f, 0.09f, 300f * tune, 2.2f, 0.5f * level, seed);
+                    PacmanSynth.Modal(buf, 0f, 0.05f, 780f * tune, 3f, 0.22f * level, seed + 1);
+                    PacmanSynth.Swish(buf, 0f, 0.05f, 0.18f * level, 0.15f, 0.25f, seed + 2);
+                    PacmanSynth.Modal(buf, roll, 0.08f, 240f * tune, 2.2f, 0.3f * level, seed + 3);
+                    PacmanSynth.Swish(buf, roll, 0.12f, 0.16f * level, 0.3f, 0.2f, seed + 4);
+                    PacmanSynth.Grains(buf, roll, 0.1f, 8, 0.1f, 0.25f, seed + 5);
                     break;
                 case Shoe.Espadrilles:
-                    // Soft rope sole: almost no knock, a dry brush and scattered grit.
-                    PacmanSynth.Tone(buf, 0f, 0.06f, 170f * drift, 100f * drift, Wave.Sine, 0.12f * level, 40f, 0.003f, 0.02f);
-                    PacmanSynth.Swish(buf, 0f, 0.1f, 0.5f * level, 0.18f, 0.5f, seed);
-                    PacmanSynth.Swish(buf, roll, 0.12f, 0.42f * level, 0.3f, 0.65f, seed + 1);
-                    PacmanSynth.Grains(buf, 0f, 0.14f, 14, 0.22f, 0.55f, seed + 2);
+                    PacmanSynth.Modal(buf, 0f, 0.07f, 190f * tune, 1.6f, 0.22f * level, seed);
+                    PacmanSynth.Swish(buf, 0f, 0.1f, 0.3f * level, 0.2f, 0.35f, seed + 1);
+                    PacmanSynth.Swish(buf, roll, 0.12f, 0.26f * level, 0.3f, 0.45f, seed + 2);
+                    PacmanSynth.Grains(buf, 0f, 0.14f, 14, 0.14f, 0.4f, seed + 3);
                     break;
                 case Shoe.FlipFlops:
-                    // Sole slapping the heel, then the snap as it peels off.
-                    PacmanSynth.Noise(buf, 0f, 0.035f, 0.7f * level, 120f, 0.95f, seed);
-                    PacmanSynth.Tone(buf, 0f, 0.03f, 780f * drift, 430f * drift, Wave.Triangle, 0.12f, 70f, 0.001f, 0.01f);
-                    PacmanSynth.Tone(buf, 0f, 0.07f, 200f * drift, 120f * drift, Wave.Sine, 0.16f, 35f, 0.001f, 0.02f);
-                    PacmanSynth.Noise(buf, roll + 0.04f, 0.028f, 0.5f * level, 140f, 1f, seed + 1);
-                    PacmanSynth.Grains(buf, 0.01f, 0.1f, 6, 0.2f, 0.7f, seed + 2);
+                    PacmanSynth.Modal(buf, 0f, 0.04f, 1100f * tune, 4f, 0.28f * level, seed);
+                    PacmanSynth.Modal(buf, 0f, 0.07f, 260f * tune, 2f, 0.3f * level, seed + 1);
+                    PacmanSynth.Swish(buf, 0f, 0.03f, 0.25f * level, 0.1f, 0.7f, seed + 2);
+                    PacmanSynth.Modal(buf, roll + 0.04f, 0.04f, 1500f * tune, 4f, 0.2f * level, seed + 3);
+                    PacmanSynth.Grains(buf, 0.01f, 0.1f, 6, 0.1f, 0.5f, seed + 4);
                     break;
                 default:
-                    // Leather boots: heel click and knock, then the sole rolling over with a dull scuff and grit.
-                    PacmanSynth.Tone(buf, 0f, 0.1f, 190f * drift, 90f * drift, Wave.Sine, 0.45f * level, 26f, 0.0015f, 0.03f);
-                    PacmanSynth.Noise(buf, 0f, 0.025f, 0.5f * level, 130f, 0.45f, seed);
-                    PacmanSynth.Tone(buf, 0f, 0.02f, 1100f * drift, 700f * drift, Wave.Triangle, 0.07f, 150f, 0.0005f, 0.006f);
-                    PacmanSynth.Tone(buf, roll, 0.07f, 150f * drift, 85f * drift, Wave.Sine, 0.22f * level, 34f, 0.002f, 0.02f);
-                    PacmanSynth.Swish(buf, roll - 0.01f, 0.1f, 0.28f * level, 0.3f, 0.4f, seed + 1);
-                    PacmanSynth.Grains(buf, 0.005f, 0.13f, 11, 0.24f, 0.42f, seed + 2);
+                    PacmanSynth.Modal(buf, 0f, 0.1f, 210f * tune, 2.5f, 0.5f * level, seed);
+                    PacmanSynth.Modal(buf, 0f, 0.06f, 520f * tune, 3.5f, 0.25f * level, seed + 1);
+                    PacmanSynth.Modal(buf, 0f, 0.03f, 1500f * tune, 5f, 0.08f * level, seed + 2);
+                    PacmanSynth.Modal(buf, roll, 0.08f, 250f * tune, 2.5f, 0.28f * level, seed + 3);
+                    PacmanSynth.Swish(buf, roll - 0.01f, 0.1f, 0.14f * level, 0.3f, 0.3f, seed + 4);
+                    PacmanSynth.Grains(buf, 0.005f, 0.13f, 11, 0.12f, 0.35f, seed + 5);
                     break;
             }
-            PacmanSynth.Limit(buf);
+            PacmanSynth.Smooth(buf, 0.5f);
+            PacmanSynth.Echo(buf, 0.011f, 0.35f, 0.18f, false);
+            PacmanSynth.Normalize(buf, 0.5f);
             return PacmanSynth.ToClip("step_" + shoe + (flip ? "_b" : "_a") + variant, buf);
         }
 

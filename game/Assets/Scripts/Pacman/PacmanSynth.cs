@@ -154,6 +154,62 @@ namespace Studio.Pacman
             }
         }
 
+        /// <summary>
+        /// One resonant "mode" struck by a tiny noise burst, like tapping a hollow body: a band-pass filter
+        /// (centre hz, sharpness q) rings for lenSec. Unlike a swept sine it has no clean pitch, so impacts
+        /// sound like a material and not like a synth drum. Stack two or three modes for a body.
+        /// </summary>
+        public static void Modal(float[] buf, float startSec, float lenSec, float hz, float q, float vol, int seed)
+        {
+            int start = Mathf.RoundToInt(startSec * SampleRate);
+            int count = Mathf.Max(8, Mathf.RoundToInt(lenSec * SampleRate));
+            float w0 = 2f * Mathf.PI * hz / SampleRate;
+            float alpha = Mathf.Sin(w0) / (2f * q);
+            float a0 = 1f + alpha;
+            float b0 = alpha / a0, b2 = -alpha / a0;
+            float a1 = -2f * Mathf.Cos(w0) / a0, a2 = (1f - alpha) / a0;
+            uint state = (uint)(seed * 2654435761u + 99u);
+            int burst = Mathf.RoundToInt(0.004f * SampleRate);
+            float x1 = 0f, x2 = 0f, y1 = 0f, y2 = 0f;
+            for (int i = 0; i < count; i++)
+            {
+                float x = i < burst ? (Next(ref state) * 2f - 1f) * (1f - (float)i / burst) : 0f;
+                float y = b0 * x + b2 * x2 - a1 * y1 - a2 * y2;
+                x2 = x1; x1 = x; y2 = y1; y1 = y;
+                float fade = 1f - (float)i / count;
+                Add(buf, start + i, y * fade * fade * vol * 6f);
+            }
+        }
+
+        /// <summary>One-pole low-pass over the whole buffer (0..1, lower = darker). Takes the hiss off.</summary>
+        public static void Smooth(float[] buf, float amount)
+        {
+            float last = 0f;
+            for (int i = 0; i < buf.Length; i++)
+            {
+                last += (buf[i] - last) * amount;
+                buf[i] = last;
+            }
+        }
+
+        /// <summary>Scales the buffer so its loudest sample is exactly peak.</summary>
+        public static void Normalize(float[] buf, float peak)
+        {
+            float max = 0f;
+            for (int i = 0; i < buf.Length; i++)
+            {
+                max = Mathf.Max(max, Mathf.Abs(buf[i]));
+            }
+            if (max > 0.0001f)
+            {
+                float k = peak / max;
+                for (int i = 0; i < buf.Length; i++)
+                {
+                    buf[i] *= k;
+                }
+            }
+        }
+
         /// <summary>Sine kick with a fast downward pitch sweep.</summary>
         public static void Kick(float[] buf, float startSec, float vol)
         {
