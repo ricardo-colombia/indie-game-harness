@@ -32,6 +32,8 @@ namespace Studio.Pacman
         [SerializeField] private float introSeconds = 2.2f;
         [SerializeField] private float deathDuration = 1.5f;
         [SerializeField] private float levelClearDuration = 2.5f;
+        [Tooltip("Seconds of the trip to the next farm (the map of Colombia) after the harvest banner. Tap or Enter skips it.")]
+        [SerializeField] private float journeySeconds = 3.8f;
 
         [Header("Rules")]
         [SerializeField] private int startingLives = 3;
@@ -227,6 +229,14 @@ namespace Studio.Pacman
 
         /// <summary>Sound toggle probe for autotest scenarios.</summary>
         public bool SoundOn => soundOn;
+
+        // Scenarios and batch runs go straight to the next level; the trip is for people.
+        private float JourneyLength => Application.isBatchMode ? 0f : journeySeconds;
+
+        /// <summary>0..1 while the trip to the next farm is showing after a harvest, -1 otherwise.</summary>
+        public float JourneyProgress => State == PacmanState.LevelClear && JourneyLength > 0f && stateTimer < JourneyLength
+            ? 1f - Mathf.Clamp01(stateTimer / JourneyLength)
+            : -1f;
 
         /// <summary>Player volume settings, in notches 0..10 (10 = the mix as designed). Kept between runs.</summary>
         public int MusicNotch { get; private set; } = VolumeNotches;
@@ -776,6 +786,15 @@ namespace Studio.Pacman
                 return;
             }
 
+            if (State == PacmanState.LevelClear)
+            {
+                if (pressed)
+                {
+                    ApplyMenuInput(new MenuInput { Confirm = true });
+                }
+                return;
+            }
+
             if (State == PacmanState.GameOver)
             {
                 if (pressed && Time.unscaledTime - gameOverSince > 0.8f)
@@ -949,6 +968,14 @@ namespace Studio.Pacman
                     if (input.Confirm)
                     {
                         ShowTitle();
+                    }
+                    return;
+
+                case PacmanState.LevelClear:
+                    // Enter or a tap skips the trip once the map has had a moment on screen.
+                    if (input.Confirm && JourneyProgress >= 0.3f)
+                    {
+                        stateTimer = 0f;
                     }
                     return;
 
@@ -1302,7 +1329,7 @@ namespace Studio.Pacman
             if (pelletCount <= 0)
             {
                 State = PacmanState.LevelClear;
-                stateTimer = levelClearDuration;
+                stateTimer = levelClearDuration + JourneyLength;
                 PacmanSfx.Play(audioSource, sfx?.LevelClear, soundOn, EffectsGain);
                 Say(SayKind.Clear);
             }

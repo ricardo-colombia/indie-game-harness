@@ -179,6 +179,10 @@ namespace Studio.Pacman
 
             float s = UiScale();
             EnsureStyle();
+            if (Time.frameCount > 120 && game.State == PacmanState.Title && (journeyArt == null || !journeyArt.Done))
+            {
+                WarmJourney(false);
+            }
             menuRows.Clear();
             pauseButton = new Rect(-1000f, -1000f, 0f, 0f);
             zoomButton = new Rect(-1000f, -1000f, 0f, 0f);
@@ -233,7 +237,14 @@ namespace Studio.Pacman
                         DrawBanner("¡LISTO!", Gold, s, 1.5f);
                         break;
                     case PacmanState.LevelClear:
-                        DrawBanner("¡COSECHA LISTA!", Leaf, s, 1.2f);
+                        if (game.JourneyProgress < 0f)
+                        {
+                            DrawBanner("¡COSECHA LISTA!", Leaf, s, 1.2f);
+                        }
+                        else
+                        {
+                            DrawJourney(s, game.JourneyProgress);
+                        }
                         break;
                     case PacmanState.GameOver:
                         DrawGameOver(s);
@@ -585,10 +596,11 @@ namespace Studio.Pacman
             // A dark pill behind it: in the close view the label sits on the reddish ground strip below the farm.
             // The farm has a proper name; the level number is a quieter second line so the progress is still readable.
             string farm = PacmanFarms.NameFor(game.Level);
-            float pillWidth = Mathf.Min(Screen.width - 2f * (margin - 14f * s), (farm.Length * 15.5f + 44f) * s);
+            string place = "COSECHA  " + game.Level + "  ·  " + PacmanJourney.StopFor(game.Level).Region;
+            float pillWidth = Mathf.Min(Screen.width - 2f * (margin - 14f * s), (Mathf.Max(farm.Length * 15.5f, place.Length * 13.5f) + 44f) * s);
             Fill(new Rect(margin - 14f * s, Screen.height - 92f * s, pillWidth, 82f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
             Text(new Rect(margin, Screen.height - 86f * s, pillWidth, 38f * s), farm, 28f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
-            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 34f * s), "COSECHA  " + game.Level, 24f * s, Gold, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
+            Text(new Rect(margin, Screen.height - 54f * s, 400f * s, 34f * s), place, 24f * s, Gold, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));
             if (game.FrightenedActive)
             {
                 float remaining = game.FrightenedRemaining;
@@ -800,6 +812,249 @@ namespace Studio.Pacman
                 Fill(new Rect(barLeft + n * notchW + 1.5f * s, y, notchW - 3f * s, h), c, 2f * s);
             }
             Text(new Rect(barLeft + barWidth + 6f * s, row.y, 26f * s, row.height), "+", size, ink, TextAnchor.MiddleCenter);
+        }
+
+        // ---------------------------------------------------------------- the trip between farms
+
+        private PacmanJourneyArt journeyArt;
+        private Texture2D journeyPaper;
+        private Texture2D journeyCompass;
+        private Texture2D journeyBean;
+        private Texture2D journeyChiva;
+
+        private static string Metres(int altitude)
+        {
+            return (altitude / 1000) + "." + (altitude % 1000).ToString("000") + " m s. n. m.";
+        }
+
+        /// <summary>Paints the map a slice per frame while the title is up, so the first trip is ready without a hitch.</summary>
+        private void WarmJourney(bool finish)
+        {
+            if (journeyArt == null)
+            {
+                journeyArt = new PacmanJourneyArt();
+                journeyPaper = PacmanJourneyArt.BuildPaper(256, 192);
+                journeyCompass = PacmanJourneyArt.BuildCompass(160);
+                journeyBean = PacmanJourneyArt.BuildBean(48);
+                journeyChiva = PacmanJourneyArt.BuildChiva();
+            }
+            if (!journeyArt.Done)
+            {
+                if (finish)
+                {
+                    journeyArt.Finish();
+                }
+                else
+                {
+                    journeyArt.Step(14);
+                }
+            }
+        }
+
+        private static Color A(Color c, float alpha)
+        {
+            return new Color(c.r, c.g, c.b, c.a * alpha);
+        }
+
+        /// <summary>
+        /// Between harvests the farmer travels to the next farm: an old atlas page of Colombia, with a dotted
+        /// road and a chiva (the painted country bus) driving from this region to the next. t runs 0..1.
+        /// </summary>
+        private void DrawJourney(float s, float t)
+        {
+            WarmJourney(true);
+            Color ink = PacmanJourneyArt.Ink;
+            Color red = PacmanJourneyArt.InkRed;
+            float alpha = Mathf.Min(Mathf.SmoothStep(0f, 1f, t / 0.1f), 1f - Mathf.SmoothStep(0f, 1f, (t - 0.93f) / 0.07f));
+            float sw = Screen.width;
+            float sh = Screen.height;
+
+            // The page, with a double rule and the flag's three bands along top and bottom.
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTexture(new Rect(0f, 0f, sw, sh), journeyPaper, ScaleMode.StretchToFill, false);
+            GUI.color = Color.white;
+            float band = 9f * s;
+            for (int edge = 0; edge < 2; edge++)
+            {
+                float y0 = edge == 0 ? 0f : sh - band;
+                Fill(new Rect(0f, y0, sw, band * 0.5f), new Color(1f, 0.8f, 0.14f, alpha));
+                Fill(new Rect(0f, y0 + band * 0.5f, sw, band * 0.25f), new Color(0.1f, 0.25f, 0.62f, alpha));
+                Fill(new Rect(0f, y0 + band * 0.75f, sw, band * 0.25f), new Color(0.82f, 0.13f, 0.13f, alpha));
+            }
+            float inset = 22f * s;
+            Color rule = A(ink, 0.55f * alpha);
+            Fill(new Rect(inset, inset, sw - inset * 2f, 2f * s), rule);
+            Fill(new Rect(inset, sh - inset - 2f * s, sw - inset * 2f, 2f * s), rule);
+            Fill(new Rect(inset, inset, 2f * s, sh - inset * 2f), rule);
+            Fill(new Rect(sw - inset - 2f * s, inset, 2f * s, sh - inset * 2f), rule);
+
+            PacmanJourney.Stop from = PacmanJourney.StopFor(game.Level);
+            PacmanJourney.Stop to = PacmanJourney.StopFor(game.Level + 1);
+            bool wide = sw > sh * 1.25f;
+            float mapH = sh * (wide ? 0.95f : 0.62f);
+            float mapW = mapH * PacmanJourney.Aspect;
+            if (mapW > sw * 0.86f)
+            {
+                mapW = sw * 0.86f;
+                mapH = mapW / PacmanJourney.Aspect;
+            }
+            Rect map = wide
+                ? new Rect(sw * 0.31f - mapW * 0.5f, (sh - mapH) * 0.5f, mapW, mapH)
+                : new Rect((sw - mapW) * 0.5f, sh * 0.06f, mapW, mapH);
+
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTexture(map, journeyArt.Map, ScaleMode.StretchToFill, true);
+            GUI.color = Color.white;
+
+            // A few big towns, as on any road map, so the country reads at a glance.
+            DrawTown(map, s, alpha, "Bogotá", 4.71f, -74.07f, TextAnchor.MiddleRight);
+            DrawTown(map, s, alpha, "Medellín", 6.25f, -75.57f, TextAnchor.MiddleLeft);
+            DrawTown(map, s, alpha, "Cali", 3.45f, -76.53f, TextAnchor.MiddleLeft);
+            DrawTown(map, s, alpha, "Cartagena", 10.39f, -75.5f, TextAnchor.MiddleLeft);
+
+            Vector2 pa = ToScreen(map, PacmanJourney.Project(from));
+            Vector2 pb = ToScreen(map, PacmanJourney.Project(to));
+            float bend = Mathf.Min(mapW, mapH) * 0.05f;
+
+            // The farms of the route: a bean where the farmer has already harvested this lap, a tiny ring otherwise.
+            int lapStart = ((game.Level - 1) / PacmanJourney.Count) * PacmanJourney.Count + 1;
+            for (int i = 0; i < PacmanJourney.Count; i++)
+            {
+                Vector2 p = ToScreen(map, PacmanJourney.Project(PacmanJourney.StopFor(i + 1)));
+                if (lapStart + i <= game.Level)
+                {
+                    float b = 18f * s;
+                    GUI.color = new Color(1f, 1f, 1f, alpha);
+                    GUI.DrawTexture(new Rect(p.x - b * 0.5f, p.y - b * 0.5f, b, b), journeyBean, ScaleMode.StretchToFill, true);
+                    GUI.color = Color.white;
+                }
+                else
+                {
+                    float r = 3.2f * s;
+                    Fill(new Rect(p.x - r, p.y - r, r * 2f, r * 2f), A(ink, 0.5f * alpha), r);
+                }
+            }
+
+            // The road: dashes in ink, the stretch already driven in red.
+            float travel = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((t - 0.12f) / 0.72f));
+            float length = Vector2.Distance(pa, pb);
+            int dashes = Mathf.Max(6, Mathf.RoundToInt(length / (15f * s)));
+            for (int i = 0; i <= dashes; i++)
+            {
+                float u = i / (float)dashes;
+                Vector2 p = Curve(pa, pb, u, bend);
+                bool driven = u <= travel;
+                float r = (driven ? 3.4f : 2.4f) * s;
+                Fill(new Rect(p.x - r, p.y - r, r * 2f, r * 2f), driven ? A(red, alpha) : A(ink, 0.4f * alpha), r);
+            }
+
+            // The destination: a pulsing ring around the bean, with its name.
+            float pulse = 0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 4.5f);
+            float ring = (13f + 7f * pulse) * s;
+            Fill(new Rect(pb.x - ring, pb.y - ring, ring * 2f, ring * 2f), A(red, (0.12f + 0.16f * pulse) * alpha), ring);
+            float bean = 26f * s;
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTexture(new Rect(pb.x - bean * 0.5f, pb.y - bean * 0.5f, bean, bean), journeyBean, ScaleMode.StretchToFill, true);
+            GUI.color = Color.white;
+
+            // The chiva, with its dust.
+            Vector2 now = Curve(pa, pb, travel, bend);
+            Vector2 ahead = Curve(pa, pb, Mathf.Min(1f, travel + 0.03f), bend);
+            Vector2 behind = Curve(pa, pb, Mathf.Max(0f, travel - 0.03f), bend);
+            float dir = ahead.x >= behind.x ? 1f : -1f;
+            if (travel > 0.01f && travel < 0.985f)
+            {
+                for (int d = 0; d < 6; d++)
+                {
+                    float age = (Time.unscaledTime * 2.2f + d / 6f) % 1f;
+                    Vector2 puff = now - new Vector2(dir * (24f + age * 46f) * s, (6f + age * 18f) * s);
+                    float pr = (4f + age * 9f) * s;
+                    Fill(new Rect(puff.x - pr, puff.y - pr, pr * 2f, pr * 2f), new Color(0.62f, 0.5f, 0.36f, 0.45f * (1f - age) * alpha), pr);
+                }
+            }
+            float cw = mapW * 0.2f;
+            float ch = cw * 120f / 192f;
+            float bounce = Mathf.Sin(Time.unscaledTime * 20f) * 1.4f * s;
+            Rect bus = new Rect(now.x - cw * 0.5f, now.y - ch * 0.86f + bounce, cw, ch);
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTextureWithTexCoords(bus, journeyChiva, dir > 0f ? new Rect(0f, 0f, 1f, 1f) : new Rect(1f, 0f, -1f, 1f), true);
+            GUI.color = Color.white;
+
+            // Words: where we are going, set like a game title card: gold tab, a heavy title with a drop shadow and
+            // outline, a flag-red ribbon for the region, an altitude chip and the tagline on a dark card.
+            string farm = PacmanFarms.NameFor(game.Level + 1);
+            float textX = wide ? sw * 0.57f : inset + 12f * s;
+            float textW = wide ? sw * 0.38f : sw - (inset + 12f * s) * 2f;
+            float textY = wide ? sh * 0.25f : map.yMax + 10f * s;
+            bool left = wide;
+            Color gold = new Color(1f, 0.8f, 0.14f, alpha);
+            Color deep = new Color(0.07f, 0.04f, 0.02f, alpha);
+            Color cream = A(ink, alpha);
+
+            Chip(textX, textY, textW, "RUMBO A", 22f * s, gold, deep, left, s);
+            float nameSize = FitFont(farm, (wide ? 58f : 40f) * s, textW);
+            Rect nameRect = new Rect(textX, textY + 38f * s, textW, 76f * s);
+            TextAnchor anchor = left ? TextAnchor.MiddleLeft : TextAnchor.MiddleCenter;
+            Text(nameRect, farm, nameSize, A(new Color(0.07f, 0.04f, 0.02f), alpha), anchor, new Vector2(0f, 6f * s), 3.5f * s, A(new Color(0.02f, 0.01f, 0f), 0.6f * alpha));
+            Text(nameRect, farm, nameSize, cream, anchor);
+
+            float ribbonY = textY + 124f * s;
+            Chip(textX, ribbonY, textW, to.Region.ToUpperInvariant(), 28f * s, new Color(0.82f, 0.13f, 0.13f, alpha), cream, left, s);
+            Chip(textX, ribbonY + 54f * s, textW, Metres(to.Altitude), 20f * s, new Color(0.1f, 0.25f, 0.62f, alpha), cream, left, s);
+
+            float cardY = ribbonY + 112f * s;
+            float cardH = 92f * s;
+            Fill(new Rect(textX, cardY, textW, cardH), new Color(0.04f, 0.025f, 0.015f, 0.55f * alpha), 14f * s);
+            Fill(new Rect(textX, cardY + 14f * s, 5f * s, cardH - 28f * s), gold, 2.5f * s);
+            TextWrapped(new Rect(textX + 22f * s, cardY + 6f * s, textW - 40f * s, cardH - 12f * s), to.Tagline, 23f * s, A(ink, 0.92f * alpha), TextAnchor.MiddleLeft);
+            if (t > 0.3f)
+            {
+                string hint = game.TouchMode ? "TOCA PARA SEGUIR" : "ENTER PARA SEGUIR";
+                float blink = 0.55f + 0.45f * Mathf.Sin(Time.unscaledTime * 4f);
+                Chip(textX, wide ? sh * 0.83f : sh - inset - 54f * s, textW, hint, 20f * s, new Color(1f, 1f, 1f, 0.12f * alpha), A(gold, blink), left, s);
+            }
+        }
+
+        /// <summary>A rounded tab with text in it, sized to the text; returns nothing, anchors left or centred in the column.</summary>
+        private void Chip(float x, float y, float columnWidth, string text, float size, Color fill, Color textColour, bool left, float s)
+        {
+            label.fontSize = Mathf.Max(8, Mathf.RoundToInt(size));
+            float w = label.CalcSize(new GUIContent(text)).x + size * 1.3f;
+            float h = size * 1.55f;
+            float cx = left ? x : x + (columnWidth - w) * 0.5f;
+            Fill(new Rect(cx, y + 3f * s, w, h), new Color(0f, 0f, 0f, 0.35f * fill.a), h * 0.5f);
+            Fill(new Rect(cx, y, w, h), fill, h * 0.5f);
+            Fill(new Rect(cx + h * 0.35f, y + h * 0.1f, w - h * 0.7f, h * 0.22f), new Color(1f, 1f, 1f, 0.16f * fill.a), h * 0.11f);
+            Text(new Rect(cx, y, w, h), text, size, textColour, TextAnchor.MiddleCenter);
+        }
+
+        private void DrawTown(Rect map, float s, float alpha, string name, float lat, float lon, TextAnchor side)
+        {
+            Vector2 p = ToScreen(map, PacmanJourney.Project(lat, lon));
+            float r = 3f * s;
+            Fill(new Rect(p.x - r, p.y - r, r * 2f, r * 2f), A(PacmanJourneyArt.Ink, 0.8f * alpha), r);
+            float w = 160f * s;
+            float x = side == TextAnchor.MiddleRight ? p.x - r - 6f * s - w : p.x + r + 6f * s;
+            Color halo = A(PacmanJourneyArt.PaperLight, 0.9f * alpha);
+            for (int h = 0; h < 4; h++)
+            {
+                float hx = (h % 2 == 0 ? 1f : -1f) * 1.2f * s, hy = (h < 2 ? 1f : -1f) * 1.2f * s;
+                Text(new Rect(x + hx, p.y - 12f * s + hy, w, 24f * s), name, 17f * s, halo, side);
+            }
+            Text(new Rect(x, p.y - 12f * s, w, 24f * s), name, 17f * s, A(PacmanJourneyArt.Ink, 0.95f * alpha), side);
+        }
+
+        private static Vector2 ToScreen(Rect map, Vector2 uv)
+        {
+            return new Vector2(map.x + uv.x * map.width, map.y + uv.y * map.height);
+        }
+
+        /// <summary>A point u (0..1) along a gently bowed road between two places.</summary>
+        private static Vector2 Curve(Vector2 a, Vector2 b, float u, float bend)
+        {
+            Vector2 d = b - a;
+            Vector2 n = d.sqrMagnitude > 0.001f ? new Vector2(-d.y, d.x).normalized : Vector2.zero;
+            return Vector2.Lerp(a, b, u) + n * Mathf.Sin(u * Mathf.PI) * bend;
         }
 
         // ---------------------------------------------------------------- drawing helpers

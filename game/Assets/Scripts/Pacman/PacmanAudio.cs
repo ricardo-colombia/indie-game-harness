@@ -104,6 +104,9 @@ namespace Studio.Pacman
                     return Track.Intro;
                 case PacmanState.Playing:
                     return game.FrightenedActive ? Track.Frightened : Track.Chase;
+                case PacmanState.LevelClear:
+                    // The trip to the next farm gets the calm title tune.
+                    return game.JourneyProgress >= 0f ? Track.Title : Track.None;
                 case PacmanState.Paused:
                     return track == Track.None ? Track.Chase : track;
                 default:
