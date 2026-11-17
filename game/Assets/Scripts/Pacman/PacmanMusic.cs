@@ -13,11 +13,78 @@ namespace Studio.Pacman
         private AudioClip chase;
 
         /// <summary>The gameplay loop (~97 s). Rendered the first time it is asked for, so the title screen shows before the synth works on it.</summary>
-        public AudioClip Chase => chase != null ? chase : (chase = BuildChase());
+        public AudioClip Chase
+        {
+            get
+            {
+                // Asked for before the background render finished: do the rest now (a hitch, but only if the player was very quick).
+                while (chase == null)
+                {
+                    WarmChase(1000f);
+                }
+                return chase;
+            }
+        }
 
-        public bool ChaseReady => chase != null;
-        public AudioClip Frightened { get; private set; }
-        public AudioClip Intro { get; private set; }
+        private System.Collections.Generic.IEnumerator<bool> chaseJob;
+
+        /// <summary>Renders the gameplay loop in small slices of about this many milliseconds, so no single frame stalls.</summary>
+        public void WarmChase(float milliseconds)
+        {
+            if (chase != null)
+            {
+                // The two short tracks follow, one per frame, so neither lands on the first power pellet or the first Ready.
+                if (frightened == null)
+                {
+                    frightenedJob ??= FrightenedSteps(made => frightened = made).GetEnumerator();
+                    System.Diagnostics.Stopwatch slice = System.Diagnostics.Stopwatch.StartNew();
+                    do
+                    {
+                        if (!frightenedJob.MoveNext())
+                        {
+                            break;
+                        }
+                    }
+                    while (slice.Elapsed.TotalMilliseconds < milliseconds);
+                }
+                else if (intro == null)
+                {
+                    intro = BuildIntro();
+                }
+                return;
+            }
+            chaseJob ??= ChaseSteps();
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            do
+            {
+                if (!chaseJob.MoveNext())
+                {
+                    break;
+                }
+            }
+            while (clock.Elapsed.TotalMilliseconds < milliseconds);
+        }
+
+        public bool ChaseReady => chase != null && frightened != null && intro != null;
+        private AudioClip frightened;
+        private AudioClip intro;
+        public AudioClip Frightened
+        {
+            get
+            {
+                if (frightened == null)
+                {
+                    // Not rendered in the background yet: finish it now.
+                    foreach (bool tick in FrightenedSteps(made => frightened = made))
+                    {
+                    }
+                }
+                return frightened;
+            }
+        }
+
+        private System.Collections.Generic.IEnumerator<bool> frightenedJob;
+        public AudioClip Intro => intro != null ? intro : (intro = BuildIntro());
 
         // Bambuco: 6/8 against 3/4 (the "sesquialtera"), A minor with a lift to the relative major. Chord tables are in the chase form below.
 
@@ -40,8 +107,6 @@ namespace Studio.Pacman
         public PacmanMusic()
         {
             Title = BuildTitle();
-            Frightened = BuildFrightened();
-            Intro = BuildIntro();
         }
 
         /// <summary>The note a diatonic third below, so the lead sings in the parallel thirds of the tiple duets.</summary>
@@ -286,18 +351,22 @@ namespace Studio.Pacman
             return form;
         }
 
-        private static AudioClip BuildChase()
+        private System.Collections.Generic.IEnumerator<bool> ChaseSteps()
         {
             const float eighth = 0.168f;
             var form = ChaseForm();
             int bars = form.Count;
             float step = eighth / 2f;
             float barLength = eighth * 6f;
+            yield return true;
             float[] melodic = PacmanSynth.Buffer(barLength * bars);
+            yield return true;
             float[] rhythm = PacmanSynth.Buffer(barLength * bars);
+            yield return true;
 
             for (int bar = 0; bar < bars; bar++)
             {
+                yield return true;
                 ChaseBar cb = form[bar];
                 bool second = cb.Bright;
                 // Every other bar the accents slide from 6/8 (two groups of three) to 3/4 (three groups of two).
@@ -315,6 +384,7 @@ namespace Studio.Pacman
                     PacmanSynth.Note(rhythm, barStart + eighth * 4f, eighth * 1.2f, root + 7f, Wave.Triangle, 0.18f, 5f);
                 }
 
+                yield return true;
                 // Strummed chords on the off-eighths: 6/8 hits 2,3,5,6; 3/4 hits 3 and 5 hard.
                 int[] hits = hemiola ? new[] { 2, 4 } : new[] { 1, 2, 4, 5 };
                 foreach (int hit in hits)
@@ -326,6 +396,7 @@ namespace Studio.Pacman
                     }
                 }
 
+                yield return true;
                 // Tiple: a bright running arpeggio, busier in the bright passes.
                 for (int e = 0; e < 6; e++)
                 {
@@ -337,6 +408,7 @@ namespace Studio.Pacman
                     PacmanSynth.Note(melodic, barStart + e * eighth, eighth * 1.3f, midi, Wave.Pulse25, cb.Busy ? 0.06f : 0.045f, 14f);
                 }
 
+                yield return true;
                 // Percussion: tambora kick on one (and four), a dry rim where the hemiola bites, shaker on every eighth.
                 PacmanSynth.Kick(rhythm, barStart, 0.4f);
                 PacmanSynth.Kick(rhythm, barStart + eighth * 3f, 0.22f);
@@ -344,6 +416,7 @@ namespace Studio.Pacman
                 {
                     PacmanSynth.Snare(rhythm, barStart + sn * eighth, 0.07f, bar * 5 + sn);
                 }
+                yield return true;
                 for (int h = 0; h < 12; h++)
                 {
                     PacmanSynth.Hat(rhythm, barStart + h * step, h % 2 == 0 ? 0.06f : 0.025f, false, bar * 13 + h);
@@ -357,6 +430,7 @@ namespace Studio.Pacman
                     }
                 }
 
+                yield return true;
                 // Lead in parallel thirds. Soft passes: triangle; bright passes: a pulse, an octave up in places.
                 int[] notes = cb.Melody;
                 if (notes == null)
@@ -381,13 +455,24 @@ namespace Studio.Pacman
             }
 
             // Echo wraps, so the tail rolls into the start of the loop.
-            PacmanSynth.Echo(melodic, eighth * 3f, 0.3f, 0.32f, true);
+            yield return true;
+            foreach (bool tick in PacmanSynth.EchoSteps(melodic, eighth * 3f, 0.3f, 0.32f, true))
+            {
+                yield return true;
+            }
             Mix(melodic, rhythm);
-            PacmanSynth.Limit(melodic, 0.9f);
-            return PacmanSynth.ToClip("music_chase", melodic, true);
+            yield return true;
+            foreach (bool tick in PacmanSynth.LimitSteps(melodic, 0.9f))
+            {
+                yield return true;
+            }
+            foreach (bool tick in PacmanSynth.ClipSteps("music_chase", melodic, made => chase = made))
+            {
+                yield return true;
+            }
         }
 
-        private static AudioClip BuildFrightened()
+        private static System.Collections.Generic.IEnumerable<bool> FrightenedSteps(System.Action<AudioClip> done)
         {
             const float bpm = 168f;
             const int bars = 16;
@@ -403,8 +488,10 @@ namespace Studio.Pacman
                 new[] { 33f, 33f, 36f, 35f },
                 new[] { 38f, 37f, 36f, 35f },
             };
+            yield return true;
             for (int bar = 0; bar < bars; bar++)
             {
+                yield return true;
                 int phrase = bar / 4;
                 float barStart = bar * 16 * step;
                 float root = phraseRoots[phrase][bar % 4];
@@ -446,8 +533,10 @@ namespace Studio.Pacman
                 }
             }
             PacmanSynth.Echo(buf, step * 3f, 0.3f, 0.3f, true);
+            yield return true;
             PacmanSynth.Limit(buf, 0.9f);
-            return PacmanSynth.ToClip("music_frightened", buf, true);
+            yield return true;
+            done(PacmanSynth.ToClip("music_frightened", buf, true));
         }
 
         private static AudioClip BuildIntro()

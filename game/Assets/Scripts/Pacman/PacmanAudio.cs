@@ -51,9 +51,9 @@ namespace Studio.Pacman
 
             PacmanState state = game.State;
             // Render the long gameplay loop a moment after the title screen is up, not before the first frame.
-            if (!music.ChaseReady && state == PacmanState.Title && ++warmFrames > 45)
+            if (!music.ChaseReady && ++warmFrames > 30)
             {
-                AudioClip ignore = music.Chase;
+                music.WarmChase(state == PacmanState.Title ? 3f : 1.5f);
             }
             wanted = Pick(state);
             if (wanted != track)

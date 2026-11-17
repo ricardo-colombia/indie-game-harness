@@ -232,10 +232,17 @@ namespace Studio.Pacman
         /// </summary>
         public static void Echo(float[] buf, float delaySec, float feedback, float mix, bool wrap)
         {
+            foreach (bool step in EchoSteps(buf, delaySec, feedback, mix, wrap))
+            {
+            }
+        }
+
+        public static System.Collections.Generic.IEnumerable<bool> EchoSteps(float[] buf, float delaySec, float feedback, float mix, bool wrap)
+        {
             int delay = Mathf.RoundToInt(delaySec * SampleRate);
             if (delay <= 0 || delay >= buf.Length)
             {
-                return;
+                yield break;
             }
             float[] source = (float[])buf.Clone();
             float[] tail = new float[buf.Length];
@@ -256,12 +263,34 @@ namespace Studio.Pacman
                         j %= buf.Length;
                     }
                     tail[j] += source[i] * gain;
+                    if ((i & 0x3FFFF) == 0x3FFFF)
+                    {
+                        yield return true;
+                    }
                 }
                 gain *= feedback;
+                yield return true;
             }
             for (int i = 0; i < buf.Length; i++)
             {
                 buf[i] += tail[i];
+                if ((i & 0x7FFFF) == 0x7FFFF)
+                {
+                    yield return true;
+                }
+            }
+        }
+
+        /// <summary>Limit in slices, for rendering without stalling a frame.</summary>
+        public static System.Collections.Generic.IEnumerable<bool> LimitSteps(float[] buf, float ceiling = 0.95f)
+        {
+            for (int i = 0; i < buf.Length; i++)
+            {
+                buf[i] = (float)System.Math.Tanh(buf[i]) * ceiling;
+                if ((i & 0x3FFFF) == 0x3FFFF)
+                {
+                    yield return true;
+                }
             }
         }
 
@@ -272,6 +301,27 @@ namespace Studio.Pacman
             {
                 buf[i] = (float)System.Math.Tanh(buf[i]) * ceiling;
             }
+        }
+
+        /// <summary>ToClip in slices: the clip is created at once and filled a quarter-million samples at a time.</summary>
+        public static System.Collections.Generic.IEnumerable<bool> ClipSteps(string name, float[] buf, System.Action<AudioClip> done)
+        {
+            AudioClip clip = AudioClip.Create(name, buf.Length, 1, SampleRate, false);
+            yield return true;
+            const int chunk = 1 << 18;
+            float[] piece = new float[chunk];
+            for (int at = 0; at < buf.Length; at += chunk)
+            {
+                int n = Mathf.Min(chunk, buf.Length - at);
+                if (n != piece.Length)
+                {
+                    piece = new float[n];
+                }
+                System.Array.Copy(buf, at, piece, 0, n);
+                clip.SetData(piece, at);
+                yield return true;
+            }
+            done(clip);
         }
 
         public static AudioClip ToClip(string name, float[] buf, bool loop = false)

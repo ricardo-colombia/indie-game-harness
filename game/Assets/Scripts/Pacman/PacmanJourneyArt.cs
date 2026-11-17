@@ -42,6 +42,7 @@ namespace Studio.Pacman
         private float[] signed;
         private Color32[] pixels;
         private int row;
+        private int finale;
         private int phase; // 0 = distances and heights, 1 = shading, 2 = rivers and finish
 
         public bool Done { get; private set; }
@@ -56,10 +57,37 @@ namespace Studio.Pacman
         }
 
         /// <summary>Paints a few more rows of the country. Call once per frame until Done.</summary>
+        /// <summary>Paints for about this many milliseconds (at least one row), so a frame never stalls.</summary>
+        public void StepFor(float milliseconds)
+        {
+            System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+            do
+            {
+                Step(1);
+            }
+            while (!Done && clock.Elapsed.TotalMilliseconds < milliseconds);
+        }
+
         public void Step(int rows)
         {
             for (int n = 0; n < rows && !Done; n++)
             {
+                if (phase == 2)
+                {
+                    // The last jobs, one per call so none of them lands in the same frame as another.
+                    if (finale == 0) PaintMountains();
+                    else if (finale == 1) PaintRivers();
+                    else
+                    {
+                        Map = ToTexture(pixels, MapW, MapH);
+                        pixels = null;
+                        elevation = null;
+                        signed = null;
+                        Done = true;
+                    }
+                    finale++;
+                    continue;
+                }
                 if (phase == 0)
                 {
                     HeightRow(row);
@@ -72,16 +100,6 @@ namespace Studio.Pacman
                 {
                     row = 0;
                     phase++;
-                    if (phase == 2)
-                    {
-                        PaintMountains();
-                        PaintRivers();
-                        Map = ToTexture(pixels, MapW, MapH);
-                        pixels = null;
-                        elevation = null;
-                        signed = null;
-                        Done = true;
-                    }
                 }
             }
         }
@@ -96,13 +114,52 @@ namespace Studio.Pacman
 
         private float PixelsPerDegree => MapH / PacmanJourney.LatSpan;
 
+        // The distance to the coast is the costly part, so it is measured exactly on a coarse grid and along the coast
+        // itself, and interpolated everywhere else (a distance field is smooth away from the shore).
+        private const int Stride = 4;
+        private float[] coarse;
+        private bool[] coarseDone;
+        private int CoarseW => MapW / Stride + 2;
+        private int CoarseH => MapH / Stride + 2;
+
+        private float CoarseAt(int cx, int cy)
+        {
+            if (coarse == null)
+            {
+                coarse = new float[CoarseW * CoarseH];
+                coarseDone = new bool[CoarseH];
+            }
+            if (!coarseDone[cy])
+            {
+                for (int x = 0; x < CoarseW; x++)
+                {
+                    coarse[cy * CoarseW + x] = ExactSigned(new Vector2(x * Stride + 0.5f, cy * Stride + 0.5f));
+                }
+                coarseDone[cy] = true;
+            }
+            return coarse[cy * CoarseW + cx];
+        }
+
+        private float ExactSigned(Vector2 p)
+        {
+            float d = DistanceToCoast(p);
+            return PacmanJourney.InsidePixels(coast, p) ? d : -d;
+        }
+
         private void HeightRow(int y)
         {
+            float fy = (y + 0.5f - 0.5f) / Stride;
+            int cy = Mathf.Min(CoarseH - 2, Mathf.FloorToInt(fy));
+            float ty = fy - cy;
             for (int x = 0; x < MapW; x++)
             {
-                Vector2 p = new Vector2(x + 0.5f, y + 0.5f);
-                float d = DistanceToCoast(p);
-                signed[y * MapW + x] = PacmanJourney.InsidePixels(coast, p) ? d : -d;
+                float fx = x / (float)Stride;
+                int cx = Mathf.Min(CoarseW - 2, Mathf.FloorToInt(fx));
+                float tx = fx - cx;
+                float top = Mathf.Lerp(CoarseAt(cx, cy), CoarseAt(cx + 1, cy), tx);
+                float bottom = Mathf.Lerp(CoarseAt(cx, cy + 1), CoarseAt(cx + 1, cy + 1), tx);
+                float v = Mathf.Lerp(top, bottom, ty);
+                signed[y * MapW + x] = Mathf.Abs(v) > 10f ? v : ExactSigned(new Vector2(x + 0.5f, y + 0.5f));
             }
         }
 

@@ -179,7 +179,7 @@ namespace Studio.Pacman
 
             float s = UiScale();
             EnsureStyle();
-            if (Time.frameCount > 120 && game.State == PacmanState.Title && (journeyArt == null || !journeyArt.Done))
+            if (Time.frameCount > 20 && (journeyArt == null || !journeyArt.Done))
             {
                 WarmJourney(false);
             }
@@ -818,7 +818,6 @@ namespace Studio.Pacman
 
         private PacmanJourneyArt journeyArt;
         private Texture2D journeyPaper;
-        private Texture2D journeyCompass;
         private Texture2D journeyBean;
         private Texture2D journeyChiva;
 
@@ -828,15 +827,28 @@ namespace Studio.Pacman
         }
 
         /// <summary>Paints the map a slice per frame while the title is up, so the first trip is ready without a hitch.</summary>
+        private int journeyPieces;
+
         private void WarmJourney(bool finish)
         {
             if (journeyArt == null)
             {
                 journeyArt = new PacmanJourneyArt();
-                journeyPaper = PacmanJourneyArt.BuildPaper(256, 192);
-                journeyCompass = PacmanJourneyArt.BuildCompass(160);
-                journeyBean = PacmanJourneyArt.BuildBean(48);
-                journeyChiva = PacmanJourneyArt.BuildChiva();
+            }
+            // The small pieces are made one per call, the big map a couple of milliseconds at a time.
+            while (journeyPieces < 3)
+            {
+                switch (journeyPieces)
+                {
+                    case 0: journeyPaper = PacmanJourneyArt.BuildPaper(256, 192); break;
+                    case 1: journeyBean = PacmanJourneyArt.BuildBean(48); break;
+                    default: journeyChiva = PacmanJourneyArt.BuildChiva(); break;
+                }
+                journeyPieces++;
+                if (!finish)
+                {
+                    return;
+                }
             }
             if (!journeyArt.Done)
             {
@@ -846,7 +858,7 @@ namespace Studio.Pacman
                 }
                 else
                 {
-                    journeyArt.Step(14);
+                    journeyArt.StepFor(game.State == PacmanState.Title ? 3f : 1.5f);
                 }
             }
         }
