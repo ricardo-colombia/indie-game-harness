@@ -116,6 +116,8 @@ namespace Studio.Pacman
         private const string StepsKey = "studio.pacman.vol.steps";
         private const string EffectsKey = "studio.pacman.vol.effects";
         public const int VolumeNotches = 10;
+        /// <summary>Where each volume starts the first time: 80% (a stored choice wins afterwards).</summary>
+        public const int DefaultNotch = 8;
         private int menuIndex;
         private float stepTimer;
         private bool stepFlip;
@@ -241,9 +243,9 @@ namespace Studio.Pacman
             : -1f;
 
         /// <summary>Player volume settings, in notches 0..10 (10 = the mix as designed). Kept between runs.</summary>
-        public int MusicNotch { get; private set; } = VolumeNotches;
-        public int StepsNotch { get; private set; } = VolumeNotches;
-        public int EffectsNotch { get; private set; } = VolumeNotches;
+        public int MusicNotch { get; private set; } = DefaultNotch;
+        public int StepsNotch { get; private set; } = DefaultNotch;
+        public int EffectsNotch { get; private set; } = DefaultNotch;
         public float MusicGain => MusicNotch / (float)VolumeNotches;
         private float StepGain => stepVolume * StepsNotch / VolumeNotches;
         private float EffectsGain => EffectsNotch / (float)VolumeNotches;
@@ -348,9 +350,9 @@ namespace Studio.Pacman
             BuildMaze();
             BuildActors();
             CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
-            MusicNotch = Mathf.Clamp(PlayerPrefs.GetInt(MusicKey, VolumeNotches), 0, VolumeNotches);
-            StepsNotch = Mathf.Clamp(PlayerPrefs.GetInt(StepsKey, VolumeNotches), 0, VolumeNotches);
-            EffectsNotch = Mathf.Clamp(PlayerPrefs.GetInt(EffectsKey, VolumeNotches), 0, VolumeNotches);
+            MusicNotch = Mathf.Clamp(PlayerPrefs.GetInt(MusicKey, DefaultNotch), 0, VolumeNotches);
+            StepsNotch = Mathf.Clamp(PlayerPrefs.GetInt(StepsKey, DefaultNotch), 0, VolumeNotches);
+            EffectsNotch = Mathf.Clamp(PlayerPrefs.GetInt(EffectsKey, DefaultNotch), 0, VolumeNotches);
             metMask = PlayerPrefs.GetInt(MetKey, 0);
             player.SetShoe(CurrentShoe);
             SetupCamera();
