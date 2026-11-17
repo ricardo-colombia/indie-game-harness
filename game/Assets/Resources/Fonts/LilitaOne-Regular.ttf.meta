@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: a1ad1fddff5294a9aa356d7baa939a5d
+guid: e24a412fb83814107a1a9dc4bb19e026
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,7 +9,7 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Abril Fatface
+  - Lilita One
   fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0

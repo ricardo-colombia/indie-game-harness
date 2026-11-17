@@ -63,8 +63,8 @@ namespace Studio.Pacman
             game = owner;
             instance = this;
             hatIcon = MakeHatIcon(64);
-            // The label-poster face that ships with the game (Abril Fatface, SIL Open Font License); it works in browsers too.
-            font = Resources.Load<Font>("Fonts/AbrilFatface-Regular");
+            // The rounded game face that ships with the game (Lilita One, SIL Open Font License); it works in browsers too.
+            font = Resources.Load<Font>("Fonts/LilitaOne-Regular");
             customFont = font != null;
             if (customFont)
             {
@@ -319,6 +319,7 @@ namespace Studio.Pacman
                 ? "DESLIZA  MOVER      TOCA  ELEGIR"
                 : "FLECHAS / WASD  MOVER      ENTER  ELEGIR      V  ZOOM      ESC  PAUSA";
             Text(new Rect(0, Screen.height * 0.92f, Screen.width, 36f * s), hint, 22f * s, Dim, TextAnchor.MiddleCenter);
+            Text(new Rect(0, Screen.height * 0.965f, Screen.width - 16f * s, 28f * s), "v" + Application.version, 18f * s, Dim, TextAnchor.MiddleRight);
 
             // Decorative chase: the picker followed by the four pests (DIAN agent, guerrilla, narco, snake) runs across the bottom,
             // drawn from the game's own rigs.
