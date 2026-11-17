@@ -108,6 +108,10 @@ namespace Studio.Pacman
         private AudioSource audioSource;
         private PacmanSfx sfx;
         private bool soundOn = true;
+        private const string MusicKey = "studio.pacman.vol.music";
+        private const string StepsKey = "studio.pacman.vol.steps";
+        private const string EffectsKey = "studio.pacman.vol.effects";
+        public const int VolumeNotches = 10;
         private int menuIndex;
         private float stepTimer;
         private bool stepFlip;
@@ -188,7 +192,7 @@ namespace Studio.Pacman
 
         // Everything the player can tune lives here. THEME is a development switch for trying the art styles:
         // the game will keep one of them eventually.
-        private static readonly string[] OptionsItems = { "VIEW", "SOUND", "SHOES", "THEME", "BACK" };
+        private static readonly string[] OptionsItems = { "VIEW", "SOUND", "MUSIC", "STEPS", "EFFECTS", "SHOES", "THEME", "BACK" };
 
         private bool inOptions;
 
@@ -223,6 +227,48 @@ namespace Studio.Pacman
 
         /// <summary>Sound toggle probe for autotest scenarios.</summary>
         public bool SoundOn => soundOn;
+
+        /// <summary>Player volume settings, in notches 0..10 (10 = the mix as designed). Kept between runs.</summary>
+        public int MusicNotch { get; private set; } = VolumeNotches;
+        public int StepsNotch { get; private set; } = VolumeNotches;
+        public int EffectsNotch { get; private set; } = VolumeNotches;
+        public float MusicGain => MusicNotch / (float)VolumeNotches;
+        private float StepGain => stepVolume * StepsNotch / VolumeNotches;
+        private float EffectsGain => EffectsNotch / (float)VolumeNotches;
+
+        /// <summary>Notch of a volume row (MUSIC, STEPS, EFFECTS) or -1 if the row is not a volume.</summary>
+        public int NotchOf(string item)
+        {
+            switch (item)
+            {
+                case "MUSIC": return MusicNotch;
+                case "STEPS": return StepsNotch;
+                case "EFFECTS": return EffectsNotch;
+                default: return -1;
+            }
+        }
+
+        public static bool IsVolumeRow(string item)
+        {
+            return item == "MUSIC" || item == "STEPS" || item == "EFFECTS";
+        }
+
+        private void AdjustVolume(string item, int delta, bool wrap)
+        {
+            int now = NotchOf(item);
+            int next = now + delta;
+            next = wrap ? (next + VolumeNotches + 1) % (VolumeNotches + 1) : Mathf.Clamp(next, 0, VolumeNotches);
+            switch (item)
+            {
+                case "MUSIC": MusicNotch = next; PlayerPrefs.SetInt(MusicKey, next); break;
+                case "STEPS": StepsNotch = next; PlayerPrefs.SetInt(StepsKey, next); break;
+                default: EffectsNotch = next; PlayerPrefs.SetInt(EffectsKey, next); break;
+            }
+            PlayerPrefs.Save();
+            // Let the director hear the level they just set.
+            AudioClip sample = item == "STEPS" ? sfx?.StepFor(CurrentShoe, stepFlip = !stepFlip) : sfx?.Pellet;
+            PacmanSfx.Play(audioSource, sample, soundOn, item == "STEPS" ? StepGain : EffectsGain);
+        }
         /// <summary>Highlighted menu row. Probe for menu tests.</summary>
         public int MenuIndex => menuIndex;
 
@@ -290,6 +336,9 @@ namespace Studio.Pacman
             BuildMaze();
             BuildActors();
             CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
+            MusicNotch = Mathf.Clamp(PlayerPrefs.GetInt(MusicKey, VolumeNotches), 0, VolumeNotches);
+            StepsNotch = Mathf.Clamp(PlayerPrefs.GetInt(StepsKey, VolumeNotches), 0, VolumeNotches);
+            EffectsNotch = Mathf.Clamp(PlayerPrefs.GetInt(EffectsKey, VolumeNotches), 0, VolumeNotches);
             metMask = PlayerPrefs.GetInt(MetKey, 0);
             player.SetShoe(CurrentShoe);
             SetupCamera();
@@ -341,13 +390,13 @@ namespace Studio.Pacman
         {
             ShowTitle();
             menuIndex = System.Array.IndexOf(TitleItems, "CAST");
-            PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.Back, soundOn, EffectsGain);
         }
 
         private void StepCast(int delta)
         {
             castIndex = PacmanCast.Wrap(castIndex + delta);
-            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn, EffectsGain);
         }
 
         /// <summary>
@@ -525,7 +574,7 @@ namespace Studio.Pacman
                             State = PacmanState.GameOver;
                             gameOverSince = Time.unscaledTime;
                             SaveHighScore();
-                            PacmanSfx.Play(audioSource, sfx?.GameOver, soundOn);
+                            PacmanSfx.Play(audioSource, sfx?.GameOver, soundOn, EffectsGain);
                         }
                         else
                         {
@@ -596,6 +645,8 @@ namespace Studio.Pacman
             public bool Down;
             public bool Confirm;
             public bool Back;
+            public bool Left;
+            public bool Right;
         }
 
         private void ReadInput()
@@ -624,6 +675,8 @@ namespace Studio.Pacman
                 Down = keyboard.downArrowKey.wasPressedThisFrame || keyboard.sKey.wasPressedThisFrame,
                 Confirm = keyboard.enterKey.wasPressedThisFrame || keyboard.spaceKey.wasPressedThisFrame,
                 Back = keyboard.escapeKey.wasPressedThisFrame,
+                Left = keyboard.leftArrowKey.wasPressedThisFrame || keyboard.aKey.wasPressedThisFrame,
+                Right = keyboard.rightArrowKey.wasPressedThisFrame || keyboard.dKey.wasPressedThisFrame,
             });
 
             if (State != PacmanState.Playing && State != PacmanState.Ready)
@@ -680,7 +733,11 @@ namespace Studio.Pacman
                     if (row >= 0)
                     {
                         menuIndex = row;
-                        ApplyMenuInput(new MenuInput { Confirm = true });
+                        // A tap on a volume row turns it down on the left half and up on the right half.
+                        bool volume = IsVolumeRow(ActiveMenu[Mathf.Clamp(row, 0, ActiveMenu.Length - 1)]);
+                        ApplyMenuInput(volume
+                            ? new MenuInput { Left = gui.x < Screen.width * 0.5f, Right = gui.x >= Screen.width * 0.5f }
+                            : new MenuInput { Confirm = true });
                     }
                 }
                 return;
@@ -862,7 +919,7 @@ namespace Studio.Pacman
                         State = PacmanState.Paused;
                         menuIndex = 0;
                         inOptions = false;
-                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
+                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn, EffectsGain);
                     }
                     return;
 
@@ -875,7 +932,7 @@ namespace Studio.Pacman
                     if (input.Back)
                     {
                         State = PacmanState.Playing;
-                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
+                        PacmanSfx.Play(audioSource, sfx?.Back, soundOn, EffectsGain);
                         return;
                     }
                     break;
@@ -924,7 +981,7 @@ namespace Studio.Pacman
                         }
                         else
                         {
-                            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+                            PacmanSfx.Play(audioSource, sfx?.Blip, soundOn, EffectsGain);
                         }
                     }
                     return;
@@ -934,15 +991,23 @@ namespace Studio.Pacman
             }
 
             string[] items = ActiveMenu;
-            if (input.Down)
+            if ((input.Left || input.Right) && IsVolumeRow(items[menuIndex]))
+            {
+                AdjustVolume(items[menuIndex], input.Right ? 1 : -1, false);
+            }
+            else if (input.Confirm && IsVolumeRow(items[menuIndex]))
+            {
+                AdjustVolume(items[menuIndex], 1, true);
+            }
+            else if (input.Down)
             {
                 menuIndex = (menuIndex + 1) % items.Length;
-                PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+                PacmanSfx.Play(audioSource, sfx?.Blip, soundOn, EffectsGain);
             }
             else if (input.Up)
             {
                 menuIndex = (menuIndex + items.Length - 1) % items.Length;
-                PacmanSfx.Play(audioSource, sfx?.Blip, soundOn);
+                PacmanSfx.Play(audioSource, sfx?.Blip, soundOn, EffectsGain);
             }
             else if (input.Confirm)
             {
@@ -955,7 +1020,7 @@ namespace Studio.Pacman
         {
             inOptions = false;
             menuIndex = System.Array.IndexOf(ActiveMenu, "OPTIONS");
-            PacmanSfx.Play(audioSource, sfx?.Back, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.Back, soundOn, EffectsGain);
         }
 
         private void Activate(string item)
@@ -1006,7 +1071,7 @@ namespace Studio.Pacman
                     PlayerPrefs.SetInt(ShoeKey, (int)CurrentShoe);
                     PlayerPrefs.Save();
                     // Let the director hear the new pair straight away.
-                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, false), soundOn, stepVolume);
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, false), soundOn, StepGain);
                     return;
                 case "QUIT":
                     Application.Quit();
@@ -1016,7 +1081,7 @@ namespace Studio.Pacman
                     break;
             }
             bool leaving = item == "RESUME" || item == "QUIT TO TITLE" || item == "QUIT";
-            PacmanSfx.Play(audioSource, leaving ? sfx?.Back : sfx?.Select, soundOn);
+            PacmanSfx.Play(audioSource, leaving ? sfx?.Back : sfx?.Select, soundOn, EffectsGain);
         }
 
         private void Simulate(float dt)
@@ -1041,7 +1106,7 @@ namespace Studio.Pacman
                 {
                     stepTimer = stepInterval;
                     stepFlip = !stepFlip;
-                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, stepFlip), soundOn, stepVolume);
+                    PacmanSfx.Play(audioSource, sfx?.StepFor(CurrentShoe, stepFlip), soundOn, StepGain);
                 }
             }
             else
@@ -1162,7 +1227,7 @@ namespace Studio.Pacman
                 if (ghost.IsScared)
                 {
                     int points = ghostPoints << ghostChain;
-                    PacmanSfx.Play(audioSource, sfx?.GhostEatenFor(ghostChain), soundOn);
+                    PacmanSfx.Play(audioSource, sfx?.GhostEatenFor(ghostChain), soundOn, EffectsGain);
                     ghostChain++;
                     Score += points;
                     ghost.Eat();
@@ -1180,7 +1245,7 @@ namespace Studio.Pacman
                     float away = Mathf.Sign(pacPos.x - ghost.transform.position.x);
                     player.StartDeath(deathDuration, ghost.Kind, away == 0f ? 1f : away);
                     PacmanDeathScene.Play(ghost.Kind, ghost.transform, player.transform, deathDuration);
-                    PacmanSfx.Play(audioSource, sfx?.Death, soundOn);
+                    PacmanSfx.Play(audioSource, sfx?.Death, soundOn, EffectsGain);
                     post?.Shake(0.3f, 0.35f);
                     post?.Punch(0.4f);
                     Say(SayKind.Hurt);
@@ -1215,7 +1280,7 @@ namespace Studio.Pacman
                         ghost.Frighten();
                     }
                 }
-                PacmanSfx.Play(audioSource, sfx?.Power, soundOn);
+                PacmanSfx.Play(audioSource, sfx?.Power, soundOn, EffectsGain);
                 post?.Punch(0.55f);
                 SayMaybe(SayKind.Power, sayPowerChance);
             }
@@ -1223,7 +1288,7 @@ namespace Studio.Pacman
             {
                 pacPauseTimer = dotPauseFrames / 60f;
                 Score += pelletPoints;
-                PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn);
+                PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn, EffectsGain);
             }
 
             release.OnDot();
@@ -1238,7 +1303,7 @@ namespace Studio.Pacman
             {
                 State = PacmanState.LevelClear;
                 stateTimer = levelClearDuration;
-                PacmanSfx.Play(audioSource, sfx?.LevelClear, soundOn);
+                PacmanSfx.Play(audioSource, sfx?.LevelClear, soundOn, EffectsGain);
                 Say(SayKind.Clear);
             }
         }
@@ -1260,7 +1325,7 @@ namespace Studio.Pacman
             fruitObject.SetActive(true);
             fruitActive = true;
             fruitTimer = fruitDuration;
-            PacmanSfx.Play(audioSource, sfx?.CherryAppear, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.CherryAppear, soundOn, EffectsGain);
         }
 
         private void HideFruit()
@@ -1279,7 +1344,7 @@ namespace Studio.Pacman
             Score += points;
             PacmanVfx.Pop(fruitObject.transform.position, new Color(1f, 0.5f, 0.3f), 24);
             PacmanUi.Show(fruitObject.transform.position, points.ToString(), new Color(1f, 0.75f, 0.45f));
-            PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn, EffectsGain);
             HideFruit();
         }
 
@@ -1287,7 +1352,7 @@ namespace Studio.Pacman
         {
             extraLifeGiven = true;
             Lives++;
-            PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn);
+            PacmanSfx.Play(audioSource, sfx?.Cherry, soundOn, EffectsGain);
             if (player != null)
             {
                 PacmanUi.Show(player.transform.position + Vector3.up, "+1 VIDA", new Color(0.4f, 1f, 0.5f));

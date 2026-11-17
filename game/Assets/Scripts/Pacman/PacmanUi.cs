@@ -737,12 +737,12 @@ namespace Studio.Pacman
         /// <summary>Menus with five or more rows are packed a little tighter so they still fit above the title's chase strip.</summary>
         private static float MenuTop(int count)
         {
-            return count >= 6 ? 0.45f : (count >= 5 ? 0.49f : 0.52f);
+            return count >= 8 ? 0.38f : count >= 6 ? 0.45f : (count >= 5 ? 0.49f : 0.52f);
         }
 
         private static float RowHeight(int count)
         {
-            return count >= 6 ? 46f : (count >= 5 ? 52f : 64f);
+            return count >= 8 ? 40f : count >= 6 ? 46f : (count >= 5 ? 52f : 64f);
         }
 
         private void DrawMenuItems(float s, float top)
@@ -767,8 +767,39 @@ namespace Studio.Pacman
                     Fill(new Rect(row.x, row.y, 6f * s, row.height), Gold, 3f * s);
                     GUI.DrawTexture(new Rect(row.x + 18f * s, row.y + row.height * 0.5f - 16f * s, 36f * s, 36f * s), hatIcon, ScaleMode.StretchToFill, true);
                 }
-                Text(row, text, (items.Length >= 6 ? 30f : (items.Length >= 5 ? 34f : 38f)) * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
+                if (PacmanGame.IsVolumeRow(items[i]))
+                {
+                    DrawVolumeRow(row, items[i], selected, s, items.Length);
+                    continue;
+                }
+                Text(row, text, (items.Length >= 8 ? 26f : (items.Length >= 6 ? 30f : (items.Length >= 5 ? 34f : 38f))) * s, selected ? Gold : Color.white, TextAnchor.MiddleCenter);
             }
+        }
+
+        private static string VolumeLabel(string item)
+        {
+            return item == "MUSIC" ? "MÚSICA" : item == "STEPS" ? "PASOS" : "EFECTOS";
+        }
+
+        /// <summary>A volume row: the name on the left, a ten-notch bar with - and + on the right.</summary>
+        private void DrawVolumeRow(Rect row, string item, bool selected, float s, int rows)
+        {
+            Color ink = selected ? Gold : Color.white;
+            float size = (rows >= 8 ? 26f : 30f) * s;
+            Text(new Rect(row.x + 64f * s, row.y, row.width * 0.4f, row.height), VolumeLabel(item), size, ink, TextAnchor.MiddleLeft);
+            float barLeft = row.x + row.width * 0.5f;
+            float barWidth = row.width * 0.36f;
+            float notchW = barWidth / PacmanGame.VolumeNotches;
+            float h = row.height * 0.46f;
+            float y = row.y + (row.height - h) * 0.5f;
+            Text(new Rect(barLeft - 30f * s, row.y, 26f * s, row.height), "-", size, ink, TextAnchor.MiddleCenter);
+            int level = game.NotchOf(item);
+            for (int n = 0; n < PacmanGame.VolumeNotches; n++)
+            {
+                Color c = n < level ? ink : new Color(1f, 1f, 1f, 0.16f);
+                Fill(new Rect(barLeft + n * notchW + 1.5f * s, y, notchW - 3f * s, h), c, 2f * s);
+            }
+            Text(new Rect(barLeft + barWidth + 6f * s, row.y, 26f * s, row.height), "+", size, ink, TextAnchor.MiddleCenter);
         }
 
         // ---------------------------------------------------------------- drawing helpers

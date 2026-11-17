@@ -71,7 +71,7 @@ namespace Studio.Pacman
             }
 
             float level = track == Track.Title ? titleVolume : musicVolume;
-            source.volume = game.SoundOn ? level * fade : 0f;
+            source.volume = game.SoundOn ? level * fade * game.MusicGain : 0f;
 
             // Muffle the mix while paused so the menu feels like it sits in front of the game.
             float cutoff = state == PacmanState.Paused ? 700f : 22000f;
