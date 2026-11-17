@@ -42,6 +42,8 @@ namespace Studio.Pacman
         private float pupilSize = 0.08f;
         private Vector2[] eyeSpots = { new Vector2(-0.085f, 0.23f), new Vector2(0.085f, 0.23f) };
         private bool snake;
+        // Painted-sprite mode: the theme supplies a full-body picture of the pest (char_doctor, char_flaco, char_hernan).
+        private bool painted;
         private Transform rig;
         private Transform[] shades = new Transform[0];
         private Vector2[] shadeBase = new Vector2[0];
@@ -114,7 +116,7 @@ namespace Studio.Pacman
                 BuildPerson(kind, colour);
             }
 
-            face = NewPart("Face", PacmanSprites.FrightFace, snake ? new Vector2(0f, 0.05f) : new Vector2(0f, 0.04f), Vector2.one * 0.8f, 8, snakeHead != null ? snakeHead : rig);
+            face = NewPart("Face", PacmanSprites.FrightFace, snake ? new Vector2(0f, 0.05f) : new Vector2(0f, painted ? 0.4f : 0.04f), Vector2.one * 0.8f, 8, snakeHead != null ? snakeHead : rig);
             eyeRenderers = new SpriteRenderer[2];
             pupilRenderers = new SpriteRenderer[2];
             pupils = new Transform[2];
@@ -129,8 +131,31 @@ namespace Studio.Pacman
 
         // ---------------------------------------------------------------- person
 
+        private static string PaintedName(GhostKind kind)
+        {
+            switch (kind)
+            {
+                case GhostKind.Blinky: return "char_doctor";
+                case GhostKind.Pinky: return "char_flaco";
+                case GhostKind.Inky: return "char_hernan";
+                default: return null;
+            }
+        }
+
         private void BuildPerson(GhostKind kind, Color colour)
         {
+            string paintedName = PaintedName(kind);
+            Sprite picture = paintedName != null ? PacmanTheme.Get(paintedName) : null;
+            if (picture != null)
+            {
+                painted = true;
+                const float height = 1.2f;
+                body = NewPart("Torso", picture, new Vector2(0f, -0.45f + height * 0.5f), new Vector2(height, height), 6, rig);
+                PacmanGlow.Attach(transform, colour, 2.2f, 0.2f, body);
+                // The face (frightened look) sits on the painted head.
+                eyeSpots = new[] { new Vector2(-0.085f, 0.4f), new Vector2(0.085f, 0.4f) };
+                return;
+            }
             body = NewPart("Torso", PacmanPestArt.PersonBody(), Vector2.zero, Vector2.one, 6, rig);
             body.color = colour;
             PacmanGlow.Attach(transform, colour, 2.2f, 0.2f, body);
@@ -287,6 +312,22 @@ namespace Studio.Pacman
         {
             float s = Mathf.Sin(walk);
             float swing = scared ? 42f : 32f;
+            if (painted)
+            {
+                // A painted pest hops along: a bounce twice per step, a squash on each landing, a sway and a lean into the move.
+                float hop = Mathf.Abs(s);
+                float land = Mathf.Cos(2f * walk);
+                rig.localPosition = new Vector3(0f, 0.06f * hop, 0f);
+                rig.localScale = new Vector3(1f + 0.035f * land, 1f - 0.035f * land, 1f);
+                float lean2 = -look.x * 4f + 4f * s + (scared ? 4f * Mathf.Sin(Time.time * 38f) : 0f);
+                lean = Mathf.Lerp(lean, lean2, 1f - Mathf.Exp(-14f * dt));
+                rig.localRotation = Quaternion.Euler(0f, 0f, lean);
+                if (Mathf.Abs(look.x) > 0.5f)
+                {
+                    body.transform.localScale = new Vector3(Mathf.Abs(body.transform.localScale.x) * (look.x < 0f ? 1f : -1f), body.transform.localScale.y, 1f);
+                }
+                return;
+            }
             legs[0].localRotation = Quaternion.Euler(0f, 0f, swing * s);
             legs[1].localRotation = Quaternion.Euler(0f, 0f, -swing * s);
             arms[0].localRotation = Quaternion.Euler(0f, 0f, -swing * 0.85f * s + (scared ? 30f : 0f));
@@ -362,6 +403,12 @@ namespace Studio.Pacman
                 snakeHead.GetComponent<SpriteRenderer>().color = frightened ? tint : Color.white;
             }
 
+            if (painted)
+            {
+                // The picture keeps its own colours; frightened pests are washed blue (or white when flashing), eaten ones leave only eyes.
+                body.enabled = state != 3;
+                body.color = frightened ? Color.Lerp(Color.white, tint, 0.72f) : Color.white;
+            }
             foreach (TintedPart part in tinted)
             {
                 part.Renderer.enabled = state != 3;
@@ -382,8 +429,9 @@ namespace Studio.Pacman
             // Frightened pests have no round eyes: the face sprite carries its own.
             for (int i = 0; i < eyeRenderers.Length; i++)
             {
-                eyeRenderers[i].enabled = !frightened;
-                pupilRenderers[i].enabled = !frightened;
+                bool eyes = painted ? state == 3 : !frightened;
+                eyeRenderers[i].enabled = eyes;
+                pupilRenderers[i].enabled = eyes;
             }
         }
     }

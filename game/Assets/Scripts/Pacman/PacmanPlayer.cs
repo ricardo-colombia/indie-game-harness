@@ -43,6 +43,12 @@ namespace Studio.Pacman
         private bool freshRequest;
         private Transform body;
         private Transform farmer;
+        // Painted-sprite mode: the theme supplies one full-body picture of the picker, and the walk is a bob, tilt and squash.
+        private Transform spriteBody;
+        private bool SpriteMode => spriteBody != null;
+
+        /// <summary>The painted picker is a little taller than a tile so the character reads at a glance.</summary>
+        private const float PaintedHeight = 1.3f;
         private Transform[] views = new Transform[3];
         private Rig[] rigs = new Rig[3];
         private float gait;
@@ -124,10 +130,25 @@ namespace Studio.Pacman
             SortingGroup group = root.AddComponent<SortingGroup>();
             group.sortingOrder = 5;
 
+            Sprite painted = PacmanTheme.Get("char_farmer");
+            if (painted != null)
+            {
+                BuildPainted(painted);
+                SetView(View.Side);
+                return;
+            }
             BuildSide();
             BuildFront(false);
             BuildFront(true);
             SetView(View.Side);
+        }
+
+        /// <summary>One painted picture of the picker (the theme's char_farmer), feet on the tile's floor, facing the viewer.</summary>
+        private void BuildPainted(Sprite painted)
+        {
+            Transform t = NewView(View.Side);
+            const float height = PaintedHeight;
+            spriteBody = Prim(t, painted, Color.white, new Vector2(0f, -0.5f + height * 0.5f), new Vector2(height, height), 0f, 6);
         }
 
         private Transform NewView(View v)
@@ -303,7 +324,7 @@ namespace Studio.Pacman
                     SetView(View.Side);
                 }
             }
-            else if (Dir.y != 0)
+            else if (Dir.y != 0 && !SpriteMode)
             {
                 View wanted = Dir.y > 0 ? View.Front : View.Back;
                 if (view != wanted)
@@ -457,6 +478,11 @@ namespace Studio.Pacman
         /// </summary>
         private void Animate()
         {
+            if (SpriteMode)
+            {
+                AnimatePainted();
+                return;
+            }
             Rig rig = rigs[(int)view];
             float amp = moveBlend;
             float p = gait;
@@ -512,6 +538,20 @@ namespace Studio.Pacman
                     rig.Basket.localRotation = Quaternion.Euler(0f, 0f, -3f * Mathf.Sin(p - 1f) * amp);
                 }
             }
+        }
+
+        /// <summary>The painted picker walks by hopping: a bounce twice per stride, a sway side to side and a squash on each landing.</summary>
+        private void AnimatePainted()
+        {
+            float amp = moveBlend;
+            float p = gait;
+            float breathe = Mathf.Sin(Time.time * 2.4f) * (1f - amp);
+            float hop = Mathf.Abs(Mathf.Sin(p));
+            float land = Mathf.Cos(2f * p);
+            farmer.localPosition = new Vector3(0f, amp * 0.07f * hop + breathe * 0.006f, 0f);
+            float pulse = raise;
+            spriteBody.localRotation = Quaternion.Euler(0f, 0f, amp * 6f * Mathf.Sin(p) + breathe);
+            spriteBody.localScale = new Vector3(PaintedHeight * (1f + amp * 0.035f * land - pulse * 0.06f), PaintedHeight * (1f - amp * 0.035f * land + pulse * 0.1f + breathe * 0.006f), 1f);
         }
 
         protected override bool Blocked(Vector2Int tile)

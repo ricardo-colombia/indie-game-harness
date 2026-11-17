@@ -14,3 +14,6 @@ photorealism, text, logos, watermarks, busy backgrounds, cropped objects
 
 ## Coffee theme: Vintage "label engraving" (2D)
 Chosen by the director. Closed dark-brown ink outline (about #331B10), flat muted inks with line hatching in the shadows, paper grain, warm earth palette (cherry red, straw, burlap, leaf green). Pre-drawn sprites (pellet cherry, power-up mug, 7 bonus fruits) are AI generated on a pure white background and cut out; characters, bushes, mountains and floor are painted by code with the same finish. Prompts: `art/ai_sprite_prompts.md`. A second "Clásico" look (plain procedural art) stays selectable in the title menu.
+
+## Personajes pintados (ComfyUI local)
+Don Eliseo, El Doctor, Alias El Flaco y Don Hernán son imágenes generadas con ComfyUI (SDXL base, local, gratis) como "sticker design of a chibi cartoon character": `art/comfy/gen_chars.py <slot> [semillas]` genera en `art/incoming/`, y `art/comfy/cutout_chars.py` recorta el fondo y deja `game/Assets/Resources/Themes/Vintage/char_<slot>.png` con borde crema. El juego usa esos PNG si existen (`PacmanTheme.Get`); si faltan, vuelve a los muñecos procedurales. La Coral (serpiente) sigue procedural. Steam exige declarar el uso de IA si estos sprites llegan al juego final. Nunca vaciar la cola compartida de ComfyUI.

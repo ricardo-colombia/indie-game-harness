@@ -40,8 +40,10 @@ namespace Studio.Pacman
         [SerializeField] private int pelletPoints = 10;
         [SerializeField] private int powerPelletPoints = 50;
         [SerializeField] private int ghostPoints = 200;
-        [Tooltip("Distance (in tiles) at which a ghost touches Pac-Man.")]
-        [SerializeField] private float collisionDistance = 0.6f;
+        [Tooltip("Size (in tiles) of the box that counts as touching, for the picker and for each pest. They hit when their boxes overlap.")]
+        [SerializeField] private Vector2 hitBoxSize = new Vector2(0.62f, 0.9f);
+        [Tooltip("How far above the tile centre the characters' boxes are centred (their feet stand on the tile floor).")]
+        [SerializeField] private float hitBoxLift = 0.12f;
         [Tooltip("Chasing ghosts steer by walking distance through the maze instead of straight-line distance.")]
         [SerializeField] private bool pathChase = true;
         [Tooltip("Score that earns one extra life (once per game).")]
@@ -54,8 +56,8 @@ namespace Studio.Pacman
         [SerializeField] private int secondFruitAt = 170;
         [Tooltip("Seconds a fruit stays on the maze before it disappears.")]
         [SerializeField] private float fruitDuration = 9.5f;
-        [Tooltip("Distance (in tiles) at which Pac-Man picks the fruit up.")]
-        [SerializeField] private float fruitPickupDistance = 0.75f;
+        [Tooltip("Size (in tiles) of the fruit's box; the picker takes it when his box overlaps it.")]
+        [SerializeField] private Vector2 fruitHitBoxSize = new Vector2(0.7f, 0.7f);
         [Tooltip("How many past levels' fruits the row under the maze shows.")]
         [SerializeField] private int fruitRowLength = 7;
 
@@ -1174,7 +1176,7 @@ namespace Studio.Pacman
             {
                 fruitTimer -= dt;
                 Vector2 pac = player.transform.position;
-                if (Vector2.Distance(pac, FruitPosition) <= fruitPickupDistance)
+                if (PacmanHitBox.Overlap(pac + Vector2.up * hitBoxLift, hitBoxSize, FruitPosition, fruitHitBoxSize))
                 {
                     EatFruit();
                 }
@@ -1244,9 +1246,10 @@ namespace Studio.Pacman
         private void CheckGhostCollisions()
         {
             Vector3 pacPos = player.transform.position;
+            Vector2 pacBox = (Vector2)pacPos + Vector2.up * hitBoxLift;
             foreach (PacmanGhost ghost in ghosts)
             {
-                if (Vector3.Distance(pacPos, ghost.transform.position) > collisionDistance)
+                if (!PacmanHitBox.Overlap(pacBox, hitBoxSize, (Vector2)ghost.transform.position + Vector2.up * hitBoxLift, hitBoxSize))
                 {
                     continue;
                 }
