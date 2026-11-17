@@ -99,6 +99,7 @@ namespace Studio.Pacman
         private float celebrationTimer;
         private float frightenedTimer;
         private float pacPauseTimer;
+        private float pacPauseDebt; // time owed by eating dots, paid back as a gentle slowdown instead of a visible 1-frame stop
         private float playTime;
 
         /// <summary>Seconds of play since the last reset. Probe for ghost release timing.</summary>
@@ -122,6 +123,7 @@ namespace Studio.Pacman
         private float stepTimer;
         private bool stepFlip;
         private GameObject fruitObject;
+        private readonly Dictionary<FruitKind, Transform> fruitArt = new Dictionary<FruitKind, Transform>();
         private Transform fruitRow;
         private bool fruitActive;
         private int fruitsSpawned;
@@ -350,6 +352,7 @@ namespace Studio.Pacman
             BuildMaze();
             BuildActors();
             PacmanDeathScene.Prewarm();
+            PacmanVfx.Prewarm();
             CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
             MusicNotch = Mathf.Clamp(PlayerPrefs.GetInt(MusicKey, DefaultNotch), 0, VolumeNotches);
             StepsNotch = Mathf.Clamp(PlayerPrefs.GetInt(StepsKey, DefaultNotch), 0, VolumeNotches);
@@ -1128,7 +1131,15 @@ namespace Studio.Pacman
             }
             else
             {
-                player.Tick(fullSpeed * pacPercent / 100f * dt);
+                float move = dt;
+                if (pacPauseDebt > 0f)
+                {
+                    // Same total time as the arcade's one-frame dot stop, but spread over the next moments (half speed) so the walk never visibly hitches.
+                    float pay = Mathf.Min(pacPauseDebt, dt * 0.5f);
+                    pacPauseDebt -= pay;
+                    move = dt - pay;
+                }
+                player.Tick(fullSpeed * pacPercent / 100f * move);
             }
 
             if (player.Dir != Vector2Int.zero)
@@ -1319,7 +1330,7 @@ namespace Studio.Pacman
             }
             else
             {
-                pacPauseTimer = dotPauseFrames / 60f;
+                pacPauseDebt = Mathf.Min(pacPauseDebt + dotPauseFrames / 60f, 0.2f);
                 Score += pelletPoints;
                 PacmanSfx.Play(audioSource, sfx?.Pellet, soundOn, EffectsGain);
             }
@@ -1346,14 +1357,23 @@ namespace Studio.Pacman
         {
             fruitsSpawned++;
             fruitKind = PacmanFruit.For(level);
-            for (int i = fruitObject.transform.childCount - 1; i >= 0; i--)
+            // Each kind's art is built once (the first time it appears) and then only switched on, so a fruit never costs a hitch.
+            foreach (KeyValuePair<FruitKind, Transform> built in fruitArt)
             {
-                Destroy(fruitObject.transform.GetChild(i).gameObject);
+                built.Value.gameObject.SetActive(false);
             }
-            // A soft shadow on the ground under the bonus, which stays put while the fruit bobs.
-            AddPelletPart(fruitObject.transform, new Color(0f, 0f, 0f, 0.35f), new Vector2(0f, -0.38f), new Vector3(0.62f, 0.2f, 1f), 0f, 4);
-            Transform art = PacmanFruitArt.Build(fruitObject.transform, fruitKind, 0.95f);
-            PacmanJuice.Attach(art, PacmanJuice.Kind.Bob, 0.04f, 1.2f, 0f);
+            if (!fruitArt.TryGetValue(fruitKind, out Transform art))
+            {
+                GameObject holder = new GameObject("Fruit " + fruitKind);
+                holder.transform.SetParent(fruitObject.transform, false);
+                // A soft shadow on the ground under the bonus, which stays put while the fruit bobs.
+                AddPelletPart(holder.transform, new Color(0f, 0f, 0f, 0.35f), new Vector2(0f, -0.38f), new Vector3(0.62f, 0.2f, 1f), 0f, 4);
+                Transform picture = PacmanFruitArt.Build(holder.transform, fruitKind, 0.95f);
+                PacmanJuice.Attach(picture, PacmanJuice.Kind.Bob, 0.04f, 1.2f, 0f);
+                art = holder.transform;
+                fruitArt[fruitKind] = art;
+            }
+            art.gameObject.SetActive(true);
             fruitObject.transform.position = FruitPosition;
             fruitObject.SetActive(true);
             fruitActive = true;
@@ -1470,6 +1490,7 @@ namespace Studio.Pacman
             ghostChain = 0;
             frightenedTimer = 0f;
             pacPauseTimer = 0f;
+            pacPauseDebt = 0f;
             playTime = 0f;
             player.CancelDeath();
             player.Place(playerStart);
@@ -1575,6 +1596,7 @@ namespace Studio.Pacman
             fruitObject = new GameObject("Fruit");
             fruitObject.transform.SetParent(mazeRoot, false);
             fruitObject.SetActive(false);
+            fruitArt.Clear();
             fruitRow = new GameObject("FruitRow").transform;
             fruitRow.SetParent(mazeRoot, false);
 

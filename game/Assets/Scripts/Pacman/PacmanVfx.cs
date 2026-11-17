@@ -14,6 +14,13 @@ namespace Studio.Pacman
         private static ParticleSystem sparks;
         private static ParticleSystem rings;
 
+        /// <summary>Creates both particle systems (and warms their first draw) ahead of play, so the first pickup costs nothing.</summary>
+        public static void Prewarm()
+        {
+            Emit(EnsureSparks(), new Vector3(0f, 0f, 100f), Color.black, 1);
+            Emit(EnsureRings(), new Vector3(0f, 0f, 100f), Color.black, 1);
+        }
+
         /// <summary>Emits a burst of sparks at a world position.</summary>
         public static void Burst(Vector3 position, Color colour, int count = 8)
         {
