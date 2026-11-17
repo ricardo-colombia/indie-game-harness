@@ -50,6 +50,23 @@ namespace Studio.Pacman
         private Rect pauseButton;
         private Rect zoomButton;
 
+        // HUD strings are rebuilt only when their value changes (no per-frame garbage).
+        private readonly int[] numberShown = { -1, -1 };
+        private readonly string[] numberText = new string[2];
+        private int placeLevel = -1;
+        private string placeFarm;
+        private string placeText;
+
+        private string NumberText(int slot, int value)
+        {
+            if (numberShown[slot] != value || numberText[slot] == null)
+            {
+                numberShown[slot] = value;
+                numberText[slot] = value.ToString("N0");
+            }
+            return numberText[slot];
+        }
+
         public static void Show(Vector3 world, string text, Color colour)
         {
             if (instance != null)
@@ -575,14 +592,14 @@ namespace Studio.Pacman
 
             // Score, top left.
             Text(new Rect(margin, top, 400f * s, 28f * s), "PUNTOS", 22f * s, Dim, TextAnchor.UpperLeft);
-            Text(new Rect(margin, top + 26f * s, 500f * s, 60f * s), Mathf.RoundToInt(shownScore).ToString("N0"), 52f * s, Color.white, TextAnchor.UpperLeft, new Vector2(0f, 3f * s));
+            Text(new Rect(margin, top + 26f * s, 500f * s, 60f * s), NumberText(0, Mathf.RoundToInt(shownScore)), 52f * s, Color.white, TextAnchor.UpperLeft, new Vector2(0f, 3f * s));
 
             // High score, top centre.
             float high = Mathf.Max(game.HighScore, game.Score);
             // A dark pill behind it: on wide screens the number sits over the fence and bunting.
             Fill(new Rect(Screen.width * 0.5f - 130f * s, top - 6f * s, 260f * s, 92f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 18f * s);
             Text(new Rect(0, top, Screen.width, 28f * s), "RÉCORD", 22f * s, Dim, TextAnchor.UpperCenter);
-            Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), high.ToString("N0"), 40f * s, Gold, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
+            Text(new Rect(0, top + 26f * s, Screen.width, 60f * s), NumberText(1, Mathf.RoundToInt(high)), 40f * s, Gold, TextAnchor.UpperCenter, new Vector2(0f, 3f * s));
 
             // Lives, top right, as little sombreros.
             Text(new Rect(Screen.width - margin - 300f * s, top, 300f * s, 28f * s), "VIDAS", 22f * s, Dim, TextAnchor.UpperRight);
@@ -596,8 +613,14 @@ namespace Studio.Pacman
             // Level, bottom left; a hint while frightened, bottom centre.
             // A dark pill behind it: in the close view the label sits on the reddish ground strip below the farm.
             // The farm has a proper name; the level number is a quieter second line so the progress is still readable.
-            string farm = PacmanFarms.NameFor(game.Level);
-            string place = "COSECHA  " + game.Level + "  ·  " + PacmanJourney.StopFor(game.Level).Region;
+            if (placeLevel != game.Level || placeText == null)
+            {
+                placeLevel = game.Level;
+                placeFarm = PacmanFarms.NameFor(game.Level);
+                placeText = "COSECHA  " + game.Level + "  ·  " + PacmanJourney.StopFor(game.Level).Region;
+            }
+            string farm = placeFarm;
+            string place = placeText;
             float pillWidth = Mathf.Min(Screen.width - 2f * (margin - 14f * s), (Mathf.Max(farm.Length * 15.5f, place.Length * 13.5f) + 44f) * s);
             Fill(new Rect(margin - 14f * s, Screen.height - 92f * s, pillWidth, 82f * s), new Color(0.04f, 0.025f, 0.01f, 0.72f), 14f * s);
             Text(new Rect(margin, Screen.height - 86f * s, pillWidth, 38f * s), farm, 28f * s, Leaf, TextAnchor.LowerLeft, new Vector2(0f, 2f * s));

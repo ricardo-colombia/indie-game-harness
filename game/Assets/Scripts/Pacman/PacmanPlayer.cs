@@ -46,6 +46,8 @@ namespace Studio.Pacman
         // Painted-sprite mode: the theme supplies one full-body picture of the picker, and the walk is a bob, tilt and squash.
         private Transform spriteBody;
         private bool SpriteMode => spriteBody != null;
+        private PacmanSkinPuppet puppet;
+        private PacmanPuppetPose puppetPose;
 
         /// <summary>The painted picker is a little taller than a tile so the character reads at a glance.</summary>
         private const float PaintedHeight = 1.3f;
@@ -148,6 +150,13 @@ namespace Studio.Pacman
         {
             Transform t = NewView(View.Side);
             const float height = PaintedHeight;
+            puppet = PacmanSkinPuppet.Create("char_farmer", t, height, -0.5f, 6);
+            if (puppet != null)
+            {
+                spriteBody = puppet.transform;
+                puppetPose = new PacmanPuppetPose(puppet.Rig);
+                return;
+            }
             spriteBody = Prim(t, painted, Color.white, new Vector2(0f, -0.5f + height * 0.5f), new Vector2(height, height), 0f, 6);
         }
 
@@ -543,6 +552,11 @@ namespace Studio.Pacman
         /// <summary>The painted picker walks by hopping: a bounce twice per stride, a sway side to side and a squash on each landing.</summary>
         private void AnimatePainted()
         {
+            if (puppet != null)
+            {
+                AnimatePuppet();
+                return;
+            }
             float amp = moveBlend;
             float p = gait;
             float breathe = Mathf.Sin(Time.time * 2.4f) * (1f - amp);
@@ -552,6 +566,14 @@ namespace Studio.Pacman
             float pulse = raise;
             spriteBody.localRotation = Quaternion.Euler(0f, 0f, amp * 6f * Mathf.Sin(p) + breathe);
             spriteBody.localScale = new Vector3(PaintedHeight * (1f + amp * 0.035f * land - pulse * 0.06f), PaintedHeight * (1f - amp * 0.035f * land + pulse * 0.1f + breathe * 0.006f), 1f);
+        }
+
+        /// <summary>The skinned picker walks with the shared puppet cycle (stride, bob, squash, lagging hat); standing, he breathes.</summary>
+        private void AnimatePuppet()
+        {
+            float breathe = Mathf.Sin(Time.time * 2.4f) * (1f - moveBlend);
+            puppetPose.Apply(gait, moveBlend, breathe, raise, 0f);
+            puppet.Refresh();
         }
 
         protected override bool Blocked(Vector2Int tile)

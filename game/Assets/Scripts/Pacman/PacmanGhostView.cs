@@ -49,6 +49,8 @@ namespace Studio.Pacman
         private Vector2[] shadeBase = new Vector2[0];
         private Color baseColour;
         private SpriteRenderer body;
+        private PacmanSkinPuppet puppet;
+        private PacmanPuppetPose puppetPose;
         private SpriteRenderer face;
         private readonly List<TintedPart> tinted = new List<TintedPart>();
         private readonly List<SpriteRenderer> marks = new List<SpriteRenderer>();
@@ -151,6 +153,13 @@ namespace Studio.Pacman
                 painted = true;
                 const float height = 1.2f;
                 body = NewPart("Torso", picture, new Vector2(0f, -0.45f + height * 0.5f), new Vector2(height, height), 6, rig);
+                puppet = PacmanSkinPuppet.Create(paintedName, rig, height, -0.45f, 6);
+                if (puppet != null)
+                {
+                    // The skinned mesh draws the pest; the sprite stays as an invisible stand-in that carries colour and visibility.
+                    puppetPose = new PacmanPuppetPose(puppet.Rig);
+                    body.sprite = null;
+                }
                 PacmanGlow.Attach(transform, colour, 2.2f, 0.2f, body);
                 // The face (frightened look) sits on the painted head.
                 eyeSpots = new[] { new Vector2(-0.085f, 0.4f), new Vector2(0.085f, 0.4f) };
@@ -315,6 +324,21 @@ namespace Studio.Pacman
             if (painted)
             {
                 // A painted pest hops along: a bounce twice per step, a squash on each landing, a sway and a lean into the move.
+                if (puppet != null)
+                {
+                    lean = Mathf.Lerp(lean, -look.x * 4f, 1f - Mathf.Exp(-14f * dt));
+                    rig.localRotation = Quaternion.Euler(0f, 0f, lean);
+                    rig.localPosition = Vector3.zero;
+                    rig.localScale = Vector3.one;
+                    puppetPose.Apply(walk, 1f, 0f, 0f, scared ? 4f * Mathf.Sin(Time.time * 38f) : 0f);
+                    puppet.Refresh();
+                    if (Mathf.Abs(look.x) > 0.5f)
+                    {
+                        Vector3 ps = puppet.transform.localScale;
+                        puppet.transform.localScale = new Vector3(Mathf.Abs(ps.x) * (look.x < 0f ? 1f : -1f), ps.y, 1f);
+                    }
+                    return;
+                }
                 float hop = Mathf.Abs(s);
                 float land = Mathf.Cos(2f * walk);
                 rig.localPosition = new Vector3(0f, 0.06f * hop, 0f);
@@ -408,6 +432,11 @@ namespace Studio.Pacman
                 // The picture keeps its own colours; frightened pests are washed blue (or white when flashing), eaten ones leave only eyes.
                 body.enabled = state != 3;
                 body.color = frightened ? Color.Lerp(Color.white, tint, 0.72f) : Color.white;
+                if (puppet != null)
+                {
+                    puppet.Visible = state != 3;
+                    puppet.Colour = body.color;
+                }
             }
             foreach (TintedPart part in tinted)
             {

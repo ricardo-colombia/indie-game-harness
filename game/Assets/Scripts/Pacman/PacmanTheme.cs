@@ -54,6 +54,42 @@ namespace Studio.Pacman
             }
         }
 
+        private static readonly Dictionary<string, PacmanSkinRig.Data> Rigs = new Dictionary<string, PacmanSkinRig.Data>();
+
+        /// <summary>The theme's raw picture with this name (null for the procedural theme or when missing).</summary>
+        public static Texture2D GetTexture(string name)
+        {
+            if (Current == Procedural)
+            {
+                return null;
+            }
+            Texture2D texture = Resources.Load<Texture2D>("Themes/" + Current + "/" + name);
+            if (texture != null)
+            {
+                texture.wrapMode = TextureWrapMode.Clamp;
+                texture.filterMode = FilterMode.Bilinear;
+            }
+            return texture;
+        }
+
+        /// <summary>The bones and skinned mesh for a character picture (<c>name.rig.json</c> next to it), or null.</summary>
+        public static PacmanSkinRig.Data GetRig(string name)
+        {
+            if (Current == Procedural)
+            {
+                return null;
+            }
+            string key = Current + "/" + name;
+            if (Rigs.TryGetValue(key, out PacmanSkinRig.Data cached))
+            {
+                return cached;
+            }
+            TextAsset text = Resources.Load<TextAsset>("Themes/" + key + ".rig");
+            PacmanSkinRig.Data data = text != null ? JsonUtility.FromJson<PacmanSkinRig.Data>(text.text) : null;
+            Rigs[key] = data;
+            return data;
+        }
+
         /// <summary>The theme's sprite with this name, one tile across at its largest side, or null when it has none.</summary>
         public static Sprite Get(string name)
         {
