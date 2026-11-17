@@ -17,8 +17,8 @@ namespace Studio.Pacman
         [Header("Speeds")]
         [Tooltip("Tiles per second at 100% speed. Per-level speeds are percentages of this (PacmanLevelTable). Taste call: 6 keeps the current feel at levels 5-20.")]
         [SerializeField] private float fullSpeed = 6f;
-        [Tooltip("Tiles per second for eaten ghosts returning home (not in the Dossier table).")]
-        [SerializeField] private float eatenGhostSpeed = 10f;
+        [Tooltip("Tiles per second for eaten ghosts returning home (not in the Dossier table). Taste call: 6.5 (was 10) so the eyes drift home instead of darting.")]
+        [SerializeField] private float eatenGhostSpeed = 6.5f;
         [Tooltip("Tunnel tiles at each end of the tunnel row where ghosts slow down (the Dossier's tunnel speed).")]
         [SerializeField] private int tunnelSlowColumns = 6;
         [Tooltip("Frames Pac-Man stops after eating a dot (Dossier: one frame at 60 fps).")]

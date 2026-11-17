@@ -428,7 +428,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Studio.Pacman.PacmanGame
   fullSpeed: 6
-  eatenGhostSpeed: 10
+  eatenGhostSpeed: 6.5
   tunnelSlowColumns: 4
   dotPauseFrames: 1
   powerPelletPauseFrames: 3
