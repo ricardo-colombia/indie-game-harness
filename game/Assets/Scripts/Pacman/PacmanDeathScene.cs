@@ -152,10 +152,70 @@ namespace Studio.Pacman
 
         // ---------------------------------------------------------------- flyers
 
+        // Pooled flyers: notes, coins and tracers are built once (Prewarm) and recycled, so a death never allocates.
+        private static Transform poolRoot;
+        private static readonly Stack<Transform> billPool = new Stack<Transform>();
+        private static readonly Stack<Transform> coinPool = new Stack<Transform>();
+        private static readonly Stack<Transform> tracerPool = new Stack<Transform>();
+
+        /// <summary>Builds the flyers ahead of time (call once at start) so the first death costs nothing.</summary>
+        public static void Prewarm()
+        {
+            EnsureRoot();
+            if (billPool.Count > 0)
+            {
+                return;
+            }
+            for (int i = 0; i < 12; i++) { Release(MakeBill(false), billPool); }
+            for (int i = 0; i < 8; i++) { Release(MakeCoin(), coinPool); }
+            for (int i = 0; i < 4; i++) { Release(MakeBill(true), tracerPool); }
+        }
+
+        private static void EnsureRoot()
+        {
+            if (poolRoot == null)
+            {
+                billPool.Clear(); coinPool.Clear(); tracerPool.Clear();
+                poolRoot = new GameObject("DeathFlyerPool").transform;
+            }
+        }
+
+        private static void Release(Transform t, Stack<Transform> pool)
+        {
+            t.gameObject.SetActive(false);
+            pool.Push(t);
+        }
+
+        private static Transform Take(Stack<Transform> pool, bool tracer, bool coin)
+        {
+            EnsureRoot();
+            Transform t = pool.Count > 0 ? pool.Pop() : (coin ? MakeCoin() : MakeBill(tracer));
+            t.rotation = Quaternion.identity;
+            t.gameObject.SetActive(true);
+            return t;
+        }
+
         private Transform Bill(bool tracer = false)
         {
+            Transform t = Take(tracer ? tracerPool : billPool, tracer, false);
+            t.localScale = new Vector3(0.3f, 0.17f, 1f);
+            return t;
+        }
+
+        private Transform Coin()
+        {
+            return Take(coinPool, false, true);
+        }
+
+        private Stack<Transform> PoolOf(Transform t)
+        {
+            return t.name == "Coin" ? coinPool : (t.name == "Tracer" ? tracerPool : billPool);
+        }
+
+        private static Transform MakeBill(bool tracer)
+        {
             GameObject go = new GameObject(tracer ? "Tracer" : "Bill");
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(poolRoot, false);
             go.transform.localScale = new Vector3(0.3f, 0.17f, 1f);
             SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = PacmanSprites.Square;
@@ -174,10 +234,10 @@ namespace Studio.Pacman
             return go.transform;
         }
 
-        private Transform Coin()
+        private static Transform MakeCoin()
         {
             GameObject go = new GameObject("Coin");
-            go.transform.SetParent(transform, false);
+            go.transform.SetParent(poolRoot, false);
             go.transform.localScale = Vector3.one * 0.18f;
             SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = PacmanSprites.Disc;
@@ -200,7 +260,7 @@ namespace Studio.Pacman
                 float u = (time - f.Start) / f.Length;
                 if (u >= 1f)
                 {
-                    Destroy(f.Transform.gameObject);
+                    Release(f.Transform, PoolOf(f.Transform));
                     flyers.RemoveAt(i);
                     continue;
                 }
@@ -216,6 +276,11 @@ namespace Studio.Pacman
 
         private void Finish()
         {
+            for (int i = flyers.Count - 1; i >= 0; i--)
+            {
+                Release(flyers[i].Transform, PoolOf(flyers[i].Transform));
+            }
+            flyers.Clear();
             if (killer != null && (kind == GhostKind.Clyde || kind == GhostKind.Pinky))
             {
                 killer.position = killerHome;

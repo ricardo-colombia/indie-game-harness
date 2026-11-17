@@ -349,6 +349,7 @@ namespace Studio.Pacman
             closeView = PlayerPrefs.GetInt(CloseViewKey, 1) == 1;
             BuildMaze();
             BuildActors();
+            PacmanDeathScene.Prewarm();
             CurrentShoe = (Shoe)Mathf.Clamp(PlayerPrefs.GetInt(ShoeKey, 0), 0, PacmanShoes.Count - 1);
             MusicNotch = Mathf.Clamp(PlayerPrefs.GetInt(MusicKey, DefaultNotch), 0, VolumeNotches);
             StepsNotch = Mathf.Clamp(PlayerPrefs.GetInt(StepsKey, DefaultNotch), 0, VolumeNotches);
