@@ -303,24 +303,14 @@ namespace Studio.Pacman
             }
         }
 
-        /// <summary>ToClip in slices: the clip is created at once and filled a quarter-million samples at a time.</summary>
+        /// <summary>ToClip split in two frames: create the clip, then fill it.</summary>
         public static System.Collections.Generic.IEnumerable<bool> ClipSteps(string name, float[] buf, System.Action<AudioClip> done)
         {
             AudioClip clip = AudioClip.Create(name, buf.Length, 1, SampleRate, false);
             yield return true;
-            const int chunk = 1 << 18;
-            float[] piece = new float[chunk];
-            for (int at = 0; at < buf.Length; at += chunk)
-            {
-                int n = Mathf.Min(chunk, buf.Length - at);
-                if (n != piece.Length)
-                {
-                    piece = new float[n];
-                }
-                System.Array.Copy(buf, at, piece, 0, n);
-                clip.SetData(piece, at);
-                yield return true;
-            }
+            // One SetData at offset 0: chunked SetData(piece, offset) traps ("memory access out of bounds") in WebGL.
+            clip.SetData(buf, 0);
+            yield return true;
             done(clip);
         }
 
