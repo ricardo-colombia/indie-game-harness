@@ -51,6 +51,8 @@ namespace Studio.Pacman
         private SpriteRenderer body;
         private PacmanSkinPuppet puppet;
         private PacmanPuppetPose puppetPose;
+        private PacmanSpriteActor actor;
+        private Vector2Int tileHeading;
         private SpriteRenderer face;
         private readonly List<TintedPart> tinted = new List<TintedPart>();
         private readonly List<SpriteRenderer> marks = new List<SpriteRenderer>();
@@ -152,8 +154,13 @@ namespace Studio.Pacman
             {
                 painted = true;
                 const float height = 1.2f;
+                actor = PacmanSpriteActor.Create(paintedName.Substring(5), rig, 1.4f, -0.45f, 6);
                 body = NewPart("Torso", picture, new Vector2(0f, -0.45f + height * 0.5f), new Vector2(height, height), 6, rig);
-                puppet = PacmanSkinPuppet.Create(paintedName, rig, height, -0.45f, 6);
+                puppet = actor == null ? PacmanSkinPuppet.Create(paintedName, rig, height, -0.45f, 6) : null;
+                if (actor != null)
+                {
+                    body.sprite = null;
+                }
                 if (puppet != null)
                 {
                     // The skinned mesh draws the pest; the sprite stays as an invisible stand-in that carries colour and visibility.
@@ -292,6 +299,7 @@ namespace Studio.Pacman
                 }
                 if (ghost.Dir != Vector2Int.zero)
                 {
+                    tileHeading = ghost.Dir;
                     look = new Vector2(ghost.Dir.x, -ghost.Dir.y);
                 }
                 moving = ghost.Dir != Vector2Int.zero;
@@ -323,6 +331,11 @@ namespace Studio.Pacman
             float swing = scared ? 42f : 32f;
             if (painted)
             {
+                if (actor != null)
+                {
+                    actor.Show(tileHeading, Mathf.Repeat(walk, 2f * Mathf.PI), true);
+                    return;
+                }
                 // A painted pest hops along: a bounce twice per step, a squash on each landing, a sway and a lean into the move.
                 if (puppet != null)
                 {
@@ -432,6 +445,11 @@ namespace Studio.Pacman
                 // The picture keeps its own colours; frightened pests are washed blue (or white when flashing), eaten ones leave only eyes.
                 body.enabled = state != 3;
                 body.color = frightened ? Color.Lerp(Color.white, tint, 0.72f) : Color.white;
+                if (actor != null)
+                {
+                    actor.Visible = state != 3;
+                    actor.Colour = body.color;
+                }
                 if (puppet != null)
                 {
                     puppet.Visible = state != 3;

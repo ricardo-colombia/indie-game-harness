@@ -72,6 +72,12 @@ namespace Studio.Pacman
             return texture;
         }
 
+        /// <summary>A text file (json) of the theme next to the pictures, or null.</summary>
+        public static TextAsset GetText(string name)
+        {
+            return Current == Procedural ? null : Resources.Load<TextAsset>("Themes/" + Current + "/" + name);
+        }
+
         /// <summary>The bones and skinned mesh for a character picture (<c>name.rig.json</c> next to it), or null.</summary>
         public static PacmanSkinRig.Data GetRig(string name)
         {

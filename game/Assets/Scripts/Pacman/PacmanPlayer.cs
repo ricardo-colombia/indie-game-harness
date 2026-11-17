@@ -48,9 +48,10 @@ namespace Studio.Pacman
         private bool SpriteMode => spriteBody != null;
         private PacmanSkinPuppet puppet;
         private PacmanPuppetPose puppetPose;
+        private PacmanSpriteActor actor;
 
         /// <summary>The painted picker is a little taller than a tile so the character reads at a glance.</summary>
-        private const float PaintedHeight = 1.3f;
+        private const float PaintedHeight = 1.45f;
         private Transform[] views = new Transform[3];
         private Rig[] rigs = new Rig[3];
         private float gait;
@@ -150,6 +151,12 @@ namespace Studio.Pacman
         {
             Transform t = NewView(View.Side);
             const float height = PaintedHeight;
+            actor = PacmanSpriteActor.Create("farmer", t, height, -0.5f, 6);
+            if (actor != null)
+            {
+                spriteBody = actor.transform;
+                return;
+            }
             puppet = PacmanSkinPuppet.Create("char_farmer", t, height, -0.5f, 6);
             if (puppet != null)
             {
@@ -552,6 +559,11 @@ namespace Studio.Pacman
         /// <summary>The painted picker walks by hopping: a bounce twice per stride, a sway side to side and a squash on each landing.</summary>
         private void AnimatePainted()
         {
+            if (actor != null)
+            {
+                actor.Show(Dir, gait, moveBlend > 0.3f);
+                return;
+            }
             if (puppet != null)
             {
                 AnimatePuppet();
