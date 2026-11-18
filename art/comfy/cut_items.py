@@ -16,7 +16,13 @@ def cut(name, seed):
     cutout = remove(src, session=sess)
     a = np.array(cutout.getchannel("A")).astype(float) / 255
     # fill pinholes, drop specks, harden the edge a little so the sprite has no white fringe
-    solid = ndimage.binary_fill_holes(a > 0.5)
+    solid = a > 0.5
+    # close only small holes: a mug handle or the gap between leaves must stay see-through
+    holes = ndimage.binary_fill_holes(solid) & ~solid
+    hl, hn = ndimage.label(holes)
+    for i in range(1, hn + 1):
+        if (hl == i).sum() < 0.01 * solid.sum():
+            solid |= hl == i
     lab, n = ndimage.label(solid)
     if n > 1:
         sizes = ndimage.sum(solid, lab, range(1, n + 1)); solid = np.isin(lab, [i + 1 for i, v in enumerate(sizes) if v > 0.05 * sizes.max()])

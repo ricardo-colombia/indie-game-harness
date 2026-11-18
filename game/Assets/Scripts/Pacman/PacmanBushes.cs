@@ -130,9 +130,12 @@ namespace Studio.Pacman
                 return;
             }
             sprites = new Sprite[Variants];
+            // A theme that ships a painted bush uses it for every variant (flips, scale and tint still differ per tile).
+            Texture2D art = PacmanTheme.GetTexture("bush");
+            Sprite themed = art == null ? null : Sprite.Create(art, new Rect(0, 0, art.width, art.height), new Vector2(0.5f, 0f), art.width / 1.15f, 0, SpriteMeshType.FullRect);
             for (int i = 0; i < Variants; i++)
             {
-                sprites[i] = Paint(i);
+                sprites[i] = themed != null ? themed : Paint(i);
             }
         }
 
