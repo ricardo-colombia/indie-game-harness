@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
-<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+  <head><meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
@@ -26,7 +25,7 @@
   <body>
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="loading"><div>COFFEE-MAN</div><div id="sub">La cosecha en la montaña</div><div id="bar"><div id="bar-fill"></div></div></div>
-    <script src="Build/cafe-web54.loader.js"></script>
+    <script src="Build/cafe-web55.loader.js"></script>
     <script>
       var canvas = document.querySelector("#unity-canvas");
 
@@ -38,13 +37,13 @@
       var isTouch = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
       var config = {
         arguments: [],
-        dataUrl: "Build/cafe-web54.data",
-        frameworkUrl: "Build/cafe-web54.framework.js",
-        codeUrl: "Build/cafe-web54.wasm",
+        dataUrl: "Build/cafe-web55.data",
+        frameworkUrl: "Build/cafe-web55.framework.js",
+        codeUrl: "Build/cafe-web55.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "game",
-        productVersion: "0.1.54",
+        productVersion: "0.1.55",
         // Phones report a pixel ratio of 3; two is plenty sharp and much lighter for the bloom pass.
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, isTouch ? 2 : 3),
       };
