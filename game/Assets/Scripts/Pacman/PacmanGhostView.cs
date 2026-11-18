@@ -106,7 +106,7 @@ namespace Studio.Pacman
             rig.SetParent(transform, false);
 
             // A soft shadow on the ground, so the pests stand on the earth like the picker does.
-            NewPart("Shadow", PacmanFarmerArt.Shadow(), new Vector2(0f, snake ? -0.22f : -0.42f), Vector2.one * 0.9f, 3, transform).color = new Color(0f, 0f, 0f, 0.35f);
+            NewPart("Shadow", PacmanFarmerArt.Shadow(), new Vector2(0f, snake ? -0.22f : -0.34f), Vector2.one * 0.9f, 3, transform).color = new Color(0f, 0f, 0f, 0.35f);
 
             if (snake)
             {
@@ -154,7 +154,7 @@ namespace Studio.Pacman
             {
                 painted = true;
                 const float height = 1.2f;
-                actor = PacmanSpriteActor.Create(paintedName.Substring(5), rig, 1.4f, -0.45f, 6);
+                actor = PacmanSpriteActor.Create(paintedName.Substring(5), rig, 1.5f, -0.34f, 6);
                 body = NewPart("Torso", picture, new Vector2(0f, -0.45f + height * 0.5f), new Vector2(height, height), 6, rig);
                 puppet = actor == null ? PacmanSkinPuppet.Create(paintedName, rig, height, -0.45f, 6) : null;
                 if (actor != null)

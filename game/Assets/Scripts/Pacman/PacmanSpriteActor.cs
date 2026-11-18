@@ -56,7 +56,8 @@ namespace Studio.Pacman
         private static Cut Load(string name, float height)
         {
             string key = name + "@" + height.ToString("0.###");
-            if (Cache.TryGetValue(key, out Cut cached))
+            // The editor can keep this static between play sessions (no domain reload) while the sprites made last time are gone.
+            if (Cache.TryGetValue(key, out Cut cached) && (cached == null || cached.Idle[0][0] != null))
             {
                 return cached;
             }

@@ -213,15 +213,66 @@ def fix_side(img):
     a[y0:y1, x0:x1] = box
     return Image.fromarray(a, "RGBA")
 
+def auto_rig(img, view):
+    """Rig placed from the silhouette by body proportions (used for the pests; the cafetero's rigs above were placed by hand)."""
+    a = np.array(img.getchannel("A")) > 40
+    H = a.shape[0]
+    def ext(fy):
+        y = int(fy * H); xs = np.where(a[max(0, y - 3):y + 4].any(axis=0))[0]
+        return (xs.min(), xs.max()) if len(xs) else (0, a.shape[1] - 1)
+    tl, tr = ext(0.38)
+    cx = (tl + tr) / 2.0
+    hy, ky, ay, ty = 0.54 * H, 0.735 * H, 0.915 * H, 0.985 * H
+    sh_y, el_y, wr_y = 0.27 * H, 0.43 * H, 0.57 * H
+    el, er = ext(0.43); wl, wr = ext(0.55); sl, sr = ext(0.27)
+    kl, kr = ext(0.735); al, ar = ext(0.915)
+    hd = 0.09 * H
+    root = ("root", None, (cx, hy), [((cx - hd, hy), (cx + hd, hy))])
+    spine = ("spine", "root", (cx, hy - 5), [((cx, hy - 5), (cx, 0.2 * H))])
+    head = ("head", "spine", (cx, 0.19 * H), [((cx, 0.18 * H), (cx, 0.0))])
+    if view == "side":
+        fx = 0.07 * H
+        lk, rk = kl + 0.18 * (kr - kl), kr - 0.18 * (kr - kl)
+        la, ra_ = al + 0.15 * (ar - al), ar - 0.15 * (ar - al)
+        return [root, spine, head,
+            ("armL1", "spine", (cx, sh_y), [((cx, sh_y), (cx, el_y))]),
+            ("armL2", "armL1", (cx, el_y), [((cx, el_y), (cx + 0.02 * H, wr_y))]),
+            ("legL1", "root", (cx - 6, hy), [((cx - 6, hy), (lk, ky))]),
+            ("legL2", "legL1", (lk, ky), [((lk, ky), (la, ay))]),
+            ("footL", "legL2", (la, ay), [((la, ay), (la + fx, ty))]),
+            ("legR1", "root", (cx + 6, hy), [((cx + 6, hy), (rk, ky))]),
+            ("legR2", "legR1", (rk, ky), [((rk, ky), (ra_, ay))]),
+            ("footR", "legR2", (ra_, ay), [((ra_, ay), (ra_ + fx, ty))])]
+    ox = 0.06 * H
+    lk, rk = kl + 0.27 * (kr - kl), kr - 0.27 * (kr - kl)
+    la, ra_ = al + 0.22 * (ar - al), ar - 0.22 * (ar - al)
+    lh, rh = cx - 0.07 * H, cx + 0.07 * H
+    dx = -1 if view == "front" else 1                                   # the feet point to the viewer's side
+    return [root, spine, head,
+        ("armL1", "spine", (sl + 0.12 * (sr - sl), sh_y), [((sl + 0.12 * (sr - sl), sh_y), (el + 7, el_y))]),
+        ("armL2", "armL1", (el + 7, el_y), [((el + 7, el_y), (wl + 7, wr_y))]),
+        ("armR1", "spine", (sr - 0.12 * (sr - sl), sh_y), [((sr - 0.12 * (sr - sl), sh_y), (er - 7, el_y))]),
+        ("armR2", "armR1", (er - 7, el_y), [((er - 7, el_y), (wr - 7, wr_y))]),
+        ("legL1", "root", (lh, hy), [((lh, hy), (lk, ky))]),
+        ("legL2", "legL1", (lk, ky), [((lk, ky), (la, ay))]),
+        ("footL", "legL2", (la, ay), [((la, ay), (la - ox * 0.5, ty))]),
+        ("legR1", "root", (rh, hy), [((rh, hy), (rk, ky))]),
+        ("legR2", "legR1", (rk, ky), [((rk, ky), (ra_, ay))]),
+        ("footR", "legR2", (ra_, ay), [((ra_, ay), (ra_ + ox * 0.5, ty))])]
+
 def main():
     cut_dir, out_dir = sys.argv[1], sys.argv[2]
     name = sys.argv[3] if len(sys.argv) > 3 else "farmer"
     os.makedirs(out_dir, exist_ok=True)
-    for view, bones in RIGS.items():
+    auto = os.environ.get("AUTO_RIG") == "1"
+    for view in RIGS:
         img = Image.open(os.path.join(cut_dir, view + ".png")).convert("RGBA")
-        if view == "side": img = fix_side(img)
+        if auto: bones = auto_rig(img, view)
+        else:
+            bones = RIGS[view]
+            if view == "side": img = fix_side(img)
         rig = Rig(img, bones, power=6, smooth=1) if view == "side" else Rig(img, bones)
-        hipx = bones[0][2][0] + PAD
+        hipx = int(round(bones[0][2][0])) + PAD
         scale = FINAL_H / img.height
         for anim, fn in (("walk", gait), ("idle", idle)):
             for i in range(8):
