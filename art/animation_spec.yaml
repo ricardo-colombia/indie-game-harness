@@ -1,0 +1,77 @@
+# Character animation contract. Data, not prose: harness/art/assets.py validates deliveries against it and
+# the Animator is wired from `transitions`. Edit per game (the director owns what the clips look like).
+#
+# Delivery convention
+#   one FBX per clip, named  <asset>@<Clip>.fbx  (Unity splits it into a clip of that name), next to <asset>.fbx
+#   skeleton: ONE armature, root bone named `root`, Y-up / -Z forward on export (blender_cleanup.py does this),
+#             scale 1 (1 unit = 1 m), transforms applied, <= 4 bone influences per vertex, <= max_bones bones
+#   clips: 30 fps; `loop` clips must close (first pose == last pose, see seam_tolerance_m)
+#   facial expressions: shape keys / blendshapes named Expr_<Name>, not full-body clips
+fps: 30
+max_bones: 75                 # mobile/web budget; raise per game only with a measured reason
+seam_tolerance_m: 0.01        # max distance a bone may jump between last and first frame of a loop clip
+
+clips:                        # the shared vocabulary (names are PascalCase, no spaces)
+  # locomotion
+  Idle:         {category: locomotion, loop: true}
+  Walk:         {category: locomotion, loop: true}
+  Run:          {category: locomotion, loop: true}
+  Turn:         {category: locomotion, loop: false}
+  # jump
+  Jump:         {category: jump, loop: false}
+  DoubleJump:   {category: jump, loop: false}
+  Fall:         {category: jump, loop: true}
+  Land:         {category: jump, loop: false}
+  # combat
+  Attack:       {category: combat, loop: false}
+  SpecialAttack: {category: combat, loop: false}
+  # reactions
+  Hurt:         {category: reaction, loop: false}
+  Knockback:    {category: reaction, loop: false}
+  Stun:         {category: reaction, loop: true}
+  Death:        {category: reaction, loop: false}
+  # interactions
+  Push:         {category: interaction, loop: true}
+  Pull:         {category: interaction, loop: true}
+  Climb:        {category: interaction, loop: true}
+  Grab:         {category: interaction, loop: false}
+
+expressions: [Happy, Sad, Angry, Surprise]     # blendshapes: Expr_Happy ...
+
+# What each kind of character must ship (the rest is optional). Pick one in the manifest: `animation_profile:`.
+profiles:
+  platformer_hero:
+    required: [Idle, Walk, Run, Jump, Fall, Land, Hurt, Death]
+    optional: [Turn, DoubleJump, Attack, SpecialAttack, Knockback, Stun, Push, Pull, Climb, Grab]
+    expressions_required: false
+  platformer_enemy:
+    required: [Idle, Walk, Hurt, Death]
+    optional: [Attack, Run, Stun, Knockback]
+    expressions_required: false
+  npc:
+    required: [Idle]
+    optional: [Walk, Run, Turn]
+    expressions_required: false
+
+# Animator wiring (state -> allowed next states). `*` = from any state. Exit time only where noted.
+transitions:
+  Idle:        [Walk, Run, Jump, Fall, Attack, Grab, Climb, Push, Pull]
+  Walk:        [Idle, Run, Jump, Fall, Attack, Turn]
+  Run:         [Idle, Walk, Jump, Fall, Attack, Turn]
+  Turn:        [Idle, Walk, Run]               # on exit time
+  Jump:        [DoubleJump, Fall]
+  DoubleJump:  [Fall]
+  Fall:        [Land, DoubleJump]
+  Land:        [Idle, Walk, Run]               # on exit time, interruptible by input after `land_cancel_s`
+  Attack:      [Idle, Walk, Run, SpecialAttack] # on exit time
+  SpecialAttack: [Idle]
+  Hurt:        [Idle, Fall, Stun]
+  Knockback:   [Fall, Stun, Idle]
+  Stun:        [Idle]
+  Push:        [Idle]
+  Pull:        [Idle]
+  Climb:       [Idle, Fall]
+  Grab:        [Idle]
+  "*":         [Hurt, Knockback, Death]        # damage interrupts anything; Death has no way out
+  Death:       []
+land_cancel_s: 0.1

@@ -1,7 +1,12 @@
-# One entry per asset. stage: concept -> pick -> model -> cleanup -> import -> done
-# `picked` is ALWAYS set by the director. Paid stages log estimated cost to harness/ledger.jsonl.
+# One entry per asset (key = asset id, lowercase snake_case). Schema: art/asset.schema.json. Animation names/profiles: art/animation_spec.yaml.
+# stage: concept -> pick -> model -> cleanup -> import -> done   (lifecycle names: docs/REFERENCE.md "Asset lifecycle")
+# `picked` and `approved` are ALWAYS the director's: `hx assets approve <id>` locks the files in `outputs` (art/locks.json);
+# an approved asset is never overwritten (`hx assets new-version <id>` archives it and reopens it as v+1).
+# Validate any time with `./hx assets check`; paid stages log estimated cost to harness/ledger.jsonl.
 assets:
   example_vehicle:
+    kind: prop           # character | enemy | npc | prop | environment | vfx | ui
+    version: 1
     stage: concept
     prompt: "chunky toy-like work vehicle, three-quarter front view, isolated on plain light grey background, full object visible"
     variants: 4
@@ -11,3 +16,9 @@ assets:
     split: material      # none | loose | material — split parts you need to animate (wheels, drum)
     tripo: {}            # extra Tripo request fields if needed
     notes: ""
+    # For a character, also set (see the gamedev-animation-set skill):
+    #   kind: character
+    #   animation_profile: platformer_hero     # required clips come from art/animation_spec.yaml
+    #   depends_on: []                         # other asset ids this needs
+    #   animations: [Idle, Walk, Run, Jump, Fall, Land, Hurt, Death]   # filled by `hx assets export`
+    #   outputs: [game/Assets/Art/Models/<id>/<id>.fbx]                # filled by `hx assets export` / cleanup

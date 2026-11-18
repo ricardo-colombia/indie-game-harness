@@ -19,6 +19,7 @@ Keep going by talking. When you want polish done in parallel, or you want the ga
 | File | What |
 |---|---|
 | `design/PILLARS.md`, `art/style.md` | your vision; agents read it, never edit it |
+| `art/manifest.yaml`, `art/animation_spec.yaml` | asset registry and the clip/skeleton contract; approved art is locked (`art/locks.json`) |
 | `backlog/{inbox,ready,review,done,failed}/` | cards; only you move inbox → ready |
 | `harness/config.yaml` | game name, build target (default: your OS), models, budgets |
 | `scenarios/*.json` | the "feel contract": lock what feels right with a metric threshold |
@@ -32,11 +33,12 @@ Keep going by talking. When you want polish done in parallel, or you want the ga
 | `bash scripts/publish_web.sh` | publish that build to GitHub Pages (Claude asks you first) |
 | `./hx verify [--only editmode build]` · `./hx build` · `./hx autotest smoke` | run the checks by hand (close the Unity editor first: it locks the project). A passing step prints one line; failures print the error excerpt; `--metrics` adds the numbers |
 | `./hx cards` · `./hx card new "Title"` · `./hx card ready <id>` | list, create, approve cards |
+| `./hx assets check` · `status` · `export <id> <rig.blend>` · `approve <id>` · `new-version <id>` | art registry: validate (skeleton, clips, loop seams), export a rigged `.blend` to Unity clips, lock approved art (you approve, agents never) |
 | `./hx run [--dry-run] [--budget 10]` · `./hx merge <id>` · `./hx report` · `./hx cost` | work through approved cards, merge, results, spend |
 
 **Keeping it cheap:** with the editor open, Claude iterates with `unity test --mode EditMode` and one screenshot per change, and runs `./hx verify` once before calling something done. The rules are in `CLAUDE.md` → "Cost discipline"; `./hx run` cards are capped at 50 turns / $2 / 30 min (`runner.defaults` in `harness/config.yaml`).
 
-Also: skills `gamedev-playtest`, `gamedev-web-release`, `gamedev-art-asset`, `gamedev-capture-shorts`, `gamedev-steam-page`, `gamedev-steam-release`. Internals: [docs/REFERENCE.md](docs/REFERENCE.md). Checking the harness itself: [TESTING.md](TESTING.md).
+Also: skills `gamedev-playtest`, `gamedev-platformer`, `gamedev-web-release`, `gamedev-art-asset`, `gamedev-animation-set`, `gamedev-capture-shorts`, `gamedev-steam-page`, `gamedev-steam-release`. Internals: [docs/REFERENCE.md](docs/REFERENCE.md). Checking the harness itself: [TESTING.md](TESTING.md).
 
 The only requirement on the game: use Unity's **Input System** (the Unity 6 default).
 The first game made with this template was a Pac-Man clone (branch `pacman-game`); what it taught is in `CLAUDE.md` → "Lessons".

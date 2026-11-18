@@ -38,7 +38,13 @@
       "Bash(unity status:*)",
       "Bash(unity open:*)",
       "Bash(unity command:*)",
-      "Bash(unity editors:*)"
+      "Bash(unity editors:*)",
+      "Bash(./hx assets status)",
+      "Bash(./hx assets check:*)",
+      "Bash(./hx assets export:*)",
+      "Bash(python harness/hx.py assets status)",
+      "Bash(python harness/hx.py assets check:*)",
+      "Bash(python harness/hx.py assets export:*)"
     ],
     "ask": [
       "Bash(unity command script eval:*)",
@@ -61,7 +67,11 @@
       "Bash(python harness/art/:*)",
       "Bash(python harness/marketing/queue.py post:*)",
       "Bash(bash steam/upload.sh:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(./hx assets approve:*)",
+      "Bash(./hx assets new-version:*)",
+      "Bash(python harness/hx.py assets approve:*)",
+      "Bash(python harness/hx.py assets new-version:*)"
     ],
     "deny": [
       "Read(./game/Library/**)",
@@ -86,6 +96,17 @@
           {
             "type": "command",
             "command": "sh -c 'exec \"$(command -v python3 || command -v python)\" harness/hooks/guard_cs.py'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'exec \"$(command -v python3 || command -v python)\" harness/hooks/guard_assets.py'"
           }
         ]
       }

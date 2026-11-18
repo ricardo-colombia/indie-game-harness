@@ -559,9 +559,150 @@ class Offline(unittest.TestCase):
         self.assertIn("WebGLCompressionFormat.Disabled", build_cs)    # GitHub Pages can't serve .br/.gz
         self.assertTrue(os.access(REPO / "hx", os.X_OK) and os.access(REPO / "scripts/publish_web.sh", os.X_OK))
 
+    # --- asset registry, animation spec, approval lock
+    def _manifest(self, **assets):
+        import yaml
+        (self.repo / "art/manifest.yaml").write_text("# header kept\n" + yaml.safe_dump({"assets": assets}, sort_keys=False))
+
+    def hx_assets(self, *args, **env):
+        return run([PY, "harness/hx.py", "assets", *args], cwd=self.repo, env={**self.env, **env})
+
+    def test_asset_registry_approval_lock(self):
+        model = self.repo / "game/Assets/Art/Models/crate/crate.fbx"
+        model.parent.mkdir(parents=True)
+        model.write_bytes(b"fbx-v1")
+        (self.repo / "art/concepts/crate").mkdir(parents=True)
+        (self.repo / "art/concepts/crate/v01.png").write_bytes(b"png")
+        Path(str(model) + ".meta").write_text("guid: x")
+        rel = "game/Assets/Art/Models/crate/crate.fbx"
+        self._manifest(crate={"kind": "prop", "stage": "import", "picked": "v01.png", "height_m": 1.0, "outputs": [rel]})
+        self.assertEqual(self.hx_assets("check").returncode, 0)
+        r = self.hx_assets("approve", "crate", "--by", "dir", CLAUDECODE="1")
+        self.assertNotEqual(r.returncode, 0)                      # agents can't approve
+        self.assertIn("director", r.stderr + r.stdout)
+        r = self.hx_assets("approve", "crate", "--by", "dir")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn(rel, json.loads((self.repo / "art/locks.json").read_text())["crate"])
+        self.assertTrue((self.repo / "art/manifest.yaml").read_text().startswith("# header kept"))  # comments survive saves
+        self.assertEqual(self.hx_assets("check").returncode, 0)
+        hook = self.repo / "harness/hooks/guard_assets.py"
+        def hook_rc(path):
+            return run([PY, str(hook)], stdin=json.dumps({"tool_input": {"file_path": str(path)}})).returncode
+        self.assertEqual(hook_rc(model), 2)                       # locked file
+        self.assertEqual(hook_rc(Path(str(model) + ".meta")), 2)  # and its import settings
+        self.assertEqual(hook_rc(self.repo / "game/Assets/Other.cs"), 0)
+        r = run([PY, "harness/art/pipeline.py", "cleanup", "crate"], cwd=self.repo)
+        self.assertIn("approved and locked", r.stderr + r.stdout)  # the pipeline won't regenerate it
+        model.write_bytes(b"fbx-tampered")
+        r = self.hx_assets("check")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("approved file changed", r.stdout)
+        model.write_bytes(b"fbx-v1")
+        self.assertEqual(self.hx_assets("new-version", "crate", CLAUDECODE="1").returncode != 0, True)
+        r = self.hx_assets("new-version", "crate")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual((self.repo / "art/archive/crate/v1/crate.fbx").read_bytes(), b"fbx-v1")
+        self.assertEqual(hook_rc(model), 0)                       # unlocked for rework
+        self.assertIn("v2", self.hx_assets("status").stdout.replace("v2 ", "v2"))
+
+    def test_asset_check_reports_problems(self):
+        self._manifest(Bad_Id={"kind": "weapon", "stage": "model", "depends_on": ["nope"]},
+                       hero={"kind": "character", "stage": "import", "picked": "x.png", "animation_profile": "platformer_hero",
+                             "animations": ["Idle", "Moonwalk"], "outputs": []})
+        r = self.hx_assets("check", "--no-blender")
+        self.assertEqual(r.returncode, 1)
+        for want in ("snake_case", "not one of", "`nope`", "without a director pick", "Moonwalk",
+                     "required clip `Run` missing", "`outputs` is empty"):
+            self.assertIn(want, r.stdout, want)
+
+    def test_animation_spec_is_consistent(self):
+        import yaml
+        sp = yaml.safe_load((REPO / "art/animation_spec.yaml").read_text())
+        clips = set(sp["clips"])
+        for name, prof in sp["profiles"].items():
+            self.assertLessEqual(set(prof["required"]) | set(prof["optional"]), clips, name)
+            self.assertFalse(set(prof["required"]) & set(prof["optional"]), name)
+        for frm, to in sp["transitions"].items():
+            self.assertTrue(frm == "*" or frm in clips, frm)
+            self.assertLessEqual(set(to), clips, frm)
+        self.assertEqual(sp["transitions"]["Death"], [])           # death has no exit
+        self.assertTrue(all(isinstance(c["loop"], bool) for c in sp["clips"].values()))
+        for c in ("Idle", "Walk", "Run", "Turn", "Jump", "DoubleJump", "Fall", "Land", "Attack", "SpecialAttack", "Hurt",
+                  "Knockback", "Stun", "Death", "Push", "Pull", "Climb", "Grab"):
+            self.assertIn(c, clips)
+
+    def test_animation_judging_rules(self):
+        sys.path.insert(0, str(HERE / "art"))
+        import yaml
+        from assets import Report, judge_animation
+        spec = yaml.safe_load((REPO / "art/animation_spec.yaml").read_text())
+        good = {"armatures": 1, "bones": 30, "root_bones": ["root"], "fps": 30, "max_influences": 4, "height_m": 1.8,
+                "actions": [{"name": "a", "frame_start": 0, "frames": 24, "seam_m": 0.0, "seam_bone": "arm"}]}
+        def judge(clip, **over):
+            m = {**good, **over}
+            r = Report(); judge_animation(m, spec, clip, r, "t", 1.8); return r
+        self.assertFalse(judge("Run").failed)
+        self.assertFalse(judge(None).failed)
+        self.assertIn("loop does not close", judge("Run", actions=[{**good["actions"][0], "seam_m": 0.35}]).failed[0])
+        self.assertFalse(judge("Jump", actions=[{**good["actions"][0], "seam_m": 0.35}]).failed)   # one-shots may end elsewhere
+        self.assertTrue(judge("Run", root_bones=["Hips"]).failed)
+        self.assertTrue(judge("Run", armatures=2).failed)
+        self.assertTrue(judge("Run", bones=200).failed)
+        self.assertTrue(judge("Run", max_influences=6).failed)
+        self.assertTrue(judge(None, height_m=0.018).failed)
+        self.assertTrue(judge("Run", actions=[]).failed)
+        self.assertTrue(judge("Run", error=None, **{"armatures": 0}).failed)
+
+    @unittest.skipUnless(BLENDER, "blender not installed")
+    def test_blender_rig_export_and_animation_validation(self):
+        rig = self.tmp / "rig.py"
+        rig.write_text(textwrap.dedent("""
+            import bpy, sys
+            bpy.ops.wm.read_factory_settings(use_empty=True)
+            bpy.ops.object.armature_add(); arm = bpy.context.object; arm.name = "Rig"
+            bpy.ops.object.mode_set(mode="EDIT")
+            eb = arm.data.edit_bones; r = eb[0]; r.name = "root"; r.head = (0, 0, 0); r.tail = (0, 0, .5)
+            s = eb.new("spine"); s.head = (0, 0, .5); s.tail = (0, 0, 1.2); s.parent = r
+            a = eb.new("arm"); a.head = (0, 0, 1.2); a.tail = (.4, 0, 1.2); a.parent = s
+            bpy.ops.object.mode_set(mode="OBJECT")
+            bpy.ops.mesh.primitive_cube_add(size=1, location=(0, 0, .9)); m = bpy.context.object; m.scale = (.4, .3, 1.8)
+            bpy.ops.object.transform_apply(scale=True)
+            for n in ("root", "spine", "arm"):
+                m.vertex_groups.new(name=n).add(list(range(len(m.data.vertices))), .33, "REPLACE")
+            m.parent = arm; m.modifiers.new("Armature", "ARMATURE").object = arm
+            bpy.context.view_layer.objects.active = arm; bpy.ops.object.mode_set(mode="POSE")
+            def clip(name, end, close):
+                act = bpy.data.actions.new(name); arm.animation_data_create().action = act
+                if getattr(arm.animation_data, "action_slot", 1) is None and act.slots: arm.animation_data.action_slot = act.slots[0]
+                pb = arm.pose.bones["arm"]; pb.rotation_mode = "XYZ"
+                for f, ang in ((1, 0), (end // 2, .8), (end, 0 if close else .5)):
+                    pb.rotation_euler = (0, 0, ang); pb.keyframe_insert("rotation_euler", frame=f)
+                act.use_fake_user = True
+            clip("Idle", 30, True); clip("Run", 24, False)
+            bpy.ops.object.mode_set(mode="OBJECT"); arm.animation_data.action = None
+            bpy.ops.wm.save_as_mainfile(filepath=sys.argv[sys.argv.index("--") + 1])
+        """))
+        blend = self.repo / "art/blender/hero.blend"
+        blend.parent.mkdir(parents=True)
+        run([BLENDER, "-b", "--factory-startup", "-P", str(rig), "--", str(blend)])
+        self._manifest(hero={"kind": "npc", "stage": "import", "picked": "v01.png", "animation_profile": "npc", "height_m": 1.8})
+        (self.repo / "art/concepts/hero").mkdir(parents=True)
+        (self.repo / "art/concepts/hero/v01.png").write_bytes(b"png")
+        r = self.hx_assets("export", "hero", "art/blender/hero.blend")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        out = self.repo / "game/Assets/Art/Models/hero"
+        self.assertEqual(sorted(f.name for f in out.glob("*.fbx")), ["hero.fbx", "hero@Idle.fbx", "hero@Run.fbx"])
+        r = self.hx_assets("check")                              # Idle closes its loop, Run (a loop in the spec) does not
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("hero@Run.fbx: loop does not close", r.stdout)
+        self.assertNotIn("hero@Idle.fbx: loop", r.stdout)
+        self.assertNotIn("root bone", r.stdout)
+        self.assertNotIn("manifest says", r.stdout)               # exported height matches height_m
+
+
     def test_static_files(self):
         import yaml
-        for p in [*REPO.glob("*.json"), *REPO.glob(".claude/*.json"), *REPO.glob(".claude-plugin/*.json"),
+        for p in [*REPO.glob("*.json"), *REPO.glob("art/*.json"), *REPO.glob(".claude/*.json"), *REPO.glob(".claude-plugin/*.json"),
                   *REPO.glob("harness/runner/*.json"), *REPO.glob("scenarios/*.json"), *REPO.glob("marketing/takes/*.json"),
                   REPO / ".mcp.json", REPO / "packages/com.studio.harness/package.json"]:
             json.loads(p.read_text())

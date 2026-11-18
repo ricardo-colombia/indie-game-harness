@@ -24,6 +24,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core import ROOT, find_blender, ledger_add, load_config  # noqa: E402
+from assets import LIFECYCLE, save_manifest  # noqa: E402
 
 MANIFEST = ROOT / "art" / "manifest.yaml"
 STYLE = ROOT / "art" / "style.md"
@@ -160,9 +161,13 @@ def main():
     assets = man.get("assets", {})
     if a.stage == "status":
         for k, v in assets.items():
-            print(f"{k:24} {v.get('stage'):8} picked={v.get('picked')}")
+            state = "approved" if v.get("approved") else LIFECYCLE.get(v.get("stage"), "?")
+            print(f"{k:24} {v.get('stage'):8} {state:18} picked={v.get('picked')}")
         return
     A = assets[a.asset]
+    if A.get("approved"):
+        raise SystemExit(f"{a.asset} v{A.get('version', 1)} is approved and locked. Never overwrite it: the director "
+                         f"runs `./hx assets new-version {a.asset}` to rework it (the approved files are archived).")
     base = ROOT / "art"
     style = STYLE.read_text().split("## Prompt prefix", 1)[-1].split("##", 1)[0].strip() if STYLE.exists() else ""
 
@@ -223,7 +228,7 @@ def main():
             m.upscale(f, f.with_name(f.stem + "_x2.png"))
         A["stage"] = "pick"
     if not a.dry_run:
-        MANIFEST.write_text(yaml.safe_dump(man, sort_keys=False))
+        save_manifest(man)
 
 
 if __name__ == "__main__":

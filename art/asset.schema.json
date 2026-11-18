@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "art/manifest.yaml asset entry",
+  "description": "One entry under `assets:` (the key is the asset id: lowercase snake_case). Single source of truth: harness/art/assets.py validates against this file.",
+  "type": "object",
+  "required": ["stage"],
+  "properties": {
+    "kind": {"enum": ["character", "enemy", "npc", "prop", "environment", "vfx", "ui"], "description": "What the asset is. Characters/enemies/npcs get animation checks."},
+    "stage": {"enum": ["concept", "pick", "model", "cleanup", "import", "done"], "description": "Production step reached. Maps to the lifecycle in docs/REFERENCE.md."},
+    "version": {"type": "integer", "minimum": 1, "description": "Bumped by `hx assets new-version`; approved versions are never overwritten."},
+    "prompt": {"type": "string"},
+    "variants": {"type": "integer", "minimum": 1},
+    "picked": {"type": ["string", "null"], "description": "Concept file chosen by the director (never by an agent)."},
+    "height_m": {"type": "number", "exclusiveMinimum": 0},
+    "face_limit": {"type": "integer", "minimum": 100},
+    "split": {"enum": ["none", "loose", "material"]},
+    "providers": {"type": "object"},
+    "tripo": {"type": "object"},
+    "depends_on": {"type": "array", "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}, "description": "Other asset ids this one needs (a rig for its animations, a kit for a prop)."},
+    "animation_profile": {"type": "string", "description": "Key under `profiles:` in art/animation_spec.yaml."},
+    "animations": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$"}, "description": "Clips delivered, named as in art/animation_spec.yaml."},
+    "outputs": {"type": "array", "items": {"type": "string"}, "description": "Files delivered, relative to the repo root (e.g. game/Assets/Art/Models/hero/hero.fbx)."},
+    "approved": {"type": "boolean", "description": "Set only by `hx assets approve` (director). Locks `outputs` (sha256 in art/locks.json)."},
+    "approved_by": {"type": "string"},
+    "approved_at": {"type": "string"},
+    "notes": {"type": "string"}
+  }
+}

@@ -22,16 +22,16 @@ notes / feedback ──► producer ──► backlog/inbox ──(you)──►
 | Path | What |
 |---|---|
 | `CLAUDE.md` | Studio rules: the code contract, verification, cost discipline, hard "nevers" |
-| `.claude/agents/` | producer, gameplay-engineer, qa-playtester, code-reviewer (haiku), tech-artist, marketing-producer (haiku), build-release (haiku) |
-| `.claude/skills/` | gamedev-new-game, gamedev-playtest, gamedev-web-release, gamedev-write-card, gamedev-run-card, gamedev-taste-review, gamedev-art-asset, gamedev-capture-shorts, gamedev-steam-page, gamedev-steam-release |
-| `.claude/settings.json` + `harness/hooks/` | permissions (paid/irreversible actions require approval), C# guard hook |
+| `.claude/agents/` | producer, gameplay-engineer, qa-playtester, code-reviewer (haiku), tech-artist, art-director, animation-director, marketing-producer (haiku), build-release (haiku) — roles below |
+| `.claude/skills/` | gamedev-new-game, gamedev-playtest, gamedev-platformer, gamedev-web-release, gamedev-write-card, gamedev-run-card, gamedev-taste-review, gamedev-art-asset, gamedev-animation-set, gamedev-capture-shorts, gamedev-steam-page, gamedev-steam-release |
+| `.claude/settings.json` + `harness/hooks/` | permissions (paid/irreversible actions require approval), C# guard hook, approved-asset guard hook |
 | `.mcp.json` | empty by default; the editor is driven with `unity command`, no MCP needed |
 | `.claude-plugin/` | lets other game repos install the agents and skills as a plugin |
-| `hx` · `harness/hx.py` | single CLI (`./hx`, switches to `.venv` by itself): `setup doctor verify build web test autotest capture card cards run report cost` |
+| `hx` · `harness/hx.py` | single CLI (`./hx`, switches to `.venv` by itself): `setup doctor verify build web test autotest capture card cards assets run report cost` |
 | `harness/runner.py` | the on-demand card runner |
 | `packages/com.studio.harness` | Unity package (editor + harness builds only): `HarnessBuild`, `InputDriver` (virtual devices + trace replay), probes, AutoPilot (`-autotest`), CameraTakes (`-capture`), *Record Input*, smoke tests |
 | `scenarios/` | input scripts and metric thresholds (your "feel contract"), read from the main checkout, never from the card's branch |
-| `art/` + `harness/art/` | manifest-driven concept → pick → Tripo → Blender cleanup → Unity |
+| `art/` + `harness/art/` | asset registry (`manifest.yaml` + `asset.schema.json`), animation contract (`animation_spec.yaml`), approval locks (`locks.json`); concept → pick → model → Blender cleanup/export → Unity; `hx assets` validates and locks |
 | `marketing/` + `harness/marketing/` | camera takes → ffmpeg shorts → approval → slot schedule → poster |
 | `steam/` | store checklist, steamcmd templates, beta-branch upload |
 | `scripts/publish_web.sh` | publishes the `./hx web` build to GitHub Pages (needs the director's go-ahead) |
@@ -58,6 +58,41 @@ The only requirement on a game is that it uses the Input System package, which i
 
 
 
+## Team and who decides what
+One orchestrator (the Claude Code session) routes work to small, scoped agents. Agents are cheap to add and expensive to run, so there is one per *kind of judgement*, not per job title.
+
+| Role | Agent | Owns | Never |
+|---|---|---|---|
+| Executive producer | `producer` | cards, order, run summaries, asking the director | writes game code |
+| Art director | `art-director` | consistency vs `art/style.md`, review reports, options | picks or approves |
+| Animation director | `animation-director` | clip briefs, `animation_spec.yaml`, in-engine animation review | approves final animation |
+| Technical artist (+ environment kits) | `tech-artist` | pipeline, Blender cleanup/export, materials, LODs, modular kits | picks concepts |
+| Unity developer | `gameplay-engineer` | systems, controllers, Animator wiring, UI logic | touches harness or scenarios |
+| QA & performance | `qa-playtester`, `code-reviewer` | measured playtests, metrics, diff review | judges fun |
+| Release / marketing | `build-release`, `marketing-producer` | builds, takes, copy drafts | publishes or posts |
+
+**The director alone:** picks concepts, approves final character design and final animation (`hx assets approve`), reopens an approved asset (`new-version`), approves architecture changes, and says go to anything that publishes, posts or spends. Shared files have one writer at a time: runs are one worktree per card.
+
+## Asset lifecycle (art/manifest.yaml)
+| Lifecycle state | Manifest `stage` | Exit criterion | Who |
+|---|---|---|---|
+| requested / generating | `concept`, `model` | concepts or raw model on disk | tech-artist |
+| art review | `pick` | `picked` set, consistency report | director picks, art-director reviews |
+| technical validation | `cleanup` | `hx assets check` has no failures (skeleton, clips, loop seams, size, naming) | tech-artist |
+| unity integration | `import` | `.meta` committed, bounds/materials verified in the editor | tech-artist |
+| QA | `done` | in-engine playtest, report in `art/reviews/` | qa-playtester, animation-director |
+| approved | `approved: true` | `hx assets approve <id>`: sha256 of `outputs` in `art/locks.json` | **director** |
+
+Each asset carries id, kind, version, source/`outputs`, `depends_on`, approval fields and a validation report (`harness/reports/assets/latest.json`: passed / failed / warnings / skipped / fixes). Approved files are protected three ways: `pipeline.py` and `assets export` refuse, `guard_assets.py` blocks Edit/Write on them (a guard rail), and `hx assets check` (also the first `hx verify` gate) fails on any changed or deleted file (the proof). `hx assets new-version <id>` archives the approved files in `art/archive/<id>/v<N>/` and reopens the asset as v+1. Measurements that need Blender are reported as `skipped` when it isn't installed, never as passed.
+
+## Risks and limits (be honest with the director)
+- **AI-generated meshes are not rig-ready.** Expect retopology and weight painting by hand or by a human-supplied rig; the harness validates a rig, it doesn't make a good one. Auto-rig and AI motion are drafts.
+- **Feel and look can't be measured.** The harness measures structure, loops, timings, budgets and in-engine behaviour; whether it is charming stays the director's call (`taste_review`).
+- **FBX/Animator round-trips are the usual failure point** (axis, scale, leaf bones, clip splitting). `export_anim.py` fixes the settings; the first import into Unity must still be checked in the editor.
+- **Cost:** every agent call re-sends context; keep cards small and review agents scoped to one asset. Paid generation stays opt-in.
+- **Consoles:** PlayStation/Nintendo need approved developer access, certification and their SDKs, none of which can be scaffolded in advance. What helps now: Input System only, no platform `#if` in game code, rules in plain C#, budgets measured on the weakest target (the web/phone build is a good proxy).
+- **Isolation:** unattended gates run agent-written code; real isolation is the `runner.sandbox.prefix` you switch on (see the trust model).
+
 ## Money is optional ($0 is the default)
 - **Default `money_budget_usd: 0`:** every agent call runs on your Claude plan's included quota. The runner strips `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL` and the Bedrock/Vertex/Foundry switches from agent calls, and refuses to start if any settings file sets `apiKeyHelper` or those variables.
 - **Turn off extra usage/overage on your Claude account first.** With it on, hitting the plan limit bills money instead of stopping, and no client can tell. The runner won't start a $0 run until you set `runner.plan_overage_disabled: true`.
@@ -69,7 +104,7 @@ The only requirement on a game is that it uses the Input System package, which i
 ## Validate the harness at $0: `hx selftest`
 | Level | Cost | What it proves |
 |---|---|---|
-| `hx selftest` | $0, no AI | 36 checks: compact output, no hang on Unity's lingering child process, runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, Blender cleanup (if installed), all config/agent/skill/plugin files |
+| `hx selftest` | $0, no AI | 41 checks: compact output, no hang on Unity's lingering child process, runner merge, writable-path allowlist, suspicious code not executed, main-checkout tamper stop, forged metrics rejected, release scan, BLOCKED → review, quota pause resumes, strict review verdict, billing preflight, agent can't start the runner, taste cards re-gated, key stripping, forced model, protected paths and resumed fix pass, no escalation without money, escalation billed as `api` with money, quota → card back to ready, taste parking, dependencies, thresholds, C# hook, approval-gated posting queue, real ffmpeg short cut to 1080×1920, art pipeline free modes, asset registry (schema, dependencies, approval lock, hook, new-version archive), animation spec consistency and judging rules, Blender cleanup and rig export + loop-seam validation (if installed), all config/agent/skill/plugin files |
 | `--unity` | $0 | temp sample project → package compiles → headless build → EditMode + PlayMode → autotest (input → movement → metrics → thresholds) → camera capture frames |
 | `--live` | plan quota only, **Haiku forced**, $0.05 caps | headless call on your login, project skills load, one real card through the runner |
 

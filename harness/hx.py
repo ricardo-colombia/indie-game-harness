@@ -11,6 +11,7 @@
   hx run [--budget 0] [--dry-run]    card runner, on demand ($0 = plan quota only)       (director only)
   hx merge C-0007 [--trusted]        re-gate a review/ card on current main, then merge   (director only)
   hx setup ["Game Name"] [--yes]     one-time setup: deps, Unity project in game/, packages, config, git
+  hx assets status|check [id]|approve <id>|new-version <id>   asset registry: validate, lock approved art (director)
   hx doctor                          check what the harness needs
   hx selftest [--unity --live --all] validate the harness at $0
   hx report                          latest report per card + spend
@@ -41,13 +42,20 @@ import unity  # noqa: E402
 from core import BACKLOG, LEDGER, REPORTS, ROOT, STATES, list_cards, load_config, parse_card, slim  # noqa: E402
 
 
-GATES = ["build", "release", "editmode", "playmode", "autotest"]
+GATES = ["assets", "build", "release", "editmode", "playmode", "autotest"]
 
 
 def _out(name: str) -> Path:
     p = REPORTS / "_local" / f"{dt.datetime.now():%Y%m%d-%H%M%S}-{name}"
     p.mkdir(parents=True, exist_ok=True)
     return p
+
+
+def _assets_gate():
+    """Registry check (no Unity needed): approved art unchanged, required clips present, loops closed."""
+    sys.path.insert(0, str(Path(__file__).parent / "art"))
+    from assets import run_check
+    return run_check(None, use_blender=True)
 
 
 def _print(ok, summary, metrics=False):
@@ -61,7 +69,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="hx")
     sub = ap.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("verify"); v.add_argument("--scenarios", nargs="*", default=[])
-    v.add_argument("--only", nargs="*", choices=GATES, help="run just these gates (default: all five, in order)")
+    v.add_argument("--only", nargs="*", choices=GATES, help="run just these gates (default: all six, in order)")
     v.add_argument("--metrics", action="store_true", help="print metric stats too")
     rl = sub.add_parser("release"); rl.add_argument("--to-steam", action="store_true")
     sub.add_parser("build")
@@ -77,7 +85,7 @@ def main(argv=None) -> int:
     sub.add_parser("report")
     co = sub.add_parser("cost"); co.add_argument("--days", type=int, default=7)
     argv = sys.argv[1:] if argv is None else argv
-    fwd = {"run": "runner.py", "selftest": "selftest.py"}
+    fwd = {"run": "runner.py", "selftest": "selftest.py", "assets": "art/assets.py"}
     if argv[:1] and argv[0] in fwd:  # forward everything untouched
         return subprocess.call([sys.executable, str(Path(__file__).parent / fwd[argv[0]]), *argv[1:]])
     if argv[:1] == ["merge"]:
@@ -109,7 +117,8 @@ def main(argv=None) -> int:
         return _print(*unity.capture(cfg, project, ROOT / a.takes, ROOT / cfg["marketing"]["out_dir"] / "raw" / Path(a.takes).stem))
     if a.cmd == "verify":
         out, res = _out("verify"), {}
-        gates = {"build": lambda: unity.build(cfg, project, out),
+        gates = {"assets": lambda: _assets_gate(),
+                 "build": lambda: unity.build(cfg, project, out),
                  "release": lambda: unity.build(cfg, project, out, release=True),
                  "editmode": lambda: unity.tests(cfg, project, out, "EditMode"),
                  "playmode": lambda: unity.tests(cfg, project, out, "PlayMode"),

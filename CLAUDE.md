@@ -16,7 +16,7 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 - `backlog/{inbox,ready,review,done,failed}/` cards (see `backlog/_template.md`). Only humans move cards inbox → ready.
 - `scenarios/*.json` autotest scripts + metric thresholds (the "feel contract"). Protected; the runner reads them from main.
 - `design/PILLARS.md` human-owned vision — read, never edit. `design/TASTE_LOG.md` decisions with reasons.
-- `art/manifest.yaml` asset pipeline state (optional). `marketing/` takes, shorts, posting schedule. `steam/` store + depot.
+- `art/manifest.yaml` asset registry + pipeline state (optional; schema `art/asset.schema.json`, clip contract `art/animation_spec.yaml`, approval locks `art/locks.json`). `marketing/` takes, shorts, posting schedule. `steam/` store + depot.
 
 ## Code contract (Unity / C#)
 - **Game code never references the harness** (`using Harness` is forbidden; it's stripped from release builds). The harness drives and observes the game from outside.
@@ -28,6 +28,12 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 - Always commit `.meta` files. Don't hand-edit `.unity`/`.prefab` YAML beyond trivial fixes — use the editor (`unity command`, e.g. `script eval`) or an Editor script. Prefer building the scene from code at startup (a bootstrap `MonoBehaviour`) for small games: it diffs, merges and tests better than scene YAML.
 - Never read `game/Library`, `Temp`, `Logs`, `Builds` (huge, useless context).
 - Unattended cards may only change `game/Assets/` (not `Editor/` folders, `.asmdef`, plugins) unless the card's `allow_paths` says so. Game code never reads harness command-line flags (`-autotest`, `-harnessOut`), never writes `metrics.json`, and never uses `InitializeOnLoad`, `Process.Start` or networking without a card that asks for it — such code isn't run by the gates, it goes to the director.
+
+## Art, animation and approvals
+- Assets live in `art/manifest.yaml` (id, kind, version, stage, outputs, depends_on). `./hx assets check` is the QA report (passed / failed / warnings / skipped / fixes; "skipped" is never a pass). Characters follow `art/animation_spec.yaml` (`gamedev-animation-set`).
+- **The director alone**: picks concepts, approves final character design and final animation (`./hx assets approve <id>` locks the files), reopens an approved asset (`new-version`), approves major architecture changes. Agents prepare options and measured evidence; `art-director` / `animation-director` review consistency, they never approve.
+- Never overwrite an approved asset; one agent per file at a time (the producer routes work, agents don't edit outside their role's scope without saying so).
+- A check that couldn't run (no Blender, no editor) is reported as not run. Never claim a pass you didn't observe.
 
 ## Lessons from the first game (Pac-Man)
 - **Playable first.** The first game got good by iterating live in one session (code → play → screenshot → adjust), not by queueing cards. Use cards and `hx run` once a core loop exists and you want polish done in parallel.
@@ -49,4 +55,4 @@ Open it with `unity open game`, wait with `unity status --until-ready --project-
 - $0 is the normal mode: agents run on the plan quota, and art providers default to manual/ComfyUI. Paid APIs (Anthropic API key, Magnific, Tripo) are used only when config or the card says so; they are logged as `billed: api` in `harness/ledger.jsonl`.
 
 ## Never
-push, publish to Steam or the web, post to social, spend on generation APIs, or change prices/store text without the human's explicit go-ahead in chat. The runner never pushes.
+push, publish to Steam or the web, post to social, spend on generation APIs, change prices/store text, overwrite an approved asset or restructure the architecture without the human's explicit go-ahead in chat. The runner never pushes.
