@@ -6,10 +6,7 @@ import sys, os, json, time, urllib.request
 sys.path.insert(0, os.path.dirname(__file__))
 import gen_flux as g
 
-VIEW = {"front": "seen from the front, facing the camera", "back": "seen from behind, back to the camera",
-        "side": "seen in side profile, facing right, the near arm hanging slightly forward and the near leg slightly forward"}
-POSE = ("Single full body character on a plain flat cream background, whole figure visible head to feet. Rigging reference pose: standing straight, "
-        "arms held out away from the body at about 40 degrees with hands open, legs slightly apart, feet flat, nothing overlapping the torso, no props held, symmetrical. ")
+from anim_brief import POSE, VIEW   # the animation brief decides what is asked for
 def render(slot, view, seed):
     desc = g.SLOTS[slot].replace(", a thick folder under one arm", ", empty hands").replace(", a red megaphone in one hand, no weapon", ", empty hands, no weapon")
     prompt = POSE + VIEW[view] + ". " + desc + ". Style: " + g.STYLE

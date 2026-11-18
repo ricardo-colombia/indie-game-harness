@@ -29,6 +29,26 @@ def grid(src, dst):
         if y % 100 == 0: d.text((2, y + 2), str(y), fill=(0, 0, 200, 255))
     bg.save(dst)
 
+
+def backfill(fig, spec, torso, a):
+    """The arms are cut from the body and then rotate down: the patch of body they covered would be a hole. Fill the part of each arm
+    polygon that lies inside the torso's convex hull with torso colour so the swing never uncovers background."""
+    from skimage.morphology import convex_hull_image
+    hull = convex_hull_image(a > 40)
+    arms = Image.new("L", fig.size, 0); d = ImageDraw.Draw(arms)
+    for q in spec["parts"]:
+        if q["name"] in ("armL", "armR"): d.polygon([tuple(t) for t in q["poly"]], fill=255)
+    fill = hull & (np.array(arms) > 0) & (np.array(fig.getchannel("A")) > 40)
+    return np.maximum(a, fill * 255.0)
+
+def fillcolour(rgb, orig, filled):
+    """Pixels added by backfill take the colour of the nearest original torso pixel."""
+    from scipy import ndimage
+    idx = ndimage.distance_transform_edt(orig <= 40, return_distances=False, return_indices=True)
+    out = rgb.copy(); add = (filled > 40) & (orig <= 40)
+    out[add] = rgb[idx[0][add], idx[1][add]]
+    return out
+
 def cut(name, view):
     base = os.path.join(os.path.dirname(__file__), "..", "doll", name)
     fig = Image.open(os.path.join(base, view + ".png")).convert("RGBA")
@@ -39,11 +59,23 @@ def cut(name, view):
         m = Image.new("L", fig.size, 0); ImageDraw.Draw(m).polygon([tuple(q) for q in p["poly"]], fill=255)
         m = m.filter(ImageFilter.GaussianBlur(0.8))
         a = np.minimum(np.array(m).astype(float), np.array(fig.getchannel("A")).astype(float))
-        part = fig.copy(); part.putalpha(Image.fromarray(a.astype("uint8")))
+        rgb = np.array(fig)
+        if p["name"] == "torso":
+            a0 = a; a = backfill(fig, spec, p, a); rgb = fillcolour(rgb, a0, a)
+        part = Image.fromarray(rgb); part.putalpha(Image.fromarray(a.astype("uint8")))
         bb = part.getchannel("A").point(lambda v: 255 if v > 12 else 0).getbbox()
         part = part.crop(bb)
         fn = f"{view}_{p['name']}.png"; part.save(os.path.join(base, "parts", fn))
-        out.append({"name": p["name"], "file": fn, "bbox": list(bb), "pivot": p["pivot"], "parent": p.get("parent"), "order": p["order"]})
+        rest = p.get("rest")
+        if rest is None and p["name"] in ("armL", "armR"):
+            # The brief says walking arms hang at the sides. Figures are drawn arms-out, so the rig rotates each arm about its shoulder until the
+            # arm's mass points straight down (anim_brief.ARM_REST_MAX caps it). Unity z is counter-clockwise; image y points down.
+            al = np.array(part.getchannel("A")).astype(float); ys, xs = np.nonzero(al > 40)
+            px_, py_ = xs + bb[0] - p["pivot"][0], -(ys + bb[1] - p["pivot"][1])
+            far = np.hypot(px_, py_) >= np.percentile(np.hypot(px_, py_), 97)   # the hand end of the arm decides where it points
+            vx, vy = px_[far].mean(), py_[far].mean()
+            rest = float(np.clip(np.degrees(np.arctan2(-vx, -vy)), -80, 80)); rest -= np.sign(rest) * min(abs(rest), 8.0)   # hang a little away from the body
+        out.append({"name": p["name"], "file": fn, "bbox": list(bb), "pivot": p["pivot"], "parent": p.get("parent"), "order": p["order"], "rest": rest or 0.0})
     json.dump({"w": fig.width, "h": fig.height, "parts": out}, open(os.path.join(base, view + "_parts.json"), "w"), indent=1)
     print(view, len(out), "parts")
 

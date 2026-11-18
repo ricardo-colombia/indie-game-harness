@@ -19,7 +19,7 @@ for v in ["front", "back", "side"]:
     for p, im, ax, ay in place:
         atlas.alpha_composite(im, (ax, ay))
         parts.append({"name": p["name"], "ax": ax, "ay": ay, "aw": im.width, "ah": im.height, "bx": p["bbox"][0], "by": p["bbox"][1],
-                      "px": p["pivot"][0], "py": p["pivot"][1], "parent": p["parent"] or "", "order": p["order"]})
+                      "px": p["pivot"][0], "py": p["pivot"][1], "parent": p["parent"] or "", "order": p["order"], "rest": p.get("rest", 0.0)})
     atlas.save(os.path.join(OUT, f"doll_{name}_{v}.bytes"), format="PNG")
     views.append({"name": v, "w": meta["w"], "h": meta["h"], "parts": parts}); print(v, atlas.size)
 json.dump({"figureHeight": 768, "views": views}, open(os.path.join(OUT, f"doll_{name}.json"), "w"))

@@ -12,9 +12,9 @@ namespace Studio.Pacman
     /// </summary>
     public struct DollPose
     {
-        public float RootRoll, RootSX, RootSY, Bob, TorsoRoll, HeadRoll, ArmL, ArmR, ThighL, ThighR, ShinL, ShinR, LiftL, LiftR;
+        public float RootRoll, RootSX, RootSY, Bob, TorsoRoll, HeadRoll, ArmL, ArmR, ThighL, ThighR, ShinL, ShinR, LiftL, LiftR, ArmSL, ArmSR;
 
-        public static DollPose Identity => new DollPose { RootSX = 1f, RootSY = 1f };
+        public static DollPose Identity => new DollPose { RootSX = 1f, RootSY = 1f, ArmSL = 1f, ArmSR = 1f };
 
         public static DollPose Lerp(DollPose a, DollPose b, float t)
         {
@@ -26,6 +26,7 @@ namespace Studio.Pacman
                 ThighL = Mathf.Lerp(a.ThighL, b.ThighL, t), ThighR = Mathf.Lerp(a.ThighR, b.ThighR, t),
                 ShinL = Mathf.Lerp(a.ShinL, b.ShinL, t), ShinR = Mathf.Lerp(a.ShinR, b.ShinR, t),
                 LiftL = Mathf.Lerp(a.LiftL, b.LiftL, t), LiftR = Mathf.Lerp(a.LiftR, b.LiftR, t),
+                ArmSL = Mathf.Lerp(a.ArmSL, b.ArmSL, t), ArmSR = Mathf.Lerp(a.ArmSR, b.ArmSR, t),
             };
         }
     }
@@ -34,8 +35,8 @@ namespace Studio.Pacman
     [System.Serializable]
     public sealed class DollTuning
     {
-        public float SideThighSwing = 22f, SideKneeBend = 30f, SideFootLift = 14f, SideArmSwing = 26f, SideLean = -2.5f;
-        public float FrontFootLift = 14f, FrontArmSwing = 20f, FrontTorsoRoll = 5f, FrontRootRoll = 3f;
+        public float SideThighSwing = 22f, SideKneeBend = 30f, SideFootLift = 12f, SideArmSwing = 16f, SideLean = -2.5f;
+        public float FrontFootLift = 12f, FrontArmSwing = 4f, FrontArmForeshorten = 0.07f, FrontTorsoRoll = 4f, FrontRootRoll = 2.5f;
         public float Bob = 10f, SquashX = 0.04f, SquashY = 0.05f;
     }
 
@@ -69,8 +70,11 @@ namespace Studio.Pacman
             {
                 p.LiftL = t.FrontFootLift * Mathf.Max(0f, s);
                 p.LiftR = t.FrontFootLift * Mathf.Max(0f, -s);
-                p.ArmL = t.FrontArmSwing * s;
+                // Seen head on, arms swing towards and away from the camera: they foreshorten (one longer as the other shortens) and barely rotate.
+                p.ArmL = -t.FrontArmSwing * s;
                 p.ArmR = t.FrontArmSwing * s;
+                p.ArmSL = 1f + t.FrontArmForeshorten * s;
+                p.ArmSR = 1f - t.FrontArmForeshorten * s;
                 p.TorsoRoll = s * t.FrontTorsoRoll;
                 p.HeadRoll = -s * t.FrontTorsoRoll * 0.5f;
                 p.RootRoll = s * t.FrontRootRoll;

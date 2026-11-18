@@ -1,0 +1,142 @@
+{
+ "w": 549,
+ "h": 768,
+ "parts": [
+  {
+   "name": "thighL",
+   "file": "front_thighL.png",
+   "bbox": [
+    126,
+    534,
+    276,
+    647
+   ],
+   "pivot": [
+    200,
+    538
+   ],
+   "parent": null,
+   "order": 1,
+   "rest": 0.0
+  },
+  {
+   "name": "thighR",
+   "file": "front_thighR.png",
+   "bbox": [
+    273,
+    534,
+    434,
+    647
+   ],
+   "pivot": [
+    355,
+    538
+   ],
+   "parent": null,
+   "order": 1,
+   "rest": 0.0
+  },
+  {
+   "name": "shinL",
+   "file": "front_shinL.png",
+   "bbox": [
+    150,
+    644,
+    264,
+    768
+   ],
+   "pivot": [
+    205,
+    650
+   ],
+   "parent": "thighL",
+   "order": 0,
+   "rest": 0.0
+  },
+  {
+   "name": "shinR",
+   "file": "front_shinR.png",
+   "bbox": [
+    289,
+    644,
+    412,
+    768
+   ],
+   "pivot": [
+    350,
+    650
+   ],
+   "parent": "thighR",
+   "order": 0,
+   "rest": 0.0
+  },
+  {
+   "name": "torso",
+   "file": "front_torso.png",
+   "bbox": [
+    84,
+    204,
+    472,
+    564
+   ],
+   "pivot": [
+    275,
+    535
+   ],
+   "parent": null,
+   "order": 5,
+   "rest": 0.0
+  },
+  {
+   "name": "armL",
+   "file": "front_armL.png",
+   "bbox": [
+    0,
+    214,
+    187,
+    403
+   ],
+   "pivot": [
+    150,
+    245
+   ],
+   "parent": "torso",
+   "order": 6,
+   "rest": 34.937882758775245
+  },
+  {
+   "name": "armR",
+   "file": "front_armR.png",
+   "bbox": [
+    363,
+    214,
+    549,
+    404
+   ],
+   "pivot": [
+    399,
+    245
+   ],
+   "parent": "torso",
+   "order": 6,
+   "rest": -34.32917408387703
+  },
+  {
+   "name": "head",
+   "file": "front_head.png",
+   "bbox": [
+    170,
+    0,
+    389,
+    240
+   ],
+   "pivot": [
+    278,
+    225
+   ],
+   "parent": "torso",
+   "order": 7,
+   "rest": 0.0
+  }
+ ]
+}

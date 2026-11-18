@@ -11,7 +11,7 @@ namespace Studio.Pacman
     /// </summary>
     public sealed class PacmanDoll : MonoBehaviour
     {
-        [System.Serializable] private sealed class PartMeta { public string name, parent; public int ax, ay, aw, ah, bx, by, order; public float px, py; }
+        [System.Serializable] private sealed class PartMeta { public string name, parent; public int ax, ay, aw, ah, bx, by, order; public float px, py, rest; }
         [System.Serializable] private sealed class ViewMeta { public string name; public int w, h; public PartMeta[] parts; }
         [System.Serializable] private sealed class Meta { public int figureHeight; public ViewMeta[] views; }
 
@@ -27,6 +27,7 @@ namespace Studio.Pacman
             public SpriteRenderer Sr;
             public Vector3 Base;
             public string Name;
+            public float Rest; // bind-pose roll: arms are drawn held out, this hangs them down
         }
 
         private static readonly Dictionary<string, Data> Cache = new Dictionary<string, Data>();
@@ -140,7 +141,7 @@ namespace Studio.Pacman
                     Vector2 pivot = new Vector2((p.px - p.bx) / p.aw, 1f - (p.py - p.by) / p.ah);
                     sr.sprite = Sprite.Create(tex, new Rect(p.ax, tex.height - p.ay - p.ah, p.aw, p.ah), pivot, ppu, 0, SpriteMeshType.FullRect);
                     sr.sortingOrder = p.order;
-                    parts[v][p.name] = new Part { T = go.transform, Sr = sr, Base = pos, Name = p.name };
+                    parts[v][p.name] = new Part { T = go.transform, Sr = sr, Base = pos, Name = p.name, Rest = p.rest };
                     pending.RemoveAt(i);
                 }
             }
@@ -186,19 +187,20 @@ namespace Studio.Pacman
             transform.localScale = new Vector3(p.RootSX, p.RootSY, 1f);
             Set(d, "torso", p.TorsoRoll, p.Bob * inv);
             Set(d, "head", p.HeadRoll, 0f);
-            Set(d, "armL", p.ArmL, 0f);
-            Set(d, "armR", p.ArmR, 0f);
+            Set(d, "armL", p.ArmL, 0f, p.ArmSL);
+            Set(d, "armR", p.ArmR, 0f, p.ArmSR);
             Set(d, "thighL", p.ThighL, 0f);
             Set(d, "thighR", p.ThighR, 0f);
             Set(d, "shinL", p.ShinL, p.LiftL * inv);
             Set(d, "shinR", p.ShinR, p.LiftR * inv);
         }
 
-        private static void Set(Dictionary<string, Part> d, string name, float roll, float lift)
+        private static void Set(Dictionary<string, Part> d, string name, float roll, float lift, float scaleY = 1f)
         {
             if (d.TryGetValue(name, out Part part))
             {
-                part.T.localRotation = Quaternion.Euler(0f, 0f, roll);
+                part.T.localRotation = Quaternion.Euler(0f, 0f, roll + part.Rest);
+                part.T.localScale = new Vector3(1f, scaleY, 1f);
                 part.T.localPosition = part.Base + new Vector3(0f, lift, 0f);
             }
         }

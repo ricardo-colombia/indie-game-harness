@@ -16,7 +16,8 @@
     548
    ],
    "parent": null,
-   "order": 1
+   "order": 1,
+   "rest": 0.0
   },
   {
    "name": "thighR",
@@ -32,7 +33,8 @@
     548
    ],
    "parent": null,
-   "order": 1
+   "order": 1,
+   "rest": 0.0
   },
   {
    "name": "shinL",
@@ -48,7 +50,8 @@
     658
    ],
    "parent": "thighL",
-   "order": 0
+   "order": 0,
+   "rest": 0.0
   },
   {
    "name": "shinR",
@@ -64,7 +67,8 @@
     658
    ],
    "parent": "thighR",
-   "order": 0
+   "order": 0,
+   "rest": 0.0
   },
   {
    "name": "torso",
@@ -80,7 +84,8 @@
     535
    ],
    "parent": null,
-   "order": 5
+   "order": 5,
+   "rest": 0.0
   },
   {
    "name": "armL",
@@ -96,7 +101,8 @@
     215
    ],
    "parent": "torso",
-   "order": 6
+   "order": 6,
+   "rest": 25.25566451047171
   },
   {
    "name": "armR",
@@ -112,7 +118,8 @@
     210
    ],
    "parent": "torso",
-   "order": 6
+   "order": 6,
+   "rest": -16.079274871478464
   },
   {
    "name": "head",
@@ -128,7 +135,8 @@
     175
    ],
    "parent": "torso",
-   "order": 7
+   "order": 7,
+   "rest": 0.0
   }
  ]
 }
