@@ -294,7 +294,7 @@ namespace Studio.Pacman
             if (farmer != null)
             {
                 SetView(View.Side);
-                views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+                views[(int)View.Side].localScale = new Vector3(actor != null ? 1f : facing, 1f, 1f);
             }
         }
 
@@ -304,7 +304,7 @@ namespace Studio.Pacman
             parade = walking;
             facing = facingSign < 0f ? -1f : 1f;
             SetView(View.Side);
-            views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+            views[(int)View.Side].localScale = new Vector3(actor != null ? 1f : facing, 1f, 1f);
         }
 
         public void Request(Vector2Int direction)
@@ -348,7 +348,7 @@ namespace Studio.Pacman
                     SetView(wanted);
                 }
             }
-            views[(int)View.Side].localScale = new Vector3(facing, 1f, 1f);
+            views[(int)View.Side].localScale = new Vector3(actor != null ? 1f : facing, 1f, 1f);
         }
 
         /// <summary>
@@ -561,7 +561,7 @@ namespace Studio.Pacman
         {
             if (actor != null)
             {
-                actor.Show(Dir, gait, moveBlend > 0.3f);
+                actor.Show(Dir == Vector2Int.zero || parade ? new Vector2Int(facing < 0f ? -1 : 1, 0) : Dir, gait, moveBlend > 0.3f);
                 return;
             }
             if (puppet != null)

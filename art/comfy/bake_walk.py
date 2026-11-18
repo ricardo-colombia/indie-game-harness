@@ -165,27 +165,47 @@ class Rig:
         out[..., :3] = np.where(a > 1e-3, out[..., :3] / np.maximum(a, 1e-3), 0)
         return Image.fromarray((np.clip(out, 0, 1) * 255).astype("uint8"), "RGBA")
 
+def stylize(fr):
+    """Match the world: richer colour, flatter painted shapes, no paper-cream fringe, and the dark brown contour the bushes have."""
+    from scipy import ndimage
+    from PIL import ImageFilter, ImageEnhance
+    a = np.array(fr.getchannel("A")).astype(float) / 255
+    solid = ndimage.binary_erosion(a > 0.5, iterations=3)              # drop the soft, paper-coloured rim
+    rgb = fr.convert("RGB").filter(ImageFilter.MedianFilter(5))
+    rgb = ImageEnhance.Color(rgb).enhance(1.15); rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
+    body = np.array(rgb)
+    # push the colour of the interior out into the eroded rim so no light pixels remain at the edge
+    idx = ndimage.distance_transform_edt(~solid, return_distances=False, return_indices=True)
+    body = body[idx[0], idx[1]]
+    ring = ndimage.distance_transform_edt(~solid) <= 7
+    out = np.zeros(body.shape[:2] + (4,), "uint8")
+    out[ring] = (46, 27, 17, 255)
+    soft = ndimage.gaussian_filter(solid.astype(float), 0.8)
+    out[solid, :3] = body[solid]; out[solid, 3] = 255
+    out[..., 3] = np.maximum(out[..., 3], (ndimage.gaussian_filter(ring.astype(float), 0.8) * 255).astype("uint8"))
+    return Image.fromarray(out, "RGBA")
+
 # ---- gait definitions ---------------------------------------------------------------------------------------------------
 def gait(view, phase):
     s, c = math.sin(phase), math.cos(phase)
     ang, move = {}, {}
     if view == "side":
-        A = 12.0 * (1 - c) / 2
+        A = 26.0 * (1 - c) / 2
         ang["legL1"], ang["legR1"] = -A, +A                      # forward = negative angle for a figure facing right
-        ang["legL2"] = -A * 0.8 + 38.0 * max(0.0, s); ang["legR2"] = A * 0.8 + 38.0 * max(0.0, -s)
-        ang["footL"] = -12.0 * max(0.0, s); ang["footR"] = -12.0 * max(0.0, -s)
-        ang["armL1"] = 14.0 * c; ang["armL2"] = -10.0 * (1 + c) / 2
-        ang["spine"] = -1.5 + 1.2 * s; ang["head"] = 1.0 * s
-        move["root"] = (0, -7.0 * s * s)
+        ang["legL2"] = -A * 0.8 + 58.0 * max(0.0, s); ang["legR2"] = A * 0.8 + 58.0 * max(0.0, -s)
+        ang["footL"] = -20.0 * max(0.0, s); ang["footR"] = -20.0 * max(0.0, -s)
+        ang["armL1"] = 32.0 * c; ang["armL2"] = -22.0 * (1 + c) / 2
+        ang["spine"] = -5.0 + 3.0 * s; ang["head"] = 3.0 * s
+        move["root"] = (0, -16.0 * s * s)
     else:
-        lift = 22.0
+        lift = 40.0
         l, r = max(0.0, s), max(0.0, -s)
         move["legL2"] = (0, -lift * l); move["legR2"] = (0, -lift * r)
         move["legL1"] = (0, -lift * 0.35 * l); move["legR1"] = (0, -lift * 0.35 * r)
-        ang["armL1"] = -9.0 * s; ang["armR1"] = 9.0 * s
-        ang["armL2"] = -5.0 * max(0.0, -s); ang["armR2"] = -5.0 * max(0.0, s)
-        ang["spine"] = 2.0 * s; ang["head"] = -1.2 * s
-        move["root"] = (4.0 * s, -6.0 * abs(s))
+        ang["armL1"] = -20.0 * s; ang["armR1"] = 20.0 * s
+        ang["armL2"] = -12.0 * max(0.0, -s); ang["armR2"] = -12.0 * max(0.0, s)
+        ang["spine"] = 5.0 * s; ang["head"] = -3.5 * s
+        move["root"] = (12.0 * s, -14.0 * abs(s))
     return ang, move
 
 def idle(view, phase):
@@ -194,9 +214,9 @@ def idle(view, phase):
     if view == "side":
         ang["legL1"] = -22.0; ang["legR1"] = 18.0                # bring the stride's feet together
         ang["footL"] = 10.0; ang["footR"] = -8.0
-    ang["armL1"] = 1.8 * s; ang["armR1"] = -1.8 * s
-    ang["spine"] = 0.5 * s; ang["head"] = -0.6 * s
-    move["root"] = (0, 1.8 * s)
+    ang["armL1"] = 4.5 * s; ang["armR1"] = -4.5 * s
+    ang["spine"] = 1.6 * s; ang["head"] = -2.2 * s
+    move["root"] = (0, 4.5 * s)
     return ang, move
 
 def fix_side(img):
@@ -277,7 +297,7 @@ def main():
         for anim, fn in (("walk", gait), ("idle", idle)):
             for i in range(8):
                 ang, move = fn(view, 2 * math.pi * i / 8)
-                fr = rig.render(ang, move)
+                fr = stylize(rig.render(ang, move))
                 # centre the frame on the hips so the sprite pivots under the body, then shrink
                 cw = max(hipx, fr.width - hipx)
                 canvas = Image.new("RGBA", (2 * cw, fr.height), (0, 0, 0, 0)); canvas.alpha_composite(fr, (cw - hipx, 0))

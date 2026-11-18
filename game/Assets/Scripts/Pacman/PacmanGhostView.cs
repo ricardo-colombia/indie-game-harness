@@ -333,7 +333,7 @@ namespace Studio.Pacman
             {
                 if (actor != null)
                 {
-                    actor.Show(tileHeading, Mathf.Repeat(walk, 2f * Mathf.PI), true);
+                    actor.Show(ghost == null ? new Vector2Int(look.x < 0f ? -1 : 1, 0) : tileHeading, Mathf.Repeat(walk, 2f * Mathf.PI), true);
                     return;
                 }
                 // A painted pest hops along: a bounce twice per step, a squash on each landing, a sway and a lean into the move.
