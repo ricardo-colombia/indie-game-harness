@@ -67,6 +67,7 @@ namespace Studio.Pacman
             if (tex != null && json != null)
             {
                 Meta m = JsonUtility.FromJson<Meta>(json.text);
+                Debug.Log("[actor] anim_" + name + " " + tex.width + "x" + tex.height + " meta " + m.w + "x" + m.h + " walk " + m.walk);
                 float ppu = (m.h - m.pad) / height;
                 Vector2 pivot = new Vector2(0.5f, (float)m.pad / m.h);
                 result = new Cut { WalkCount = m.walk, IdleCount = m.idle, IdleFps = m.idleFps };
@@ -77,6 +78,10 @@ namespace Studio.Pacman
                     result.Walk[d] = Frames(tex, m, d, m.walk, ppu, pivot);
                     result.Idle[d] = Frames(tex, m, m.dirs + d, m.idle, ppu, pivot);
                 }
+            }
+            if (result == null)
+            {
+                Debug.LogWarning("[actor] anim_" + name + " missing: texture " + (tex != null) + ", json " + (json != null) + ", theme " + PacmanTheme.Current);
             }
             Cache[key] = result;
             return result;
