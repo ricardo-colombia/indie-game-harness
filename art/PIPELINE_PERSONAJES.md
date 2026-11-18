@@ -1,15 +1,18 @@
 # Pipeline de personajes (referencia obligatoria)
 
-Una sola estética para todo el reparto: **ilustración vintage de etiqueta de café colombiano, pintada a mano (gouache + línea de tinta)**, adultos con proporciones reales, pies pegados al suelo con sombra de contacto. El 3D "chibi" (Blender) fue rechazado: no se usa.
+Una sola estética para TODO el arte: **Fernando Botero** (volúmenes inflados y redondos, manos/pies/boca pequeños, expresión serena, óleo mate), adultos del Eje Cafetero, pies pegados al suelo con sombra de contacto. Los personajes son **muñecos articulados de piezas** (paper-doll con huesos), no cuadros horneados.
 
 ## Flujo (todo local, $0)
-1. **Hoja de giro** con Flux schnell GGUF en el ComfyUI propio (puerto 8189): `art/comfy/gen_flux.py` (frente / perfil derecho / espalda en una sola imagen = un solo personaje). Revisar y elegir la hoja; los crudos quedan en `art/incoming/` (no se versionan).
-2. **Recorte**: `art/comfy/pest_cuts.py <nombre> front=<hoja>:<n> side=<hoja>:<n> back=<hoja>:<n>` (rembg + fondo plano de papel; las camisas blancas se solidifican). Salida: `art/pest_cuts/<nombre>/{front,side,back}.png`. El cafetero (`art/cafetero_cuts/`) se cortó igual.
-3. **Huesos + malla**: `art/comfy/bake_walk.py <cortes> <salida> <nombre>`. Los rigs del cafetero están colocados a mano (`RIGS`); para las plagas `AUTO_RIG=1` los deduce de la silueta. Skinning lineal (malla Delaunay), ciclo de caminata y reposo horneados a cuadros.
-4. **Empaque**: `art/blender/pack.py <cuadros> <nombre>` → `game/Assets/Resources/Themes/Vintage/anim_<nombre>.png/.json`. `PacmanSpriteActor` elige fila por dirección (s/e/n; oeste = este espejado).
-5. Verificar en el editor (una captura) y en la web (`./hx web`).
+1. **Pose A por vista** con Flux schnell GGUF + LoRA Botero (ComfyUI propio, puerto 8189; ver memoria `botero-lora-installed`):
+   `COMFY_HOST=http://127.0.0.1:8189 LORA=botero_flux.safetensors LORA_STRENGTH=1.6 python art/comfy/gen_apose.py <slot> <front|back|side> <semillas>`.
+   Elegir UNA semilla cuyo frente/espalda/perfil tengan la misma ropa. Crudos en `art/incoming/` (no se versionan).
+2. **Recorte de fondo**: `python art/comfy/doll_cut.py matte <png> art/doll/<n>/<vista>.png [mirror]` (el perfil debe mirar a la DERECHA; usar `mirror` si mira a la izquierda). `doll_cut.py grid` dibuja una cuadrícula para leer coordenadas.
+3. **Piezas**: `art/doll/<n>/make_specs.py` define por vista los polígonos de cabeza, torso, brazos, muslos y botas, sus pivotes (articulaciones) y orden de dibujo; `doll_cut.py cut <n> <vista>` las recorta. Las piezas se solapan (muslo bajo el torso) para que no se vean cortes al girar.
+4. **Empaque**: `python art/comfy/doll_pack.py <n>` → `game/Assets/Resources/Themes/Vintage/doll_<n>.json` + un atlas `.bytes` por vista.
+5. **Runtime**: `PacmanDoll` arma la jerarquía de SpriteRenderers (cabeza/brazos hijos del torso, bota hija del muslo) y `PacmanDollPose` (clase pura, con tests) calcula la pose: caminata (balanceo de muslos, rodilla, pie levantado, brazos opuestos, rebote) e idle (respiración). `PacmanSpriteActor.Create` usa el doll si existe `doll_<n>`; si no, cae a las hojas `anim_<n>`.
+6. Verificar: tira de poses con un `script eval` (cámara a RenderTexture) y una captura de la partida; en la web con `./hx web`.
 
 ## Reglas
-- Nada de arte "inventado": referencias reales colombianas (sombrero aguadeño, carriel, ruana, botas pantaneras).
-- Cambiar de estética = rehacer todo el reparto, no un personaje.
-- La serpiente La Coral sigue procedural (pendiente de pasar a este flujo).
+- Todo el arte comparte el estilo Botero (personajes, frutos, matas, serpiente). Cambiar de estética = rehacer todo.
+- Nada de arte "inventado": referencias colombianas reales (sombrero aguadeño, carriel, ruana, botas pantaneras). Prompts siempre "Colombia, Eje Cafetero".
+- La serpiente La Coral sigue procedural (pendiente).

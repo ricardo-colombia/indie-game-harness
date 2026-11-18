@@ -34,9 +34,9 @@ namespace Studio.Pacman
     [System.Serializable]
     public sealed class DollTuning
     {
-        public float SideThighSwing = 22f, SideKneeBend = 30f, SideFootLift = 10f, SideArmSwing = 13f, SideLean = -2.5f;
-        public float FrontFootLift = 10f, FrontArmSwing = 9f, FrontTorsoRoll = 3f, FrontRootRoll = 2f;
-        public float Bob = 7f, SquashX = 0.03f, SquashY = 0.04f;
+        public float SideThighSwing = 22f, SideKneeBend = 30f, SideFootLift = 14f, SideArmSwing = 26f, SideLean = -2.5f;
+        public float FrontFootLift = 14f, FrontArmSwing = 20f, FrontTorsoRoll = 5f, FrontRootRoll = 3f;
+        public float Bob = 10f, SquashX = 0.04f, SquashY = 0.05f;
     }
 
     public static class PacmanDollPose

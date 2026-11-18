@@ -11,7 +11,7 @@ VIEW = {"front": "seen from the front, facing the camera", "back": "seen from be
 POSE = ("Single full body character on a plain flat cream background, whole figure visible head to feet. Rigging reference pose: standing straight, "
         "arms held out away from the body at about 40 degrees with hands open, legs slightly apart, feet flat, nothing overlapping the torso, no props held, symmetrical. ")
 def render(slot, view, seed):
-    desc = g.SLOTS[slot]
+    desc = g.SLOTS[slot].replace(", a thick folder under one arm", ", empty hands").replace(", a red megaphone in one hand, no weapon", ", empty hands, no weapon")
     prompt = POSE + VIEW[view] + ". " + desc + ". Style: " + g.STYLE
     pid = g.post("/prompt", {"prompt": g.workflow(prompt, 896, 1152, seed)})["prompt_id"]
     while True:
