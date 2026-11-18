@@ -34,6 +34,7 @@ namespace Studio.Pacman
         private PacmanGame game;
         private Font font;
         private bool customFont;
+        private bool plump = true;   // fatten every word a little: the game's lettering is Botero-round, not thin UI type
         private Texture2D hatIcon;
         private GUIStyle label;
         private readonly List<Popup> popups = new List<Popup>();
@@ -295,6 +296,7 @@ namespace Studio.Pacman
             Rect logoRect = new Rect(0, Screen.height * 0.12f + bob, Screen.width, size * 1.2f);
             // A soft glow, then a dark engraved edge made of the word drawn in a ring around it (clean outline, no
             // smear), a drop shadow, and the gold letters on top.
+            plump = false;
             Text(logoRect, logo, size, new Color(glow.r, glow.g, glow.b, 0.10f), TextAnchor.MiddleCenter, null, 9f * s);
             Color edge = new Color(0.2f, 0.08f, 0.02f, 1f);
             Rect drop = new Rect(logoRect.x, logoRect.y + 9f * s, logoRect.width, logoRect.height);
@@ -302,10 +304,11 @@ namespace Studio.Pacman
             for (int k = 0; k < 8; k++)
             {
                 float a = k * Mathf.PI * 0.25f;
-                Rect ring = new Rect(logoRect.x + Mathf.Cos(a) * 3.5f * s, logoRect.y + Mathf.Sin(a) * 3.5f * s, logoRect.width, logoRect.height);
+                Rect ring = new Rect(logoRect.x + Mathf.Cos(a) * 4.5f * s, logoRect.y + Mathf.Sin(a) * 4.5f * s, logoRect.width, logoRect.height);
                 Text(ring, logo, size, edge, TextAnchor.MiddleCenter);
             }
             Text(logoRect, logo, size, Gold, TextAnchor.MiddleCenter);
+            plump = true;
 
             // Colombian flag stripe under the logo: yellow (half), blue and red (a quarter each).
             float flagW = 520f * s;
@@ -1149,6 +1152,20 @@ namespace Studio.Pacman
                 GUI.Label(new Rect(rect.x + spread, rect.y, rect.width, rect.height), text, label);
                 GUI.Label(new Rect(rect.x, rect.y - spread, rect.width, rect.height), text, label);
                 GUI.Label(new Rect(rect.x, rect.y + spread, rect.width, rect.height), text, label);
+                return;
+            }
+            if (plump && size >= 14f && colour.a > 0.02f)
+            {
+                // Botero lettering: the letters are inflated by drawing them again a hair to each side in the same colour
+                // (alpha split across the layers so fading text keeps its opacity).
+                float r = Mathf.Max(0.7f, size * 0.028f);
+                Color layer = colour.a >= 0.99f ? colour : new Color(colour.r, colour.g, colour.b, 1f - Mathf.Pow(1f - colour.a, 0.2f));
+                SetLabelColour(layer);
+                GUI.Label(new Rect(rect.x - r, rect.y, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x + r, rect.y, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x, rect.y - r, rect.width, rect.height), text, label);
+                GUI.Label(new Rect(rect.x, rect.y + r, rect.width, rect.height), text, label);
+                GUI.Label(rect, text, label);
                 return;
             }
             SetLabelColour(colour);
