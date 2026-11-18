@@ -23,7 +23,8 @@ def build(name, cfg, extras, out, test=False):
     lx = c.get("leg_x", 0.13)
     for s, side in ((-1, "L"), (1, "R")):
         bones += [(f"leg{side}1", "root", (lx * s, 0, H), (lx * s, 0, 0.44)),
-                  (f"leg{side}2", f"leg{side}1", (lx * s, 0, 0.44), (lx * s, 0, 0.10))]
+                  (f"leg{side}2", f"leg{side}1", (lx * s, 0, 0.44), (lx * s, 0, 0.10)),
+                  (f"foot{side}", f"leg{side}2", (lx * s, 0, 0.10), (lx * s, -0.22, 0.10))]
     arm = make_armature(bones)
     P = lambda o, b: attach(o, arm, b)
     ctx = dict(M=M, P=P, arm=arm, cfg=c, H=H, sh=sh, head_z=head_z)
@@ -36,8 +37,8 @@ def build(name, cfg, extras, out, test=False):
         P(ellipsoid(f"calf{side}", (x, 0, 0.28), (0.112 * t, 0.112 * t, 0.21), M["pants"]), f"leg{side}2")
         if c.get("cuffs", True): P(torus(f"cuff{side}", (x, 0, 0.22), 0.115 * t, 0.04, M["pants"]), f"leg{side}2")
         if c.get("bare_shin", True): P(ellipsoid(f"shin{side}", (x, 0, 0.145), (0.07, 0.07, 0.07), M["skin"]), f"leg{side}2")
-        P(ellipsoid(f"shoe{side}", (x, -0.07, 0.065), (0.105 * t, 0.19, 0.075), M["shoe"]), f"leg{side}2")
-        P(ellipsoid(f"sole{side}", (x, -0.07, 0.022), (0.108 * t, 0.195, 0.03), M["sole"], outline=0.006), f"leg{side}2")
+        P(ellipsoid(f"shoe{side}", (x, -0.07, 0.065), (0.105 * t, 0.19, 0.075), M["shoe"]), f"foot{side}")
+        P(ellipsoid(f"sole{side}", (x, -0.07, 0.022), (0.108 * t, 0.195, 0.03), M["sole"], outline=0.006), f"foot{side}")
     # torso + hips + arms
     tw = c.get("torso_w", 0.27)
     P(ellipsoid("torso", (0, 0, 1.00), (tw, 0.19, 0.30), M["shirt"]), "spine")
@@ -93,7 +94,7 @@ def build(name, cfg, extras, out, test=False):
     def idle(i):
         for b in pb: b.rotation_mode = "XYZ"; b.rotation_euler = (0, 0, 0); b.location = (0, 0, 0)
         ph = i / IDLE_N * 2 * math.pi
-        for n in ("legL1", "legL2", "legR1", "legR2"): key(n, (0, 0, 0))
+        for n in ("legL1", "legL2", "legR1", "legR2", "footL", "footR"): key(n, (0, 0, 0))
         key("armL1", (0, 0, 0.05 + 0.03 * math.sin(ph))); key("armR1", (0, 0, -0.05 - 0.03 * math.sin(ph)))
         key("armL2", (-0.25, 0, 0)); key("armR2", (-0.25, 0, 0))
         key("root", (0, 0, 0), (0, 0, -0.012 * (1 - math.cos(ph))))

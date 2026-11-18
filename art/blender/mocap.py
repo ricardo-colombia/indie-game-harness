@@ -79,6 +79,7 @@ def walk_poses(arm, bvh_path, n=8, gain=1.0):
     for side, S in (("L", A), ("R", B)):
         links[f"arm{side}1"] = (S + "Arm", S + "ForeArm"); links[f"arm{side}2"] = (S + "ForeArm", S + "Hand")
         links[f"leg{side}1"] = (S + "UpLeg", S + "Leg"); links[f"leg{side}2"] = (S + "Leg", S + "Foot")
+        links[f"foot{side}"] = None
     pbs = arm.pose.bones
     for b in pbs: b.rotation_mode = "QUATERNION"; b.rotation_quaternion = (1, 0, 0, 0); b.location = (0, 0, 0)
     bpy.context.view_layer.update()
@@ -98,9 +99,20 @@ def walk_poses(arm, bvh_path, n=8, gain=1.0):
                 R = Matrix.Rotation(twist * 0.6, 4, "Z") @ m
                 R.translation = m.translation + Vector((0, 0, (hip[f, 2] - hip_h) / hip_h * 0.9 * 0.12))
                 pb.matrix = R
+            elif name.startswith("foot"):
+                # shoe stays flat on the ground; heel-strike toes up, push-off heel up, following the shin's swing
+                shin = Vector(P[f, ix[links[name.replace("foot", "leg") + "2"][1]]] - P[f, ix[links[name.replace("foot", "leg") + "2"][0]]]).normalized()
+                pitch = max(-0.6, min(0.6, -shin.y * 0.9))
+                M = Matrix.Rotation(pitch, 4, "X") @ m.to_3x3().to_4x4()
+                M.translation = pb.matrix.translation
+                pb.matrix = M
             elif name in links:
                 a, b = links[name]
                 d = Vector(P[f, ix[b]] - P[f, ix[a]]).normalized()
+                if name.startswith("leg"):
+                    # keep the feet apart on a straight line: damp the capture's sideways lean, push each leg slightly outward
+                    sgn = -1 if name[3] == "L" else 1
+                    d = Vector((d.x * 0.25 + sgn * 0.05, d.y, d.z)).normalized()
                 g = gain * {"spine": 0.5, "head": 0.25}.get(name, 1.0)           # torso and head only echo the actor's lean
                 q = rdir.rotation_difference(rdir.lerp(d, g).normalized())
                 M = q.to_matrix().to_4x4() @ m.to_3x3().to_4x4()

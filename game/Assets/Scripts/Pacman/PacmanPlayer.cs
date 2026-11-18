@@ -51,7 +51,7 @@ namespace Studio.Pacman
         private PacmanSpriteActor actor;
 
         /// <summary>The painted picker is a little taller than a tile so the character reads at a glance.</summary>
-        private const float PaintedHeight = 1.45f;
+        private const float PaintedHeight = 1.55f;
         private Transform[] views = new Transform[3];
         private Rig[] rigs = new Rig[3];
         private float gait;
@@ -111,7 +111,7 @@ namespace Studio.Pacman
             bodyObject.transform.SetParent(transform, false);
             body = bodyObject.transform;
             body.localScale = Vector3.one * BodyScale;
-            Prim(body, PacmanFarmerArt.Shadow(), new Color(0f, 0f, 0f, 0.4f), new Vector2(0f, -0.5f), Vector2.one, 0f, 4);
+            Prim(body, PacmanFarmerArt.Shadow(), new Color(0f, 0f, 0f, 0.4f), new Vector2(0f, -0.34f), new Vector2(0.9f, 0.9f), 0f, 4);
             BuildFarmer();
             PacmanGlow.Attach(transform, new Color(1f, 0.85f, 0.45f), 3.2f, 0.2f);
 
@@ -151,7 +151,7 @@ namespace Studio.Pacman
         {
             Transform t = NewView(View.Side);
             const float height = PaintedHeight;
-            actor = PacmanSpriteActor.Create("farmer", t, height, -0.5f, 6);
+            actor = PacmanSpriteActor.Create("farmer", t, height, -0.34f, 6);
             if (actor != null)
             {
                 spriteBody = actor.transform;
