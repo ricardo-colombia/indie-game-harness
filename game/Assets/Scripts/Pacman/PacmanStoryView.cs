@@ -228,8 +228,8 @@ namespace Studio.Pacman
                 case StoryScene.Farmer:
                     farmer.gameObject.SetActive(true);
                     farmer.ShowParade(1f, false);
-                    farmer.transform.localScale = Vector3.one * 2f;
-                    farmer.transform.localPosition = new Vector3(-1.4f, -0.22f + Mathf.Sin(t * 2f) * 0.03f, 0f);
+                    farmer.transform.localScale = Vector3.one * 1.7f;
+                    farmer.transform.localPosition = new Vector3(-1.4f, -0.3f + Mathf.Sin(t * 2f) * 0.03f, 0f);
                     break;
 
                 case StoryScene.Snake:
@@ -237,16 +237,16 @@ namespace Studio.Pacman
                     break;
 
                 case StoryScene.Taxes:
-                    Place(pests[(int)GhostKind.Blinky], GhostKind.Blinky, 0.2f, -0.22f, 2f, -1f, t);
+                    Place(pests[(int)GhostKind.Blinky], GhostKind.Blinky, 0.2f, -0.3f, 1.7f, -1f, t);
                     Rain(t, new Color(1f, 0.82f, 0.2f), 0.22f, 0.22f, true);
                     break;
 
                 case StoryScene.Guerrilla:
-                    Place(pests[(int)GhostKind.Pinky], GhostKind.Pinky, 0.2f, -0.22f, 2f, -1f, t);
+                    Place(pests[(int)GhostKind.Pinky], GhostKind.Pinky, 0.2f, -0.3f, 1.7f, -1f, t);
                     break;
 
                 case StoryScene.Boss:
-                    Place(pests[(int)GhostKind.Inky], GhostKind.Inky, 0.6f, -0.22f, 2f, -1f, t);
+                    Place(pests[(int)GhostKind.Inky], GhostKind.Inky, 0.6f, -0.3f, 1.7f, -1f, t);
                     Rain(t, new Color(0.5f, 0.78f, 0.42f), 0.36f, 0.2f, false);
                     break;
 

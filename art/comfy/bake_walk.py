@@ -171,7 +171,10 @@ def stylize(fr):
     from PIL import ImageFilter, ImageEnhance
     a = np.array(fr.getchannel("A")).astype(float) / 255
     solid = ndimage.binary_erosion(a > 0.5, iterations=3)              # drop the soft, paper-coloured rim
-    rgb = fr.convert("RGB").filter(ImageFilter.MedianFilter(5))
+    # Botero look: smooth, matte, oil-paint volumes (total-variation flattening removes gloss and fine cartoon line work)
+    from skimage.restoration import denoise_tv_chambolle
+    t = np.clip(denoise_tv_chambolle(np.array(fr.convert("RGB")) / 255., weight=0.08, channel_axis=2), 0, 1)
+    rgb = Image.fromarray((((0.05 + 0.92 * t)) * 255).astype("uint8"))
     rgb = ImageEnhance.Color(rgb).enhance(1.15); rgb = ImageEnhance.Contrast(rgb).enhance(1.12)
     body = np.array(rgb)
     # push the colour of the interior out into the eroded rim so no light pixels remain at the edge
@@ -190,10 +193,10 @@ def gait(view, phase):
     s, c = math.sin(phase), math.cos(phase)
     ang, move = {}, {}
     if view == "side":
-        A = 26.0 * (1 - c) / 2
+        A = 9.0 * (1 - c) / 2
         ang["legL1"], ang["legR1"] = -A, +A                      # forward = negative angle for a figure facing right
-        ang["legL2"] = -A * 0.8 + 58.0 * max(0.0, s); ang["legR2"] = A * 0.8 + 58.0 * max(0.0, -s)
-        ang["footL"] = -20.0 * max(0.0, s); ang["footR"] = -20.0 * max(0.0, -s)
+        ang["legL2"] = -A * 0.8 + 14.0 * max(0.0, s); ang["legR2"] = A * 0.8 + 14.0 * max(0.0, -s)
+        ang["footL"] = -6.0 * max(0.0, s); ang["footR"] = -6.0 * max(0.0, -s)
         ang["armL1"] = 32.0 * c; ang["armL2"] = -22.0 * (1 + c) / 2
         ang["spine"] = -5.0 + 3.0 * s; ang["head"] = 3.0 * s
         move["root"] = (0, -16.0 * s * s)

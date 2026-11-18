@@ -134,6 +134,20 @@ namespace Studio.Pacman
             }
             sr.sprite = set[frame];
             sr.flipX = flip;
+            // A round body waddles: it rocks from foot to foot, and squashes and stretches twice per stride (pivot is the feet).
+            if (moving)
+            {
+                float rock = Mathf.Sin(gait) * (dirRow == 1 ? 2.5f : 5f);
+                float step = Mathf.Cos(2f * gait);
+                transform.localRotation = Quaternion.Euler(0f, 0f, rock - (dirRow == 1 ? (flip ? -1f : 1f) * 3f : 0f));
+                transform.localScale = new Vector3(1f - 0.035f * step, 1f + 0.05f * step, 1f);
+            }
+            else
+            {
+                float breathe = Mathf.Sin(idleClock * 1.3f);
+                transform.localRotation = Quaternion.identity;
+                transform.localScale = new Vector3(1f - 0.008f * breathe, 1f + 0.014f * breathe, 1f);
+            }
         }
 
         public Color Colour

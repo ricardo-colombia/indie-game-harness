@@ -22,9 +22,16 @@ def solidify(rgb, cut):
     lab, n = ndimage.label(near)
     edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     sizes0 = ndimage.sum(near, lab, range(1, n + 1))
-    edge |= {i + 1 for i, v in enumerate(sizes0) if 1500 < v < 45000}          # enclosed gaps (arm against the body) of the flat paper colour
+    edge |= {i + 1 for i, v in enumerate(sizes0) if 1500 < v < 45000 and (os.environ.get("GAPS", "1") == "1" or ndimage.center_of_mass(lab == i + 1)[0] > 0.6 * a.shape[0])}          # enclosed gaps (arm against the body) of the flat paper colour
     bgflood = np.isin(lab, list(edge))
     fg = ~bgflood
+    # the soft ground shadow under the feet is slightly darker paper, not part of the figure: drop pale, unsaturated pixels near the bottom
+    ys = np.where(fg.any(axis=1))[0]
+    if len(ys):
+        y0, y1 = ys[0], ys[-1]; low = np.zeros_like(fg); low[int(y1 - 0.12 * (y1 - y0)):] = True
+        mx, mn = a.max(axis=2), a.min(axis=2)
+        pale = (np.linalg.norm(a - bg, axis=2) < 100) & ((mx - mn) < 55) & (mx > 150)
+        fg &= ~(low & pale)
     fg = ndimage.binary_opening(fg, iterations=2)
     lab, n = ndimage.label(fg)
     if n:
