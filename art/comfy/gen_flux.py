@@ -19,12 +19,12 @@ SLOTS = {
   "farmer": "a plump round old Colombian paisa coffee farmer from the Eje Cafetero with tanned mestizo skin and deep smile lines, white moustache, "
             "cream straw sombrero aguadeno with a black band, a fully buttoned white cotton shirt with rolled sleeves covering the whole belly (never bare-chested), a brown leather carriel antioqueno bag across the chest, "
             "a striped wool ruana poncho folded over one shoulder, cream trousers rolled to the calf, black rubber boots, empty hands",
-  "doctor": "a plump round stern Colombian government tax official with brown mestizo skin, black moustache and round glasses, short-sleeve white shirt with an orange tie, "
-            "grey trousers, black shoes, a white motorcycle helmet on his head, a thick folder under one arm",
-  "flaco": "a short round young Colombian campesino rebel with brown mestizo skin and a short black beard, olive green uniform, black beret with a red star, "
-           "red bandana around the neck, black rubber boots, a red megaphone in one hand, no weapon",
-  "hernan": "a wealthy smug Colombian landowner patron with tanned skin and a thick black moustache, white linen guayabera, white panama hat, "
-            "dark sunglasses, gold chain, huge round belly, brown leather boots, empty hands",
+  "doctor": "a plump round stern Colombian bogotano bureaucrat (a 'doctor' of the tax office) with brown mestizo skin, black moustache and round glasses, bare head with slicked black hair, "
+            "plain white long-sleeve cotton shirt buttoned to the collar with no tie, a dark brown wool ruana poncho over the shoulders, dark wool trousers, black leather shoes, empty hands",
+  "flaco": "a short round young Colombian campesino organizer with brown mestizo skin and a short black beard, small woven straw sombrero with a red band, "
+           "worn olive green cotton work shirt, red bandana around the neck, faded blue denim trousers rolled to the calf, black rubber boots (botas pantaneras), empty hands, no weapon",
+  "hernan": "a wealthy smug Colombian hacendado landowner from the Llanos with tanned skin and a thick black moustache, wide-brim cream felt sombrero, white linen guayabera with four pockets, "
+            "huge round belly, wide leather belt with a silver buckle, brown leather boots, empty hands",
 }
 
 def post(path, data):

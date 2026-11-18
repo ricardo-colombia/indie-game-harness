@@ -16,3 +16,4 @@ Una sola estética para TODO el arte: **Fernando Botero** (volúmenes inflados y
 - Todo el arte comparte el estilo Botero (personajes, frutos, matas, serpiente). Cambiar de estética = rehacer todo.
 - Nada de arte "inventado": referencias colombianas reales (sombrero aguadeño, carriel, ruana, botas pantaneras). Prompts siempre "Colombia, Eje Cafetero".
 - La serpiente La Coral sigue procedural (pendiente).
+- TODO personaje es colombiano en ropa y cultura (ruana, sombrero de iraca/aguadeño, guayabera, carriel, botas pantaneras, alpargatas, paño). Prohibido ropa europea o estadounidense: nada de boina, casco, corbata, gorra de béisbol, gafas de sol, cadenas de oro, uniformes extranjeros.
