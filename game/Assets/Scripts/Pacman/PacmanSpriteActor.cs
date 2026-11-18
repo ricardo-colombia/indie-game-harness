@@ -33,10 +33,22 @@ namespace Studio.Pacman
         private int dirRow;
         private bool flip;
         private float idleClock;
+        private PacmanDoll doll;
 
         /// <summary>The sheet "anim_NAME" from the theme, or null when the theme has none.</summary>
         public static PacmanSpriteActor Create(string name, Transform parent, float height, float footY, int sortingOrder)
         {
+            if (PacmanDoll.Exists(name))
+            {
+                GameObject dg = new GameObject(name + "Doll");
+                dg.transform.SetParent(parent, false);
+                dg.transform.localPosition = new Vector3(0f, footY, 0f);
+                PacmanSpriteActor da = dg.AddComponent<PacmanSpriteActor>();
+                da.sr = dg.GetComponent<SpriteRenderer>();
+                da.sr.enabled = false;
+                da.doll = PacmanDoll.Build(name, dg, height, sortingOrder);
+                return da;
+            }
             Cut c = Load(name, height);
             if (c == null)
             {
@@ -104,6 +116,11 @@ namespace Studio.Pacman
         /// <param name="moving">Walks when true, idles otherwise.</param>
         public void Show(Vector2Int heading, float gait, bool moving)
         {
+            if (doll != null)
+            {
+                doll.Show(heading, gait, moving);
+                return;
+            }
             if (heading.x != 0)
             {
                 dirRow = 1;
@@ -152,14 +169,20 @@ namespace Studio.Pacman
 
         public Color Colour
         {
-            get => sr.color;
-            set => sr.color = value;
+            get => doll != null ? doll.Colour : sr.color;
+            set
+            {
+                if (doll != null) { doll.Colour = value; } else { sr.color = value; }
+            }
         }
 
         public bool Visible
         {
-            get => sr.enabled;
-            set => sr.enabled = value;
+            get => doll != null ? doll.Visible : sr.enabled;
+            set
+            {
+                if (doll != null) { doll.Visible = value; } else { sr.enabled = value; }
+            }
         }
     }
 }

@@ -32,6 +32,17 @@ def post(path, data):
     return json.loads(urllib.request.urlopen(req).read())
 
 def workflow(prompt, w, h, seed):
+    wf = _workflow(prompt, w, h, seed)
+    lora = os.environ.get("LORA")          # e.g. LORA=botero_flux.safetensors LORA_STRENGTH=1.2 (the model-only LoRA goes before the sampler)
+    if lora:
+        wf["9"] = {"class_type": "LoraLoaderModelOnly", "inputs": {"lora_name": lora, "strength_model": float(os.environ.get("LORA_STRENGTH", "1.0")), "model": ["1", 0]}}
+        wf["6"]["inputs"]["model"] = ["9", 0]
+        wf["6"]["inputs"]["steps"] = int(os.environ.get("STEPS", "4"))
+        prompt = "style of Fernando Botero. " + prompt
+        wf["4"]["inputs"]["text"] = prompt
+    return wf
+
+def _workflow(prompt, w, h, seed):
     return {
       "1": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": "flux1-schnell-Q4_K_S.gguf"}},
       "2": {"class_type": "DualCLIPLoader", "inputs": {"clip_name1": "clip_l.safetensors", "clip_name2": "t5xxl_fp8_e4m3fn.safetensors", "type": "flux"}},
