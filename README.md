@@ -7,12 +7,21 @@ Make a small Unity 6 game by talking to Claude. You decide what's fun; Claude bu
 
 **Once per machine:** install [Claude Code](https://claude.com/claude-code) and sign in, and install the Unity CLI: `curl -fsSL https://unity.com/install.sh | bash` (sign in to Unity when asked). No Unity 6 editor? Setup asks before downloading one (several GB).
 
-1. **Clone this repo** (or "Use this template" on GitHub) and open the folder in Claude Code.
+1. **Get a clean copy of the template** and open the folder in Claude Code. The template lives on the `template` branch (`game/` empty, name `My Game`); `main` may hold a finished game.
+   ```bash
+   git clone --branch template https://github.com/ricardo-colombia/indie-game-harness.git my-game
+   ```
+   "Use this template" on GitHub copies the repo's *default* branch, so it gives the clean template only if the owner set Settings → General → Default branch to `template`.
 2. **Say what game you want**, e.g. *"quiero un juego tipo Snake para el celular"*. Claude runs `./hx setup` (Unity project, packages, `.venv`), asks ≤5 questions, and builds a playable first version with you watching.
 3. **Play it.** Claude opens the editor, plays, and shows you screenshots. Say what feels wrong: *"make the jump floatier"*.
 4. **Share it.** *"Give me a link"* → `./hx web --serve` plays it in your browser; publishing to GitHub Pages (so you can open it on your phone) happens only when you say so.
 
 Keep going by talking. When you want polish done in parallel, or you want the game protected by tests: *"add to backlog: …"* → cards in `backlog/inbox/` → `./hx card ready C-0001` → `./hx run` (agents implement every approved card and test it) → *"what happened?"* → `./hx merge C-0001`. Before your first `./hx run`, turn off extra usage on your Claude account and set `runner.plan_overage_disabled: true` in `harness/config.yaml`, so runs use your plan and cost $0 extra.
+
+## Maintaining the template
+
+- Template changes go on the `template` branch, never on a game's branch. Keep `game/` empty, `harness/config.yaml` `name: My Game`, and run `python3 harness/selftest.py` (all green) before pushing.
+- Bringing the template into a game that already has its own `art-director`, `animation-director` or `environment-artist` agents (or a custom `gamedev-pro-playbook` skill): commit the game's versions first, then in the merge keep the game's copies of those files and take everything else from the template. The template's agents are generic and must not overwrite game-specific ones.
 
 ## Where things live
 
