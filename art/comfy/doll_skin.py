@@ -52,7 +52,7 @@ def masks(fig, spec, parts_meta):
 def blur(masks_, sig):
     return {k: ndimage.gaussian_filter(v, sig.get(k, sig["default"])) for k, v in masks_.items()}
 
-def build_mesh(fig, step=12):
+def build_mesh(fig, step=9):
     """Regular grid over the figure: every cell that touches the (dilated) figure becomes two triangles. A grid has no slivers and no
     torn edges, so the skin bends smoothly; the silhouette comes from the texture's own alpha."""
     a = np.array(fig.getchannel("A")) > 8
@@ -82,7 +82,7 @@ def skin(name, view):
     order = {q["name"]: q["order"] for q in meta["parts"]}
     M = masks(fig, spec, meta)
     # the torso keeps whatever the arms/legs do not own
-    sig = {"default": 11.0, "thighL": 18.0, "thighR": 18.0, "shinL": 16.0, "shinR": 16.0, "torso": 12.0}
+    sig = {"default": 11.0, "thighL": 18.0, "thighR": 18.0, "shinL": 16.0, "shinR": 16.0, "torso": 12.0, "foreL": 15.0, "foreR": 15.0, "handL": 15.0, "handR": 15.0}
     B = blur({k: M[k] for k in bones if k in M}, sig)
     bones = [b for b in bones if b in B]
     P, T = build_mesh(fig)

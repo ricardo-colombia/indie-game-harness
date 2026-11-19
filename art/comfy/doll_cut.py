@@ -81,7 +81,8 @@ def split_arm(p, a, torso_x, side):
     aF = np.where((T >= tE - band) & (DH >= rH - band), a, 0.0)
     aH = np.where(DH <= rH, a, 0.0)
     sgn = (1.0 if S[0] >= torso_x else -1.0) if not side else (1.0 if E[0] - S[0] >= 0 else -1.0)
-    tgt = np.degrees(np.arctan2(-np.cos(np.radians(6)), sgn * np.sin(np.radians(6))))
+    tilt = np.radians(6 if side else 13)      # front/back: hang a bit further out so the hands clear the belly
+    tgt = np.degrees(np.arctan2(-np.cos(tilt), sgn * np.sin(tilt)))
     ang = lambda v: np.degrees(np.arctan2(-v[1], v[0]))
     ru = float(np.clip(wrap(tgt - ang(E - S)), -85, 85))
     rf = float(np.clip(wrap(tgt - ang(W - E) - ru), -150, 150))
