@@ -16,7 +16,7 @@
     590
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -33,7 +33,7 @@
     590
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -84,25 +84,93 @@
     565
    ],
    "parent": null,
-   "order": 5,
+   "order": 50,
    "rest": 0.0
+  },
+  {
+   "name": "foreL",
+   "file": "front_foreL.png",
+   "bbox": [
+    12,
+    259,
+    110,
+    399
+   ],
+   "pivot": [
+    84.57202797202797,
+    286.2909090909091
+   ],
+   "parent": "armL",
+   "order": 61,
+   "rest": -31.31695433986124
+  },
+  {
+   "name": "handL",
+   "file": "front_handL.png",
+   "bbox": [
+    0,
+    319,
+    81,
+    403
+   ],
+   "pivot": [
+    57.2913143735588,
+    341.83935434281324
+   ],
+   "parent": "foreL",
+   "order": 62,
+   "rest": 19.13184930357818
   },
   {
    "name": "armL",
    "file": "front_armL.png",
    "bbox": [
-    0,
+    55,
     204,
     172,
-    403
+    320
    ],
    "pivot": [
     165,
     235
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": 37.247027438247876
+   "order": 60,
+   "rest": 51.473333823347616
+  },
+  {
+   "name": "foreR",
+   "file": "front_foreR.png",
+   "bbox": [
+    466,
+    258,
+    562,
+    397
+   ],
+   "pivot": [
+    491.2744956772334,
+    285.95172910662825
+   ],
+   "parent": "armR",
+   "order": 61,
+   "rest": 31.97272797104415
+  },
+  {
+   "name": "handR",
+   "file": "front_handR.png",
+   "bbox": [
+    495,
+    319,
+    576,
+    402
+   ],
+   "pivot": [
+    517.7948517940717,
+    341.24648985959436
+   ],
+   "parent": "foreR",
+   "order": 62,
+   "rest": -18.789667464612307
   },
   {
    "name": "armR",
@@ -110,16 +178,16 @@
    "bbox": [
     405,
     204,
-    576,
-    402
+    522,
+    319
    ],
    "pivot": [
     411,
     235
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": -36.9523593960846
+   "order": 60,
+   "rest": -51.595937200343286
   },
   {
    "name": "head",
@@ -135,7 +203,7 @@
     225
    ],
    "parent": "torso",
-   "order": 7,
+   "order": 70,
    "rest": 0.0
   }
  ]

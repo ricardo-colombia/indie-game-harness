@@ -16,7 +16,7 @@
     610
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -33,7 +33,7 @@
     610
    ],
    "parent": null,
-   "order": 2,
+   "order": 20,
    "rest": 0.0
   },
   {
@@ -84,14 +84,14 @@
     475
    ],
    "parent": "torso",
-   "order": 3,
+   "order": 30,
    "rest": 7.854464263505955
   },
   {
    "name": "torso",
    "file": "side_torso.png",
    "bbox": [
-    204,
+    191,
     149,
     537,
     627
@@ -101,25 +101,59 @@
     600
    ],
    "parent": null,
-   "order": 5,
+   "order": 50,
    "rest": 0.0
+  },
+  {
+   "name": "foreL",
+   "file": "side_foreL.png",
+   "bbox": [
+    159,
+    306,
+    299,
+    435
+   ],
+   "pivot": [
+    231.07364156339372,
+    337.45352716873214
+   ],
+   "parent": "armL",
+   "order": 61,
+   "rest": -16.560510843759175
+  },
+  {
+   "name": "handL",
+   "file": "side_handL.png",
+   "bbox": [
+    177,
+    403,
+    265,
+    497
+   ],
+   "pivot": [
+    221.38755980861245,
+    407.0745044429255
+   ],
+   "parent": "foreL",
+   "order": 62,
+   "rest": -2.312746556053412
   },
   {
    "name": "armL",
    "file": "side_armL.png",
    "bbox": [
-    159,
+    161,
     189,
     322,
-    497
+    371
    ],
    "pivot": [
     280,
     230
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": 6.744811573557488
+   "order": 60,
+   "rest": 18.480996366060538
   },
   {
    "name": "head",
@@ -135,7 +169,7 @@
     215
    ],
    "parent": "torso",
-   "order": 7,
+   "order": 70,
    "rest": 0.0
   }
  ]

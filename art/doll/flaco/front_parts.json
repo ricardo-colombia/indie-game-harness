@@ -16,7 +16,7 @@
     538
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -33,7 +33,7 @@
     538
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -74,9 +74,9 @@
    "name": "torso",
    "file": "front_torso.png",
    "bbox": [
-    84,
+    74,
     204,
-    472,
+    478,
     564
    ],
    "pivot": [
@@ -84,25 +84,93 @@
     535
    ],
    "parent": null,
-   "order": 5,
+   "order": 50,
    "rest": 0.0
+  },
+  {
+   "name": "foreL",
+   "file": "front_foreL.png",
+   "bbox": [
+    28,
+    291,
+    113,
+    401
+   ],
+   "pivot": [
+    93.39387539598732,
+    310.8247096092925
+   ],
+   "parent": "armL",
+   "order": 61,
+   "rest": -9.395524146146926
+  },
+  {
+   "name": "handL",
+   "file": "front_handL.png",
+   "bbox": [
+    0,
+    331,
+    78,
+    403
+   ],
+   "pivot": [
+    64.74814027630181,
+    357.9415515409139
+   ],
+   "parent": "foreL",
+   "order": 62,
+   "rest": 27.666397971832225
   },
   {
    "name": "armL",
    "file": "front_armL.png",
    "bbox": [
-    0,
+    71,
     214,
     187,
-    403
+    338
    ],
    "pivot": [
     150,
     245
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": 34.937882758775245
+   "order": 60,
+   "rest": 34.69396704143713
+  },
+  {
+   "name": "foreR",
+   "file": "front_foreR.png",
+   "bbox": [
+    437,
+    286,
+    519,
+    400
+   ],
+   "pivot": [
+    457.3462998102467,
+    309.36337760910817
+   ],
+   "parent": "armR",
+   "order": 61,
+   "rest": 13.216894358075393
+  },
+  {
+   "name": "handR",
+   "file": "front_handR.png",
+   "bbox": [
+    471,
+    332,
+    549,
+    404
+   ],
+   "pivot": [
+    484.18459915611817,
+    357.82911392405066
+   ],
+   "parent": "foreR",
+   "order": 62,
+   "rest": -27.597492727231213
   },
   {
    "name": "armR",
@@ -110,16 +178,16 @@
    "bbox": [
     363,
     214,
-    549,
-    404
+    483,
+    338
    ],
    "pivot": [
     399,
     245
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": -34.32917408387703
+   "order": 60,
+   "rest": -36.19274587382205
   },
   {
    "name": "head",
@@ -135,7 +203,7 @@
     225
    ],
    "parent": "torso",
-   "order": 7,
+   "order": 70,
    "rest": 0.0
   }
  ]

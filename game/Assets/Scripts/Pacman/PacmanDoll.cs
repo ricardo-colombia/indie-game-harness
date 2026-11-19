@@ -189,6 +189,10 @@ namespace Studio.Pacman
             Set(d, "head", p.HeadRoll, 0f);
             Set(d, "armL", p.ArmL, 0f, p.ArmSL);
             Set(d, "armR", p.ArmR, 0f, p.ArmSR);
+            Set(d, "foreL", p.ForeL, 0f);
+            Set(d, "foreR", p.ForeR, 0f);
+            Set(d, "handL", 0.5f * p.ForeL, 0f);
+            Set(d, "handR", 0.5f * p.ForeR, 0f);
             Set(d, "thighL", p.ThighL, 0f);
             Set(d, "thighR", p.ThighR, 0f);
             Set(d, "shinL", p.ShinL, p.LiftL * inv);

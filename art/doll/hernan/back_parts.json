@@ -16,7 +16,7 @@
     575
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -33,7 +33,7 @@
     575
    ],
    "parent": null,
-   "order": 1,
+   "order": 10,
    "rest": 0.0
   },
   {
@@ -84,25 +84,93 @@
     560
    ],
    "parent": null,
-   "order": 5,
+   "order": 50,
    "rest": 0.0
+  },
+  {
+   "name": "foreL",
+   "file": "back_foreL.png",
+   "bbox": [
+    13,
+    260,
+    108,
+    367
+   ],
+   "pivot": [
+    79.29083665338645,
+    288.2414342629482
+   ],
+   "parent": "armL",
+   "order": 61,
+   "rest": -2.6805816725417344
+  },
+  {
+   "name": "handL",
+   "file": "back_handL.png",
+   "bbox": [
+    0,
+    308,
+    66,
+    371
+   ],
+   "pivot": [
+    55.18796992481203,
+    329.8390977443609
+   ],
+   "parent": "foreL",
+   "order": 62,
+   "rest": 27.97437125153897
   },
   {
    "name": "armL",
    "file": "back_armL.png",
    "bbox": [
-    0,
+    50,
     214,
     122,
-    371
+    318
    ],
    "pivot": [
     120,
     225
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": 30.827416103337924
+   "order": 60,
+   "rest": 26.769801514783865
+  },
+  {
+   "name": "foreR",
+   "file": "back_foreR.png",
+   "bbox": [
+    414,
+    261,
+    511,
+    366
+   ],
+   "pivot": [
+    441.4381568310428,
+    288.303961196443
+   ],
+   "parent": "armR",
+   "order": 61,
+   "rest": 1.7631237189260105
+  },
+  {
+   "name": "handR",
+   "file": "back_handR.png",
+   "bbox": [
+    455,
+    308,
+    521,
+    372
+   ],
+   "pivot": [
+    465.7827380952381,
+    329.1309523809524
+   ],
+   "parent": "foreR",
+   "order": 62,
+   "rest": -25.414776711091605
   },
   {
    "name": "armR",
@@ -110,16 +178,16 @@
    "bbox": [
     400,
     214,
-    521,
-    372
+    472,
+    318
    ],
    "pivot": [
     401,
     225
    ],
    "parent": "torso",
-   "order": 6,
-   "rest": -30.463994415844844
+   "order": 60,
+   "rest": -26.570174444190968
   },
   {
    "name": "head",
@@ -135,7 +203,7 @@
     175
    ],
    "parent": "torso",
-   "order": 7,
+   "order": 70,
    "rest": 0.0
   }
  ]

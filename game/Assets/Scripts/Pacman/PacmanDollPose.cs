@@ -12,7 +12,7 @@ namespace Studio.Pacman
     /// </summary>
     public struct DollPose
     {
-        public float RootRoll, RootSX, RootSY, Bob, TorsoRoll, HeadRoll, ArmL, ArmR, ThighL, ThighR, ShinL, ShinR, LiftL, LiftR, ArmSL, ArmSR;
+        public float RootRoll, RootSX, RootSY, Bob, TorsoRoll, HeadRoll, ArmL, ArmR, ForeL, ForeR, ThighL, ThighR, ShinL, ShinR, LiftL, LiftR, ArmSL, ArmSR;
 
         public static DollPose Identity => new DollPose { RootSX = 1f, RootSY = 1f, ArmSL = 1f, ArmSR = 1f };
 
@@ -22,7 +22,7 @@ namespace Studio.Pacman
             {
                 RootRoll = Mathf.Lerp(a.RootRoll, b.RootRoll, t), RootSX = Mathf.Lerp(a.RootSX, b.RootSX, t), RootSY = Mathf.Lerp(a.RootSY, b.RootSY, t),
                 Bob = Mathf.Lerp(a.Bob, b.Bob, t), TorsoRoll = Mathf.Lerp(a.TorsoRoll, b.TorsoRoll, t), HeadRoll = Mathf.Lerp(a.HeadRoll, b.HeadRoll, t),
-                ArmL = Mathf.Lerp(a.ArmL, b.ArmL, t), ArmR = Mathf.Lerp(a.ArmR, b.ArmR, t),
+                ArmL = Mathf.Lerp(a.ArmL, b.ArmL, t), ArmR = Mathf.Lerp(a.ArmR, b.ArmR, t), ForeL = Mathf.Lerp(a.ForeL, b.ForeL, t), ForeR = Mathf.Lerp(a.ForeR, b.ForeR, t),
                 ThighL = Mathf.Lerp(a.ThighL, b.ThighL, t), ThighR = Mathf.Lerp(a.ThighR, b.ThighR, t),
                 ShinL = Mathf.Lerp(a.ShinL, b.ShinL, t), ShinR = Mathf.Lerp(a.ShinR, b.ShinR, t),
                 LiftL = Mathf.Lerp(a.LiftL, b.LiftL, t), LiftR = Mathf.Lerp(a.LiftR, b.LiftR, t),
@@ -62,6 +62,8 @@ namespace Studio.Pacman
                 p.LiftR = t.SideFootLift * Mathf.Max(0f, -c);
                 p.ArmL = -t.SideArmSwing * s;
                 p.ArmR = t.SideArmSwing * s;
+                p.ForeL = 5f + 0.8f * Mathf.Max(0f, p.ArmL);   // the elbow bends as the arm swings forward
+                p.ForeR = 5f + 0.8f * Mathf.Max(0f, p.ArmR);
                 p.TorsoRoll = t.SideLean;
                 p.HeadRoll = -t.SideLean * 0.4f;
                 p.RootRoll = s * 1.5f;
