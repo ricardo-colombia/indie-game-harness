@@ -31,7 +31,7 @@
   <body>
     <canvas id="unity-canvas" tabindex="-1"></canvas>
     <div id="loading"><div id="title">COFFEE-MAN</div><div id="sub">La cosecha en la montaña</div><div id="bar"><div id="bar-fill"></div></div></div>
-    <script src="Build/cafe-web65.loader.js"></script>
+    <script src="Build/cafe-web66.loader.js"></script>
     <script>
       var canvas = document.querySelector("#unity-canvas");
 
@@ -43,13 +43,13 @@
       var isTouch = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1;
       var config = {
         arguments: [],
-        dataUrl: "Build/cafe-web65.data",
-        frameworkUrl: "Build/cafe-web65.framework.js",
-        codeUrl: "Build/cafe-web65.wasm",
+        dataUrl: "Build/cafe-web66.data",
+        frameworkUrl: "Build/cafe-web66.framework.js",
+        codeUrl: "Build/cafe-web66.wasm",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "game",
-        productVersion: "0.1.65",
+        productVersion: "0.1.66",
         // Phones report a pixel ratio of 3; two is plenty sharp and much lighter for the bloom pass.
         devicePixelRatio: Math.min(window.devicePixelRatio || 1, isTouch ? 2 : 3),
       };
