@@ -12,13 +12,15 @@ namespace Studio.Pacman
     public sealed class PacmanDoll : MonoBehaviour
     {
         [System.Serializable] private sealed class PartMeta { public string name, parent; public int ax, ay, aw, ah, bx, by, order; public float px, py, rest; }
-        [System.Serializable] private sealed class ViewMeta { public string name; public int w, h; public PartMeta[] parts; }
+        [System.Serializable] private sealed class SkinMeta { public string[] bones; public float[] vx, vy, bw; public int[] tris, bi; }
+        [System.Serializable] private sealed class ViewMeta { public string name; public int w, h; public PartMeta[] parts; public SkinMeta skin; }
         [System.Serializable] private sealed class Meta { public int figureHeight; public ViewMeta[] views; }
 
         private sealed class Data
         {
             public Meta Meta;
             public Texture2D[] Atlas; // [view]
+            public Texture2D[] Fig;   // [view] whole figure, for the skinned mesh (null when the view has none)
         }
 
         private sealed class Part
@@ -36,6 +38,8 @@ namespace Studio.Pacman
         public DollTuning Tuning = new DollTuning();
 
         private Transform[] roots = new Transform[3];
+        private SkinnedMeshRenderer[] skinRenderers = new SkinnedMeshRenderer[3];
+        private static Material skinMaterialSource;
         private Dictionary<string, Part>[] parts = new Dictionary<string, Part>[3];
         private float ppu;
         private DollView view = DollView.Front;
@@ -58,7 +62,7 @@ namespace Studio.Pacman
             if (json != null)
             {
                 Meta m = JsonUtility.FromJson<Meta>(json.text);
-                result = new Data { Meta = m, Atlas = new Texture2D[3] };
+                result = new Data { Meta = m, Atlas = new Texture2D[3], Fig = new Texture2D[3] };
                 for (int v = 0; v < 3; v++)
                 {
                     TextAsset png = PacmanTheme.GetText("doll_" + name + "_" + ViewNames[v]);
@@ -70,6 +74,13 @@ namespace Studio.Pacman
                     Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
                     tex.LoadImage(png.bytes);
                     result.Atlas[v] = tex;
+                    TextAsset fig = m.views[v].skin != null ? PacmanTheme.GetText("doll_" + name + "_" + ViewNames[v] + "_fig") : null;
+                    if (fig != null)
+                    {
+                        Texture2D ft = new Texture2D(2, 2, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+                        ft.LoadImage(fig.bytes);
+                        result.Fig[v] = ft;
+                    }
                 }
             }
             Cache[name] = result;
@@ -137,14 +148,73 @@ namespace Studio.Pacman
                         pos = new Vector3((p.px - pp.px) * scale, -(p.py - pp.py) * scale, 0f);
                     }
                     go.transform.localPosition = pos;
-                    SpriteRenderer sr = go.AddComponent<SpriteRenderer>();
-                    Vector2 pivot = new Vector2((p.px - p.bx) / p.aw, 1f - (p.py - p.by) / p.ah);
-                    sr.sprite = Sprite.Create(tex, new Rect(p.ax, tex.height - p.ay - p.ah, p.aw, p.ah), pivot, ppu, 0, SpriteMeshType.FullRect);
-                    sr.sortingOrder = p.order;
+                    SpriteRenderer sr = null;
+                    if (d.Fig[v] == null)
+                    {
+                        sr = go.AddComponent<SpriteRenderer>();
+                        Vector2 pivot = new Vector2((p.px - p.bx) / p.aw, 1f - (p.py - p.by) / p.ah);
+                        sr.sprite = Sprite.Create(tex, new Rect(p.ax, tex.height - p.ay - p.ah, p.aw, p.ah), pivot, ppu, 0, SpriteMeshType.FullRect);
+                        sr.sortingOrder = p.order;
+                    }
                     parts[v][p.name] = new Part { T = go.transform, Sr = sr, Base = pos, Name = p.name, Rest = p.rest };
                     pending.RemoveAt(i);
                 }
             }
+            if (d.Fig[v] != null)
+            {
+                BuildSkin(v, vm, d.Fig[v], cx, rootGo.transform);
+            }
+        }
+
+        /// <summary>One mesh for the whole figure, weighted to the bones (the part transforms) and skinned by Unity's own SkinnedMeshRenderer.</summary>
+        private void BuildSkin(int v, ViewMeta vm, Texture2D fig, float cx, Transform rootT)
+        {
+            SkinMeta k = vm.skin;
+            int n = k.vx.Length;
+            Vector3[] verts = new Vector3[n];
+            Vector2[] uvs = new Vector2[n];
+            BoneWeight[] bw = new BoneWeight[n];
+            for (int i = 0; i < n; i++)
+            {
+                verts[i] = new Vector3((k.vx[i] - cx) / ppu, k.vy[i] / ppu, 0f);
+                uvs[i] = new Vector2(k.vx[i] / fig.width, k.vy[i] / fig.height);
+                bw[i] = new BoneWeight
+                {
+                    boneIndex0 = k.bi[4 * i], boneIndex1 = k.bi[4 * i + 1], boneIndex2 = k.bi[4 * i + 2], boneIndex3 = k.bi[4 * i + 3],
+                    weight0 = k.bw[4 * i], weight1 = k.bw[4 * i + 1], weight2 = k.bw[4 * i + 2], weight3 = k.bw[4 * i + 3],
+                };
+            }
+            Mesh mesh = new Mesh { name = "doll_skin_" + vm.name, vertices = verts, uv = uvs, triangles = k.tris, boneWeights = bw };
+            GameObject go = new GameObject("skin");
+            go.transform.SetParent(rootT, false);
+            Transform[] bones = new Transform[k.bones.Length];
+            Matrix4x4[] bind = new Matrix4x4[bones.Length];
+            for (int i = 0; i < bones.Length; i++)
+            {
+                bones[i] = parts[v][k.bones[i]].T;
+                bind[i] = bones[i].worldToLocalMatrix * go.transform.localToWorldMatrix;
+            }
+            mesh.bindposes = bind;
+            mesh.bounds = new Bounds(new Vector3(0f, 0.9f, 0f), new Vector3(3f, 3f, 1f));
+            if (skinMaterialSource == null)
+            {
+                GameObject probe = new GameObject("probe");
+                SpriteRenderer pr = probe.AddComponent<SpriteRenderer>();
+                skinMaterialSource = pr.sharedMaterial;
+                if (Application.isPlaying) { Destroy(probe); } else { DestroyImmediate(probe); }
+            }
+            Material mat = new Material(skinMaterialSource) { mainTexture = fig, color = colour };
+            SkinnedMeshRenderer smr = go.AddComponent<SkinnedMeshRenderer>();
+            smr.sharedMesh = mesh;
+            smr.bones = bones;
+            smr.rootBone = parts[v]["torso"].T;
+            smr.sharedMaterial = mat;
+            smr.quality = SkinQuality.Bone4;
+            smr.updateWhenOffscreen = true;
+            smr.shadowCastingMode = ShadowCastingMode.Off;
+            smr.receiveShadows = false;
+            smr.sortingOrder = 0;
+            skinRenderers[v] = smr;
         }
 
         private void SetView(DollView v, bool mirrored)
@@ -219,8 +289,12 @@ namespace Studio.Pacman
                 {
                     foreach (Part p in d.Values)
                     {
-                        p.Sr.color = value;
+                        if (p.Sr != null) { p.Sr.color = value; }
                     }
+                }
+                foreach (SkinnedMeshRenderer sk in skinRenderers)
+                {
+                    if (sk != null) { sk.material.color = value; }
                 }
             }
         }
@@ -233,7 +307,7 @@ namespace Studio.Pacman
                 visible = value;
                 foreach (Transform r in roots)
                 {
-                    foreach (SpriteRenderer sr in r.GetComponentsInChildren<SpriteRenderer>(true))
+                    foreach (Renderer sr in r.GetComponentsInChildren<Renderer>(true))
                     {
                         sr.enabled = value;
                     }
