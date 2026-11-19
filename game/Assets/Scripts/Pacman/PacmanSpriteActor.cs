@@ -38,7 +38,8 @@ namespace Studio.Pacman
         /// <summary>The sheet "anim_NAME" from the theme, or null when the theme has none.</summary>
         public static PacmanSpriteActor Create(string name, Transform parent, float height, float footY, int sortingOrder)
         {
-            if (PacmanDoll.Exists(name))
+            Cut sheet = Load(name, height);
+            if (sheet == null && PacmanDoll.Exists(name))
             {
                 GameObject dg = new GameObject(name + "Doll");
                 dg.transform.SetParent(parent, false);
@@ -49,7 +50,7 @@ namespace Studio.Pacman
                 da.doll = PacmanDoll.Build(name, dg, height, sortingOrder);
                 return da;
             }
-            Cut c = Load(name, height);
+            Cut c = sheet;
             if (c == null)
             {
                 return null;

@@ -34,6 +34,13 @@ def pot(n):
     return k
 canvas = Image.new("RGBA", (pot(sheet.width), pot(sheet.height)), (0, 0, 0, 0))
 canvas.alpha_composite(sheet, (0, 0))   # top-left, so rows are still counted from the top
+# the scene's bloom starts at 0.9: roll the highlights off below it so painted whites (hat, shirt) do not glow out of the level
+import numpy as np
+a = np.array(canvas).astype(np.float32) / 255.0
+rgb = a[..., :3]; k = 0.72; top = 0.84
+rgb = np.where(rgb > k, k + (rgb - k) / (1 - k) * (top - k), rgb)
+a[..., :3] = rgb
+canvas = Image.fromarray((a * 255 + 0.5).astype(np.uint8), "RGBA")
 canvas.save(os.path.join(OUT, f"anim_{name}.png"), optimize=True)
 sheet = canvas
 # import settings: no mipmaps / compression / rescale, so frame rectangles stay exact
